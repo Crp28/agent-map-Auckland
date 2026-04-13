@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import "@arcgis/core/assets/esri/themes/light/main.css";
 import "./globals.css";
 
 export const metadata: Metadata = {

@@ -11,6 +11,8 @@
 - 2026-04-13: Added backend foundations: SQLite schema/init, validation schemas, Auckland Council GeoMaps address lookup and boundary sync, map/search/nearby repositories, People CSV import, API routes, and `npm run sync:geomaps`.
 - 2026-04-13: Refactored SQLite and Drizzle access to lazy initialization so Next's parallel build workers do not open the database at module import time.
 - 2026-04-13: Verified the backend slice with `npm run lint`, `npm run build`, and `npm run sync:geomaps`. The sync script fetched 18 subdivision outline records into `data/locationfinder.db`, which is intentionally ignored by Git.
+- 2026-04-13: Added the main map workspace with ArcGIS rendering, sold-property pins, people dots, boundary outlines, top-right search, date/price filters, add dialogs, CSV import dialog, nearby-people panel, and manual GeoMaps sync action.
+- 2026-04-13: Verified the UI slice with `npm run lint` and `npm run build`. ArcGIS did not accept a literal `"pin"` simple marker style, so sold properties use a path-based pin marker.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.

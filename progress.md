@@ -10,3 +10,5 @@
 - Added SQLite schema/init, validation, GeoMaps geocoding and boundary sync services, repositories, CSV import logic, API routes, and the `sync:geomaps` script.
 - Refactored database access to lazy initialization after `next build` exposed parallel SQLite locking during API route collection.
 - Verified the backend slice with `npm run lint`, `npm run build`, and `npm run sync:geomaps`; the sync script fetched 18 GeoMaps boundary records into the ignored local SQLite database.
+- Added the full-screen map workspace, filters, search, dialogs, CSV import entry point, nearby-people panel, and GeoMaps sync action.
+- Verified the UI slice with `npm run lint` and `npm run build`.
