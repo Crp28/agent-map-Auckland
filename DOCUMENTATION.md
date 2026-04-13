@@ -17,6 +17,7 @@
 - 2026-04-13: Added `README.md` with setup, commands, SQLite path behavior, GeoMaps endpoints and refresh policy, CSV format, and v1 assumptions.
 - 2026-04-13: Fixed the CSV import route test setup by isolating the route contract with a minimal `formData()` request object after jsdom rejected direct multipart setup.
 - 2026-04-13: Verified tests, lint, and production build. The test suite has 5 files and 11 passing tests.
+- 2026-04-13: Started the dev server on `http://127.0.0.1:3000` and confirmed the app endpoint returned HTTP 200.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.

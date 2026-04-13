@@ -11,3 +11,5 @@ coverage
 *.db-wal
 drizzle
 *.tsbuildinfo
+dev-server.log
+dev-server.err
