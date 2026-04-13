@@ -25,11 +25,16 @@
 - 2026-04-13: Investigated a contact CSV CLI import timeout. The root cause was serial geocoding for hundreds of valid contacts; the CLI import now skips geocoding for bulk speed and preserves existing coordinates on updates.
 - 2026-04-13: Imported `695023-69d71c7b67df2.csv` into SQLite. Result: 401 imported, 6 updated, 55 duplicates, 1711 invalid/skipped. The People table now contains 462 rows, with 6 currently geocoded.
 - 2026-04-13: Verified the suburb-list/contact-import changes with `npm run test`, `npm run lint`, and `npm run build`.
+- 2026-04-13: Moved the Auckland suburb navigation under the right-side search/action controls. It is closed by default and only exposes the `<` handle until opened.
+- 2026-04-13: Changed suburb-list map navigation to pan to the selected boundary center and zoom out to the farthest configured ArcGIS level.
+- 2026-04-13: Browser-checked the drawer with `agent-browser`; the closed state exposes only the handle, the expanded state shows suburb rows, selecting a row closes the drawer, and the map reaches the minimum zoom level.
+- 2026-04-13: Verified the new TODO drawer/zoom changes with `npm run test`, `npm run lint`, and `npm run build`.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
 - Address geocoding uses Auckland Council Address MapServer, with optional manual latitude/longitude fallback.
 - Purchasing power is represented as optional numeric minimum and maximum values.
+- The suburb navigation is hidden behind a right-side handle by default so the main map remains the primary workspace.
 
 ## Notes
 - Use `cmd /c npm ...`, `npm.cmd`, or `npx.cmd` in PowerShell because this machine blocks `npm.ps1`.

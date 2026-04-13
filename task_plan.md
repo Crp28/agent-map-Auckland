@@ -11,6 +11,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 5. Complete: Add tests, README, final documentation updates, verification, and final commit.
 6. Complete: Apply TODO.md map zoom-out change.
 7. Complete: Apply TODO.md suburb side-list and contact CSV import changes.
+8. Complete: Apply TODO.md right-side hidden suburb list and maximum zoom-out navigation changes.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.
@@ -29,3 +30,5 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 | Import route test failed constructing a `File` for `FormData.set` | Test verification | Root cause was jsdom/FormData object compatibility in the test; switched to a `Blob` plus filename. |
 | Import route test still failed through jsdom `FormData.set` | Test verification | Isolated route behavior with a minimal request object returning a `File` from `formData()`. |
 | Contact CSV CLI import timed out after 5 minutes | Bulk import | Root cause was serial geocoding for hundreds of valid contacts; changed CLI bulk import to skip geocoding and preserve existing coordinates. |
+| `agent-browser batch` failed without useful output on Windows quoting | Browser smoke check | Switched to individual `agent-browser` commands and verified the UI behavior step by step. |
+| Selected-boundary map navigation still fit the region extent while setting `zoom` | Browser smoke check | Changed the `goTo` target from polygon extent to boundary center and lowered the configured minimum zoom to the farthest ArcGIS level. |

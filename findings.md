@@ -13,6 +13,11 @@
 
 ## Tooling
 - PowerShell blocks `npm.ps1`; use `cmd /c npm ...`, `npm.cmd`, or `npx.cmd`.
+- `agent-browser` is available as `agent-browser 0.25.4`. On this Windows shell, individual commands were more reliable than the first attempted quoted `batch` invocation.
+
+## Map UI
+- Closed right-side suburb navigation should render only the handle, not offscreen row buttons, so hidden rows are not keyboard or screen-reader reachable.
+- ArcGIS `goTo` with a polygon extent target can fit that extent even when a `zoom` value is supplied; using the boundary center as the target allows the requested maximum zoom-out level to apply.
 
 ## CSV Import
 - `695023-69d71c7b67df2.csv` is a contact export with 2173 rows: 2127 `Person` contacts and 46 `Business` contacts.

@@ -48,7 +48,7 @@ export function LocationFinderApp() {
   const [personDialogOpen, setPersonDialogOpen] = useState(false);
   const [propertyDialogOpen, setPropertyDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [suburbListOpen, setSuburbListOpen] = useState(true);
+  const [suburbListOpen, setSuburbListOpen] = useState(false);
   const [selectedBoundaryId, setSelectedBoundaryId] = useState<number | undefined>();
 
   const refresh = useCallback(() => setRefreshKey((value) => value + 1), []);
@@ -188,49 +188,6 @@ export function LocationFinderApp() {
         onSelectSoldProperty={selectSoldProperty}
       />
 
-      <aside
-        className={`absolute left-3 top-3 z-30 max-h-[calc(100dvh-1.5rem)] w-[min(86vw,300px)] transition-transform duration-200 ${
-          suburbListOpen ? "translate-x-0" : "-translate-x-[calc(100%-44px)]"
-        }`}
-        aria-label="Auckland suburb navigation"
-      >
-        <div className="flex overflow-hidden rounded-md border border-[#cbd5e1] bg-white shadow-lg">
-          <div className="w-full min-w-0">
-            <div className="border-b border-[#e2e8f0] px-3 py-3">
-              <p className="text-sm font-semibold text-[#111827]">Auckland suburbs</p>
-              <p className="text-xs leading-5 text-[#64748b]">Select a region to move the map.</p>
-            </div>
-            <div className="max-h-[calc(100dvh-9rem)] overflow-auto">
-              {suburbRegions.map((region) => (
-                <button
-                  key={region.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedBoundaryId(region.id);
-                    setSuburbListOpen(false);
-                  }}
-                  className={`block min-h-11 w-full border-b border-[#e2e8f0] px-3 py-2 text-left text-sm last:border-b-0 hover:bg-[#eef3f8] focus:bg-[#eef3f8] focus:outline-none ${
-                    selectedBoundaryId === region.id ? "bg-[#e8f2fc] text-[#0056a7]" : "text-[#111827]"
-                  }`}
-                >
-                  <span className="block font-semibold">{region.name}</span>
-                  <span className="block text-xs text-[#64748b]">{region.board ?? region.ward ?? "Auckland"}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setSuburbListOpen((open) => !open)}
-            aria-expanded={suburbListOpen}
-            className="grid min-h-11 min-w-11 place-items-center border-l border-[#e2e8f0] bg-[#f8fafc] text-[#334155] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
-          >
-            {suburbListOpen ? <ChevronLeft aria-hidden="true" size={20} /> : <ChevronRight aria-hidden="true" size={20} />}
-            <span className="sr-only">{suburbListOpen ? "Collapse suburb list" : "Open suburb list"}</span>
-          </button>
-        </div>
-      </aside>
-
       <section className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col gap-3 p-3 md:items-end">
         <div className="pointer-events-auto w-full max-w-xl rounded-md border border-[#cbd5e1] bg-white p-3 shadow-lg">
           <div className="relative">
@@ -333,6 +290,59 @@ export function LocationFinderApp() {
             <Database aria-hidden="true" size={18} />
             Sync GeoMaps
           </button>
+        </div>
+
+        <div
+          className={`pointer-events-none relative w-full max-w-xl overflow-visible transition-[height] duration-200 ${
+            suburbListOpen ? "h-[min(420px,calc(100dvh-19rem))]" : "h-11"
+          }`}
+        >
+          <aside
+            className={`pointer-events-auto absolute right-0 top-0 flex max-h-[min(420px,calc(100dvh-19rem))] w-[min(86vw,340px)] overflow-hidden rounded-md border border-[#cbd5e1] bg-white shadow-lg transition-transform duration-200 ${
+              suburbListOpen ? "translate-x-0" : "translate-x-[calc(100%-44px)]"
+            }`}
+            aria-label="Auckland suburb navigation"
+          >
+            <button
+              type="button"
+              onClick={() => setSuburbListOpen((open) => !open)}
+              aria-expanded={suburbListOpen}
+              className="grid min-h-11 min-w-11 place-items-center border-r border-[#e2e8f0] bg-[#f8fafc] text-[#334155] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+            >
+              {suburbListOpen ? (
+                <ChevronRight aria-hidden="true" size={20} />
+              ) : (
+                <ChevronLeft aria-hidden="true" size={20} />
+              )}
+              <span className="sr-only">{suburbListOpen ? "Collapse suburb list" : "Open suburb list"}</span>
+            </button>
+            {suburbListOpen ? (
+              <div className="min-w-0 flex-1">
+                <div className="border-b border-[#e2e8f0] px-3 py-3">
+                  <p className="text-sm font-semibold text-[#111827]">Auckland suburbs</p>
+                  <p className="text-xs leading-5 text-[#64748b]">Select a region to move the map.</p>
+                </div>
+                <div className="max-h-[calc(min(420px,100dvh-19rem)-69px)] overflow-auto">
+                  {suburbRegions.map((region) => (
+                    <button
+                      key={region.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedBoundaryId(region.id);
+                        setSuburbListOpen(false);
+                      }}
+                      className={`block min-h-11 w-full border-b border-[#e2e8f0] px-3 py-2 text-left text-sm last:border-b-0 hover:bg-[#eef3f8] focus:bg-[#eef3f8] focus:outline-none ${
+                        selectedBoundaryId === region.id ? "bg-[#e8f2fc] text-[#0056a7]" : "text-[#111827]"
+                      }`}
+                    >
+                      <span className="block font-semibold">{region.name}</span>
+                      <span className="block text-xs text-[#64748b]">{region.board ?? region.ward ?? "Auckland"}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </aside>
         </div>
       </section>
 

@@ -31,6 +31,7 @@ function makePoint(longitude: number, latitude: number) {
 }
 
 const aucklandOverviewCenter: [number, number] = [174.83, -36.78];
+const aucklandMinZoom = 0;
 
 export function AucklandMap({
   people,
@@ -75,7 +76,7 @@ export function AucklandMap({
       center: aucklandOverviewCenter,
       zoom: 8,
       constraints: {
-        minZoom: 6,
+        minZoom: aucklandMinZoom,
         maxZoom: 19,
       },
     });
@@ -219,11 +220,12 @@ export function AucklandMap({
       rings: boundary.geometry.rings,
       spatialReference: { wkid: 4326 },
     });
+    const center = polygon.extent?.center;
 
     void view.goTo(
       {
-        target: polygon.extent?.expand(1.3) ?? polygon,
-        zoom: Math.max(view.zoom, 10),
+        target: center ?? polygon,
+        zoom: aucklandMinZoom,
       },
       { duration: 450 },
     );

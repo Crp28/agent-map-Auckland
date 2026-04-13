@@ -24,3 +24,8 @@
 - Investigated the contact CSV import timeout; 61 people imported before timeout, and the CLI path now skips bulk geocoding to complete the remaining valid rows quickly.
 - Imported `695023-69d71c7b67df2.csv` into SQLite: 401 imported, 6 updated, 55 duplicates, 1711 invalid/skipped. The People table now contains 462 rows; 6 currently have coordinates.
 - Verified the TODO suburb-list/contact-import changes with `npm run test`, `npm run lint`, and `npm run build`.
+- Started the new TODO.md request to move the suburb list under the right-side search/buttons stack, hide it by default behind a small handle, and use maximum zoom-out after side-list map navigation.
+- Moved the suburb navigation into the top-right control stack, defaulted it closed, and render the list rows only while expanded so the closed state exposes only the `<` handle.
+- Changed side-list map navigation to target the boundary center and use ArcGIS zoom level 0, the farthest available zoom-out level in this app.
+- Browser-checked the drawer with `agent-browser`: closed state exposes only the handle, opening shows the suburb rows, selecting a region closes the drawer, and the zoom-out control is disabled afterward because the map is at its minimum zoom.
+- Verified the new TODO change with `npm run test`, `npm run lint`, and `npm run build`.
