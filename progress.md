@@ -17,3 +17,5 @@
 - Fixed the CSV import route test setup by isolating the route contract with a minimal `formData()` request object.
 - Verified tests, lint, and production build: 5 test files and 11 tests passed, `npm run lint` passed, and `npm run build` passed.
 - Started the dev server on `http://127.0.0.1:3000` and confirmed the app endpoint returned HTTP 200.
+- Updated the map overview center/zoom and lowered the minimum zoom to support an all-Auckland view.
+- Verified the TODO.md map zoom-out change with `npm run lint`, `npm run build`, and `npm run test`.

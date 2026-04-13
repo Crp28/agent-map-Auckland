@@ -29,6 +29,8 @@ function makePoint(longitude: number, latitude: number) {
   });
 }
 
+const aucklandOverviewCenter: [number, number] = [174.83, -36.78];
+
 export function AucklandMap({
   people,
   soldProperties,
@@ -68,10 +70,10 @@ export function AucklandMap({
     const view = new MapView({
       container: containerRef.current,
       map,
-      center: [174.7633, -36.8485],
-      zoom: 10,
+      center: aucklandOverviewCenter,
+      zoom: 8,
       constraints: {
-        minZoom: 8,
+        minZoom: 6,
         maxZoom: 19,
       },
     });

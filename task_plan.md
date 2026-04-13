@@ -9,6 +9,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 3. Complete: Implement database, validation, GeoMaps/geocoding, sync services, and API routes.
 4. Complete: Implement map UI, filters, search, forms, modals, CSV import, and status display.
 5. Complete: Add tests, README, final documentation updates, verification, and final commit.
+6. Complete: Apply TODO.md map zoom-out change.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.
