@@ -39,10 +39,11 @@ export type BoundaryRecord = {
 };
 
 export type SuburbRegion = {
-  id: number;
+  key: string;
   name: string;
-  board: string | null;
-  ward: string | null;
+  area: string;
+  boundarySubdivision: string;
+  boundaryId?: number;
 };
 
 export type SyncRecord = {

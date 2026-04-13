@@ -12,6 +12,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 6. Complete: Apply TODO.md map zoom-out change.
 7. Complete: Apply TODO.md suburb side-list and contact CSV import changes.
 8. Complete: Apply TODO.md right-side hidden suburb list and maximum zoom-out navigation changes.
+9. Complete: Apply TODO.md suburb search/list, editable details, delete actions, and record-manager modal changes.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.
@@ -32,3 +33,5 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 | Contact CSV CLI import timed out after 5 minutes | Bulk import | Root cause was serial geocoding for hundreds of valid contacts; changed CLI bulk import to skip geocoding and preserve existing coordinates. |
 | `agent-browser batch` failed without useful output on Windows quoting | Browser smoke check | Switched to individual `agent-browser` commands and verified the UI behavior step by step. |
 | Selected-boundary map navigation still fit the region extent while setting `zoom` | Browser smoke check | Changed the `goTo` target from polygon extent to boundary center and lowered the configured minimum zoom to the farthest ArcGIS level. |
+| React hooks lint rejected manager record loading from an effect | Lint verification | Root cause was state-setting work hidden behind a loader called directly from the effect; split fetch and state update so the effect updates state from promise continuations. |
+| PowerShell treated expected API 404 responses as command failures | API smoke check | Re-ran the probes with `try/catch` and inspected response status/body directly. |

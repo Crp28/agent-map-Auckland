@@ -120,6 +120,100 @@ export async function createOrUpdateSoldProperty(input: SoldPropertyInput) {
   return db.query.soldProperties.findFirst({ where: eq(soldProperties.identityKey, identityKey) });
 }
 
+export async function listPeopleRecords() {
+  ensureDatabase();
+  return getDb().query.people.findMany({ orderBy: desc(people.updatedAt) });
+}
+
+export async function listSoldPropertyRecords() {
+  ensureDatabase();
+  return getDb().query.soldProperties.findMany({ orderBy: desc(soldProperties.updatedAt) });
+}
+
+export async function updatePersonById(id: number, input: PersonInput) {
+  ensureDatabase();
+  const db = getDb();
+  const existing = await db.query.people.findFirst({ where: eq(people.id, id) });
+  if (!existing) {
+    return null;
+  }
+
+  const timestamp = nowIso();
+  const coordinates = await resolveCoordinates(input);
+
+  await db
+    .update(people)
+    .set({
+      identityKey: normalizeKey(input.name, input.streetAddress, input.suburb),
+      name: normalizeText(input.name),
+      streetAddress: normalizeText(input.streetAddress),
+      suburb: normalizeText(input.suburb),
+      phone: normalizeText(input.phone),
+      email: input.email.trim().toLowerCase(),
+      purchasingPowerMin: input.purchasingPowerMin,
+      purchasingPowerMax: input.purchasingPowerMax,
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+      lastUpdatedAt: timestamp,
+      updatedAt: timestamp,
+    })
+    .where(eq(people.id, id));
+
+  return db.query.people.findFirst({ where: eq(people.id, id) });
+}
+
+export async function updateSoldPropertyById(id: number, input: SoldPropertyInput) {
+  ensureDatabase();
+  const db = getDb();
+  const existing = await db.query.soldProperties.findFirst({ where: eq(soldProperties.id, id) });
+  if (!existing) {
+    return null;
+  }
+
+  const timestamp = nowIso();
+  const coordinates = await resolveCoordinates(input);
+
+  await db
+    .update(soldProperties)
+    .set({
+      identityKey: normalizeKey(input.streetAddress, input.suburb, input.lastSoldDate),
+      streetAddress: normalizeText(input.streetAddress),
+      suburb: normalizeText(input.suburb),
+      lastSoldDate: input.lastSoldDate,
+      soldPrice: input.soldPrice,
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+      updatedAt: timestamp,
+    })
+    .where(eq(soldProperties.id, id));
+
+  return db.query.soldProperties.findFirst({ where: eq(soldProperties.id, id) });
+}
+
+export async function deletePersonById(id: number) {
+  ensureDatabase();
+  const db = getDb();
+  const existing = await db.query.people.findFirst({ where: eq(people.id, id) });
+  if (!existing) {
+    return false;
+  }
+
+  await db.delete(people).where(eq(people.id, id));
+  return true;
+}
+
+export async function deleteSoldPropertyById(id: number) {
+  ensureDatabase();
+  const db = getDb();
+  const existing = await db.query.soldProperties.findFirst({ where: eq(soldProperties.id, id) });
+  if (!existing) {
+    return false;
+  }
+
+  await db.delete(soldProperties).where(eq(soldProperties.id, id));
+  return true;
+}
+
 export async function getMapData(filters: {
   from: string;
   to: string;

@@ -18,6 +18,12 @@
 ## Map UI
 - Closed right-side suburb navigation should render only the handle, not offscreen row buttons, so hidden rows are not keyboard or screen-reader reachable.
 - ArcGIS `goTo` with a polygon extent target can fit that extent even when a `zoom` value is supplied; using the boundary center as the target allows the requested maximum zoom-out level to apply.
+- The right-side suburb drawer overlaps the nearby people panel at a 720px-tall viewport when expanded to `h-72`; `h-56` leaves visible separation while keeping the suburb rows scrollable.
+- The v1 suburb catalog now maps central, northern, and eastern suburb names onto the available cached GeoMaps subdivision boundary groups; individual suburb polygons are still not available from the current v1 boundary cache.
+
+## Record Management
+- The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.
+- React hooks lint treats state-setting loaders called directly from effects as synchronous effect state updates; using a fetch helper and setting state from the promise continuation satisfies the rule.
 
 ## CSV Import
 - `695023-69d71c7b67df2.csv` is a contact export with 2173 rows: 2127 `Person` contacts and 46 `Business` contacts.

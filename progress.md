@@ -29,3 +29,11 @@
 - Changed side-list map navigation to target the boundary center and use ArcGIS zoom level 0, the farthest available zoom-out level in this app.
 - Browser-checked the drawer with `agent-browser`: closed state exposes only the handle, opening shows the suburb rows, selecting a region closes the drawer, and the zoom-out control is disabled afterward because the map is at its minimum zoom.
 - Verified the new TODO change with `npm run test`, `npm run lint`, and `npm run build`.
+- Started the next TODO.md request: shorten the suburb drawer, add a suburb search with broader Auckland suburb coverage, support inline editing/deletion in details modals, and replace direct add buttons with record manager lists.
+- Added an Auckland suburb catalog covering central, northern, and eastern suburbs, plus a mini suburb filter in the right-side drawer.
+- Shortened the expanded suburb drawer to avoid overlap with the nearby people panel at the tested viewport.
+- Added `GET`, `PATCH`, and `DELETE` behavior to People and Sold Property API routes, with repository helpers for all-record lists, updates, and deletes.
+- Changed the Person and Sold Property top buttons to open manager dialogs listing existing records with details, delete, and add actions.
+- Added double-click editable detail rows and red delete controls with confirmation for People and Sold Property details.
+- Fixed the manager record-loading effect after ESLint flagged synchronous effect-triggered state updates.
+- Verified the new TODO slice with `npm run test`, `npm run lint`, `npm run build`, `agent-browser` drawer/manager smoke checks, and non-mutating API probes for list/update/delete behavior.

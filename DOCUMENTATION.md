@@ -29,12 +29,20 @@
 - 2026-04-13: Changed suburb-list map navigation to pan to the selected boundary center and zoom out to the farthest configured ArcGIS level.
 - 2026-04-13: Browser-checked the drawer with `agent-browser`; the closed state exposes only the handle, the expanded state shows suburb rows, selecting a row closes the drawer, and the map reaches the minimum zoom level.
 - 2026-04-13: Verified the new TODO drawer/zoom changes with `npm run test`, `npm run lint`, and `npm run build`.
+- 2026-04-13: Added a central/northern/eastern Auckland suburb catalog with a mini search field in the right-side suburb drawer. The entries map to the cached GeoMaps subdivision groups available in v1.
+- 2026-04-13: Shortened the suburb drawer to avoid overlap with the nearby people panel at the tested browser viewport.
+- 2026-04-13: Added all-record `GET`, validated `PATCH`, and confirmed `DELETE` support for People and Sold Property API routes.
+- 2026-04-13: Replaced direct Person/Sold Property add behavior with manager dialogs listing existing records, each with details and delete actions plus an add button.
+- 2026-04-13: Added double-click inline editing for detail fields and red delete controls with confirmation in People and Sold Property detail modals.
+- 2026-04-13: Verified the record-management TODO slice with `npm run test`, `npm run lint`, `npm run build`, `agent-browser` drawer/manager checks, and non-mutating API probes.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
 - Address geocoding uses Auckland Council Address MapServer, with optional manual latitude/longitude fallback.
 - Purchasing power is represented as optional numeric minimum and maximum values.
 - The suburb navigation is hidden behind a right-side handle by default so the main map remains the primary workspace.
+- Person and Sold Property managers use the full database list, while the map still uses filtered/geocoded records for rendering.
+- The broader suburb list is a v1 navigation catalog mapped onto available Council subdivision boundaries, not individual suburb polygon geometry.
 
 ## Notes
 - Use `cmd /c npm ...`, `npm.cmd`, or `npx.cmd` in PowerShell because this machine blocks `npm.ps1`.

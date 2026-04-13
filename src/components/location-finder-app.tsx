@@ -6,7 +6,9 @@ import {
   AddSoldPropertyDialog,
   DetailsDialog,
   ImportPeopleDialog,
+  RecordManagerDialog,
 } from "@/components/record-dialogs";
+import { AUCKLAND_SUBURBS } from "@/lib/auckland-suburbs";
 import type {
   MapData,
   PersonRecord,
@@ -47,8 +49,11 @@ export function LocationFinderApp() {
   const [notice, setNotice] = useState<string | null>(null);
   const [personDialogOpen, setPersonDialogOpen] = useState(false);
   const [propertyDialogOpen, setPropertyDialogOpen] = useState(false);
+  const [personManagerOpen, setPersonManagerOpen] = useState(false);
+  const [propertyManagerOpen, setPropertyManagerOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [suburbListOpen, setSuburbListOpen] = useState(false);
+  const [suburbQuery, setSuburbQuery] = useState("");
   const [selectedBoundaryId, setSelectedBoundaryId] = useState<number | undefined>();
 
   const refresh = useCallback(() => setRefreshKey((value) => value + 1), []);
@@ -141,16 +146,27 @@ export function LocationFinderApp() {
 
   const highlightedPersonIds = useMemo(() => nearbyPeople.map((person) => person.id), [nearbyPeople]);
   const suburbRegions = useMemo<SuburbRegion[]>(
-    () =>
-      mapData.boundaries
-        .map((boundary) => ({
-          id: boundary.id,
-          name: boundary.subdivision,
-          board: boundary.board,
-          ward: boundary.ward,
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [mapData.boundaries],
+    () => {
+      const boundariesBySubdivision = new Map(
+        mapData.boundaries.map((boundary) => [boundary.subdivision.toLowerCase(), boundary.id]),
+      );
+      const normalizedQuery = suburbQuery.trim().toLowerCase();
+
+      return AUCKLAND_SUBURBS.filter(
+        (suburb) =>
+          !normalizedQuery ||
+          suburb.name.toLowerCase().includes(normalizedQuery) ||
+          suburb.area.toLowerCase().includes(normalizedQuery) ||
+          suburb.boundarySubdivision.toLowerCase().includes(normalizedQuery),
+      ).map((suburb) => ({
+        key: `${suburb.area}-${suburb.name}`,
+        name: suburb.name,
+        area: suburb.area,
+        boundarySubdivision: suburb.boundarySubdivision,
+        boundaryId: boundariesBySubdivision.get(suburb.boundarySubdivision.toLowerCase()),
+      }));
+    },
+    [mapData.boundaries, suburbQuery],
   );
 
   function onSearchResultClick(result: SearchResult) {
@@ -260,7 +276,7 @@ export function LocationFinderApp() {
         <div className="pointer-events-auto flex w-full max-w-xl flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => setPropertyDialogOpen(true)}
+            onClick={() => setPropertyManagerOpen(true)}
             className="inline-flex min-h-11 items-center gap-2 rounded-md bg-[#0056a7] px-3 py-2 text-sm font-semibold text-white hover:bg-[#004780] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
           >
             <Plus aria-hidden="true" size={18} />
@@ -268,7 +284,7 @@ export function LocationFinderApp() {
           </button>
           <button
             type="button"
-            onClick={() => setPersonDialogOpen(true)}
+            onClick={() => setPersonManagerOpen(true)}
             className="inline-flex min-h-11 items-center gap-2 rounded-md bg-[#111827] px-3 py-2 text-sm font-semibold text-white hover:bg-[#1f2937] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
           >
             <Users aria-hidden="true" size={18} />
@@ -294,11 +310,11 @@ export function LocationFinderApp() {
 
         <div
           className={`pointer-events-none relative w-full max-w-xl overflow-visible transition-[height] duration-200 ${
-            suburbListOpen ? "h-[min(420px,calc(100dvh-19rem))]" : "h-11"
+            suburbListOpen ? "h-56" : "h-11"
           }`}
         >
           <aside
-            className={`pointer-events-auto absolute right-0 top-0 flex max-h-[min(420px,calc(100dvh-19rem))] w-[min(86vw,340px)] overflow-hidden rounded-md border border-[#cbd5e1] bg-white shadow-lg transition-transform duration-200 ${
+            className={`pointer-events-auto absolute right-0 top-0 flex max-h-56 w-[min(86vw,340px)] overflow-hidden rounded-md border border-[#cbd5e1] bg-white shadow-lg transition-transform duration-200 ${
               suburbListOpen ? "translate-x-0" : "translate-x-[calc(100%-44px)]"
             }`}
             aria-label="Auckland suburb navigation"
@@ -320,25 +336,41 @@ export function LocationFinderApp() {
               <div className="min-w-0 flex-1">
                 <div className="border-b border-[#e2e8f0] px-3 py-3">
                   <p className="text-sm font-semibold text-[#111827]">Auckland suburbs</p>
-                  <p className="text-xs leading-5 text-[#64748b]">Select a region to move the map.</p>
+                  <label className="mt-2 block text-xs font-medium text-[#475569]">
+                    Filter suburbs
+                    <input
+                      value={suburbQuery}
+                      onChange={(event) => setSuburbQuery(event.target.value)}
+                      className="mt-1 min-h-10 w-full rounded-md border border-[#cbd5e1] px-3 text-sm text-[#111827] outline-none focus:border-[#0056a7] focus:ring-2 focus:ring-[#0056a7]/20"
+                      placeholder="Search central, north, east"
+                    />
+                  </label>
                 </div>
-                <div className="max-h-[calc(min(420px,100dvh-19rem)-69px)] overflow-auto">
+                <div className="max-h-28 overflow-auto">
                   {suburbRegions.map((region) => (
                     <button
-                      key={region.id}
+                      key={region.key}
                       type="button"
                       onClick={() => {
-                        setSelectedBoundaryId(region.id);
+                        if (region.boundaryId) {
+                          setSelectedBoundaryId(region.boundaryId);
+                        }
                         setSuburbListOpen(false);
                       }}
+                      disabled={!region.boundaryId}
                       className={`block min-h-11 w-full border-b border-[#e2e8f0] px-3 py-2 text-left text-sm last:border-b-0 hover:bg-[#eef3f8] focus:bg-[#eef3f8] focus:outline-none ${
-                        selectedBoundaryId === region.id ? "bg-[#e8f2fc] text-[#0056a7]" : "text-[#111827]"
+                        selectedBoundaryId === region.boundaryId ? "bg-[#e8f2fc] text-[#0056a7]" : "text-[#111827]"
                       }`}
                     >
                       <span className="block font-semibold">{region.name}</span>
-                      <span className="block text-xs text-[#64748b]">{region.board ?? region.ward ?? "Auckland"}</span>
+                      <span className="block text-xs text-[#64748b]">
+                        {region.area} - {region.boundarySubdivision}
+                      </span>
                     </button>
                   ))}
+                  {suburbRegions.length === 0 ? (
+                    <p className="px-3 py-4 text-sm text-[#64748b]">No suburbs match this filter.</p>
+                  ) : null}
                 </div>
               </div>
             ) : null}
@@ -422,6 +454,38 @@ export function LocationFinderApp() {
         </div>
       </aside>
 
+      <RecordManagerDialog
+        type="person"
+        open={personManagerOpen}
+        onOpenChange={setPersonManagerOpen}
+        onAdd={() => {
+          setPersonManagerOpen(false);
+          setPersonDialogOpen(true);
+        }}
+        onSelect={(record) => {
+          setPersonManagerOpen(false);
+          if ("name" in record) {
+            selectPerson(record);
+          }
+        }}
+        refresh={refresh}
+      />
+      <RecordManagerDialog
+        type="soldProperty"
+        open={propertyManagerOpen}
+        onOpenChange={setPropertyManagerOpen}
+        onAdd={() => {
+          setPropertyManagerOpen(false);
+          setPropertyDialogOpen(true);
+        }}
+        onSelect={(record) => {
+          setPropertyManagerOpen(false);
+          if (!("name" in record)) {
+            selectSoldProperty(record);
+          }
+        }}
+        refresh={refresh}
+      />
       <AddPersonDialog open={personDialogOpen} onOpenChange={setPersonDialogOpen} refresh={refresh} />
       <AddSoldPropertyDialog
         open={propertyDialogOpen}
@@ -433,7 +497,12 @@ export function LocationFinderApp() {
         onOpenChange={setImportDialogOpen}
         refresh={refresh}
       />
-      <DetailsDialog selected={selected} onOpenChange={(open) => !open && setSelected(null)} />
+      <DetailsDialog
+        selected={selected}
+        onOpenChange={(open) => !open && setSelected(null)}
+        onSelectedChange={setSelected}
+        refresh={refresh}
+      />
     </main>
   );
 }
