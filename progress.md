@@ -12,3 +12,7 @@
 - Verified the backend slice with `npm run lint`, `npm run build`, and `npm run sync:geomaps`; the sync script fetched 18 GeoMaps boundary records into the ignored local SQLite database.
 - Added the full-screen map workspace, filters, search, dialogs, CSV import entry point, nearby-people panel, and GeoMaps sync action.
 - Verified the UI slice with `npm run lint` and `npm run build`.
+- Added focused validation, distance/filter, and API validation tests.
+- Added `README.md` with setup, commands, SQLite, GeoMaps, CSV import format, and v1 assumptions.
+- Fixed the CSV import route test setup by isolating the route contract with a minimal `formData()` request object.
+- Verified tests, lint, and production build: 5 test files and 11 tests passed, `npm run lint` passed, and `npm run build` passed.

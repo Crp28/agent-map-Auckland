@@ -8,7 +8,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 2. Complete: Create documentation trackers and project scaffold.
 3. Complete: Implement database, validation, GeoMaps/geocoding, sync services, and API routes.
 4. Complete: Implement map UI, filters, search, forms, modals, CSV import, and status display.
-5. In progress: Add tests, README, final documentation updates, verification, and final commit.
+5. Complete: Add tests, README, final documentation updates, verification, and final commit.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.
@@ -24,3 +24,5 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 | Next build hit `SQLITE_BUSY` while collecting API route page data | Backend build | Root cause was SQLite opening at module import time across parallel workers; changed DB/Drizzle access to lazy `getDb()`/`getRawDb()` functions. |
 | `npm test` found no test files | Backend verification | Tests have not been added yet; will add focused tests in the test phase. |
 | ArcGIS marker style rejected `"pin"` | UI build | Replaced with a path-based simple marker pin symbol accepted by ArcGIS typings. |
+| Import route test failed constructing a `File` for `FormData.set` | Test verification | Root cause was jsdom/FormData object compatibility in the test; switched to a `Blob` plus filename. |
+| Import route test still failed through jsdom `FormData.set` | Test verification | Isolated route behavior with a minimal request object returning a `File` from `formData()`. |

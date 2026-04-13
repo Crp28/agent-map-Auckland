@@ -13,6 +13,10 @@
 - 2026-04-13: Verified the backend slice with `npm run lint`, `npm run build`, and `npm run sync:geomaps`. The sync script fetched 18 subdivision outline records into `data/locationfinder.db`, which is intentionally ignored by Git.
 - 2026-04-13: Added the main map workspace with ArcGIS rendering, sold-property pins, people dots, boundary outlines, top-right search, date/price filters, add dialogs, CSV import dialog, nearby-people panel, and manual GeoMaps sync action.
 - 2026-04-13: Verified the UI slice with `npm run lint` and `npm run build`. ArcGIS did not accept a literal `"pin"` simple marker style, so sold properties use a path-based pin marker.
+- 2026-04-13: Added focused tests for validation, nearby boolean parsing, distance and purchasing-power filtering, and API validation behavior.
+- 2026-04-13: Added `README.md` with setup, commands, SQLite path behavior, GeoMaps endpoints and refresh policy, CSV format, and v1 assumptions.
+- 2026-04-13: Fixed the CSV import route test setup by isolating the route contract with a minimal `formData()` request object after jsdom rejected direct multipart setup.
+- 2026-04-13: Verified tests, lint, and production build. The test suite has 5 files and 11 passing tests.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.

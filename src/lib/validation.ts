@@ -81,7 +81,17 @@ export const searchSchema = z.object({
 export const nearbySchema = z.object({
   propertyId: z.coerce.number().int().positive(),
   distanceKm: z.coerce.number().positive().max(100).default(2),
-  sameSuburb: z.coerce.boolean().default(true),
+  sameSuburb: z
+    .preprocess((value) => {
+      if (value === undefined || value === null || value === "") {
+        return true;
+      }
+      if (typeof value === "string") {
+        return value === "true";
+      }
+      return value;
+    }, z.boolean())
+    .default(true),
 });
 
 export type PersonInput = z.infer<typeof personInputSchema>;
