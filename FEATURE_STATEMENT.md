@@ -1,4 +1,4 @@
-1. The user can see a map of Auckland.
+1. The user can see a map of Auckland, defaulted to Highland Park.
 2. The user can see blue pins #0056A7 on the map representing Sold Properties, and yellow #F8C00B dots on the map representing People records with coordinates.
 3. The user can search for a Person or Sold Property in a top-right search bar.
 4. The user can filter Sold Property pins by a date range. When no date range is entered, all Sold Properties with coordinates are shown by default.
@@ -10,6 +10,7 @@
 10. The user can manage People from a popup manager, including viewing, adding, editing details, and deleting records.
 11. The user can bulk import People using a CSV file to quickly add multiple People entries in one action.
 12. The user can open a retractable side list of Auckland suburb/region names, search inside it, and click one to move the map to that suburb at a local zoom.
+13. The user can apply or cancel a nearby People filter from the same bottom-right control stack as the suburb side list without changing the current map position.
 
 ====== ACCEPTANCE CRITERIA ======
 1. The map of Auckland should be fetched from Auckland Council GeoMaps (https://geomapspublic.aucklandcouncil.govt.nz/viewer/index.html), and GeoMaps boundary data is updated once every month at least.
@@ -23,5 +24,6 @@
 9. Sold Property fields are validated before create or update. Validation errors prevent the action and show in a red line of text under the respective field.
 10. People fields are validated before create or update. Email fields accept only valid email format. Last update time is updated. Validation errors prevent the action and show in a red line of text under the respective field.
 11. The system accepts .csv files only. Fully redundant entries are discarded, while partially different entries are updated. Show a summary of imported and failed record numbers after processing.
-12. A retractable side list shows Auckland suburb/region names from the v1 suburb catalog mapped to GeoMaps boundary data. The side list is hidden behind a handle by default, doubles the previous expanded height, includes a mini search field, and clicking a row moves the map to a suburb-specific center point at zoom level 8. The list does not highlight all rows that share the same GeoMaps subdivision, and it scrolls the active clicked suburb row into view when the list is open.
+12. A retractable side list shows Auckland suburb/region names from the v1 suburb catalog mapped to GeoMaps boundary data. The side list is hidden behind a handle by default, includes a mini search field, and clicking a row moves the map to a suburb-specific center point at zoom level 8. The list shares the bottom-right stack with the nearby People controls, so the open list shrinks within the available vertical space instead of overlapping nearby controls. The list does not highlight all rows that share the same GeoMaps subdivision, and it scrolls the active clicked suburb row into view when the list is open.
 13. People records without latitude and longitude are saved and available in record managers, but do not render as map dots until coordinates are added or geocoded.
+14. Applying the nearby People filter narrows only the People dots. Sold Property pins that satisfy the current date filters stay visible, a Cancel button appears next to Apply nearby filter while the filter is active, and applying or canceling the nearby filter does not reset the map to the default Highland Park view.

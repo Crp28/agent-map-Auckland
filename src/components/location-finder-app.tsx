@@ -38,6 +38,7 @@ export function LocationFinderApp() {
   const [selected, setSelected] = useState<SelectedItem>(null);
   const [selectedSoldPropertyId, setSelectedSoldPropertyId] = useState<number | undefined>();
   const [nearbyPeople, setNearbyPeople] = useState<Array<PersonRecord & { distanceKm: number }>>([]);
+  const [nearbyFilterActive, setNearbyFilterActive] = useState(false);
   const [distanceKm, setDistanceKm] = useState("2");
   const [sameSuburb, setSameSuburb] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -146,7 +147,11 @@ export function LocationFinderApp() {
     [loadNearby],
   );
 
-  const highlightedPersonIds = useMemo(() => nearbyPeople.map((person) => person.id), [nearbyPeople]);
+  const visiblePeople = nearbyFilterActive ? nearbyPeople : mapData.people;
+  const highlightedPersonIds = useMemo(
+    () => (nearbyFilterActive ? nearbyPeople.map((person) => person.id) : []),
+    [nearbyFilterActive, nearbyPeople],
+  );
   const suburbRegions = useMemo<SuburbRegion[]>(
     () => {
       const boundariesBySubdivision = new Map(
@@ -232,10 +237,26 @@ export function LocationFinderApp() {
     }
   }
 
+  async function applyNearbyFilter() {
+    const property =
+      mapData.soldProperties.find((item) => item.id === selectedSoldPropertyId) ??
+      (selected?.type === "soldProperty" ? selected.item : undefined);
+    if (!property) {
+      return;
+    }
+
+    await loadNearby(property);
+    setNearbyFilterActive(true);
+  }
+
+  function cancelNearbyFilter() {
+    setNearbyFilterActive(false);
+  }
+
   return (
     <main className="relative h-dvh min-h-[720px] overflow-hidden bg-[#e9eef5] text-[#111827]">
       <AucklandMap
-        people={mapData.people}
+        people={visiblePeople}
         soldProperties={mapData.soldProperties}
         boundaries={mapData.boundaries}
         highlightedPersonIds={highlightedPersonIds}
@@ -349,13 +370,16 @@ export function LocationFinderApp() {
           </button>
         </div>
 
+      </section>
+
+      <aside className="absolute bottom-3 left-3 right-3 top-56 z-20 flex min-h-0 flex-col justify-end gap-3 md:left-auto md:w-[380px]">
         <div
-          className={`pointer-events-none relative w-full max-w-xl overflow-visible transition-[height] duration-200 ${
-            suburbListOpen ? "h-[28rem]" : "h-11"
+          className={`pointer-events-none relative w-full min-h-0 overflow-visible transition-[height] duration-200 ${
+            suburbListOpen ? "flex-1" : "h-11 shrink-0"
           }`}
         >
-          <aside
-            className={`pointer-events-auto absolute right-0 top-0 flex max-h-[28rem] w-[min(86vw,340px)] overflow-hidden rounded-md border border-[#cbd5e1] bg-white shadow-lg transition-transform duration-200 ${
+          <section
+            className={`pointer-events-auto absolute inset-y-0 right-0 flex max-h-full w-[min(86vw,340px)] overflow-hidden rounded-md border border-[#cbd5e1] bg-white shadow-lg transition-transform duration-200 ${
               suburbListOpen ? "translate-x-0" : "translate-x-[calc(100%-44px)]"
             }`}
             aria-label="Auckland suburb navigation"
@@ -374,8 +398,8 @@ export function LocationFinderApp() {
               <span className="sr-only">{suburbListOpen ? "Collapse suburb list" : "Open suburb list"}</span>
             </button>
             {suburbListOpen ? (
-              <div className="min-w-0 flex-1">
-                <div className="border-b border-[#e2e8f0] px-3 py-3">
+              <div className="flex min-w-0 flex-1 flex-col">
+                <div className="shrink-0 border-b border-[#e2e8f0] px-3 py-3">
                   <p className="text-sm font-semibold text-[#111827]">Auckland suburbs</p>
                   <label className="mt-2 block text-xs font-medium text-[#475569]">
                     Filter suburbs
@@ -387,7 +411,7 @@ export function LocationFinderApp() {
                     />
                   </label>
                 </div>
-                <div className="max-h-80 overflow-auto">
+                <div className="min-h-0 flex-1 overflow-auto">
                   {suburbRegions.map((region) => (
                     <button
                       key={region.key}
@@ -415,12 +439,10 @@ export function LocationFinderApp() {
                 </div>
               </div>
             ) : null}
-          </aside>
+          </section>
         </div>
-      </section>
 
-      <aside className="absolute bottom-3 left-3 right-3 z-20 grid gap-3 md:left-auto md:w-[380px]">
-        <div className="rounded-md border border-[#cbd5e1] bg-white p-3 shadow-lg">
+        <div className="shrink-0 rounded-md border border-[#cbd5e1] bg-white p-3 shadow-lg">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-[#111827]">Nearby people</p>
@@ -451,20 +473,24 @@ export function LocationFinderApp() {
             </label>
           </div>
           {selectedSoldPropertyId ? (
-            <button
-              type="button"
-              onClick={() => {
-                const property = mapData.soldProperties.find(
-                  (item) => item.id === selectedSoldPropertyId,
-                );
-                if (property) {
-                  void loadNearby(property);
-                }
-              }}
-              className="mt-3 min-h-11 w-full rounded-md border border-[#cbd5e1] bg-white px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
-            >
-              Apply nearby filter
-            </button>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void applyNearbyFilter()}
+                className="min-h-11 flex-1 rounded-md border border-[#cbd5e1] bg-white px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+              >
+                Apply nearby filter
+              </button>
+              {nearbyFilterActive ? (
+                <button
+                  type="button"
+                  onClick={cancelNearbyFilter}
+                  className="min-h-11 rounded-md bg-[#111827] px-3 py-2 text-sm font-semibold text-white hover:bg-[#1f2937] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+                >
+                  Cancel
+                </button>
+              ) : null}
+            </div>
           ) : null}
           <div className="mt-3 max-h-44 overflow-auto">
             {nearbyPeople.map((person) => (
@@ -485,7 +511,7 @@ export function LocationFinderApp() {
         <div className="rounded-md border border-[#cbd5e1] bg-white p-3 text-xs text-[#475569] shadow-lg">
           {loading ? "Loading map data..." : `${mapData.soldProperties.length} sold properties`}
           {" | "}
-          {mapData.people.length} people
+          {nearbyFilterActive ? `${visiblePeople.length} visible people` : `${mapData.people.length} people`}
           {" | "}
           Last GeoMaps sync:{" "}
           {mapData.sync?.lastSuccessfulSyncAt

@@ -44,6 +44,13 @@ The app uses Auckland Council GeoMaps endpoints:
 
 The outline layer is refreshed by `npm run sync:geomaps` and automatically refreshed by `/api/map-data` when the cache is missing or older than 30 days.
 
+## Map Behavior
+
+- The map opens centered on Highland Park.
+- Sold Property pins follow only the date filters and stay visible when a nearby People filter is applied.
+- Applying or canceling a nearby People filter does not recenter the map.
+- The suburb drawer shares the bottom-right control stack with the nearby People controls so expanded suburb navigation stays within the available height.
+
 ## CSV Format
 
 People import accepts `.csv` files with these required columns:

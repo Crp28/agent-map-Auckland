@@ -30,7 +30,7 @@ function makePoint(longitude: number, latitude: number) {
   });
 }
 
-const aucklandOverviewCenter: [number, number] = [174.83, -36.78];
+const aucklandOverviewCenter: [number, number] = [174.90935, -36.89934];
 const aucklandMinZoom = 0;
 const selectedBoundaryZoom = 8;
 

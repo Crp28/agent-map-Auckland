@@ -40,6 +40,7 @@
 - 2026-04-14: Updated `FEATURE_STATEMENT.md` to reflect default sold-property visibility, the taller searchable suburb drawer, local suburb-level navigation, record managers, and coordinate-required People map dots.
 - 2026-04-14: Added `npm run geocode:people`, hardened GeoMaps address lookup normalization, and backfilled People coordinates. The local database now has 419 geocoded People and 43 remaining ungeocoded People rows that GeoMaps could not match from the stored address text.
 - 2026-04-14: Updated suburb drawer navigation to resolve a suburb-specific center through Auckland Council Address MapServer, keep zoom level 8, remove subdivision-based row highlighting, and scroll the active clicked suburb row into view.
+- 2026-04-14: Changed the default map center to Highland Park, made nearby filtering affect only People dots while keeping date-filtered Sold Property pins visible, added a Cancel action for the active nearby filter, and moved the suburb drawer into the same bottom-right control stack as the nearby controls.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
@@ -52,6 +53,8 @@
 - People records without coordinates remain valid database records, but the map intentionally omits them because there is no point to place.
 - Bulk People geocoding is a separate resumable step after contact CSV import because the import path skips geocoding for speed.
 - Suburb drawer navigation uses Address MapServer sample points for the clicked suburb center and falls back to the mapped Council subdivision boundary when no suburb-center sample is available.
+- Nearby filtering intentionally narrows only the People layer. Sold Property pins continue to follow the date filters, and applying or canceling the nearby filter does not recenter the map.
+- The suburb drawer shares the bottom-right stack with the nearby People controls so the drawer shrinks within the remaining height instead of overlapping the filter panel.
 
 ## Notes
 - Use `cmd /c npm ...`, `npm.cmd`, or `npx.cmd` in PowerShell because this machine blocks `npm.ps1`.

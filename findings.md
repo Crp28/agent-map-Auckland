@@ -26,6 +26,9 @@
 - After the latest request, the expanded suburb drawer is `h-[28rem]`, which is double the prior `h-56` height.
 - Suburb row highlighting by GeoMaps subdivision is misleading because several catalog suburbs can share one subdivision boundary id. The drawer now avoids subdivision-based selected-row styling and uses scroll position instead.
 - Address MapServer can provide a workable suburb-specific center by averaging sampled address points for a suburb name. Some suburbs require the query without an `AUCKLAND` suffix, for example Mairangi Bay.
+- The nearby filter should narrow the People marker layer only; Sold Property pins that satisfy the date filters need to stay visible so the selected property context is not lost.
+- The suburb drawer and nearby People controller need a shared bottom-right flex stack. Letting the drawer consume only the remaining vertical space keeps it from overlapping the nearby controls when the drawer expands.
+- The app defaults to the Highland Park map center; applying or canceling nearby People filters does not update the selected suburb target or call map recentering.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.

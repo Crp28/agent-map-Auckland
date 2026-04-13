@@ -56,3 +56,8 @@
 - Started the queued TODO.md suburb drawer update after committing the geocoding slice.
 - Added a suburb-center API backed by Auckland Council Address MapServer, passed suburb-specific targets to the map, removed subdivision-based drawer row highlighting, and added auto-scroll to the active clicked suburb row.
 - Verified the suburb drawer update with `npm run test`, `npm run lint`, `npm run build`, a `/api/suburb-center?name=Highland%20Park` probe, and an `agent-browser` click-through showing Highland Park centered at zoom 8 without multi-row highlight styling.
+- Started the new TODO.md request: default the app to Highland Park, keep date-filtered Sold Property pins visible while a nearby People filter is active, add nearby-filter cancellation, prevent nearby filter actions from recentering the map, and move the suburb drawer into the same bottom-right stack as the nearby controls.
+- Changed the map overview center to Highland Park, made nearby filtering feed only the People marker layer, added the active-filter Cancel button, and kept Sold Property pins driven by date-filtered map data.
+- Moved the suburb drawer into the bottom-right nearby-control stack and gave that stack a fixed top/bottom span so the open drawer uses remaining height instead of overlapping the nearby People panel.
+- Updated `FEATURE_STATEMENT.md`, `DOCUMENTATION.md`, `README.md`, and `findings.md` for the new nearby-filter and shared-stack behavior.
+- Verified the latest TODO slice with `npm run test`, `npm run lint`, `npm run build`, and an `agent-browser` smoke check covering Highland Park default view, nearby filter apply/cancel behavior, and the non-overlapping shared bottom-right stack.
