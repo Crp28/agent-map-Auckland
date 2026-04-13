@@ -15,10 +15,11 @@ import type {
   SearchResult,
   SelectedItem,
   SoldPropertyRecord,
+  SuburbMapTarget,
   SuburbRegion,
 } from "@/types/location";
 import { ChevronLeft, ChevronRight, Database, FileUp, LocateFixed, Plus, Search, Users } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const emptyMapData: MapData = {
   soldProperties: [],
@@ -49,7 +50,10 @@ export function LocationFinderApp() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [suburbListOpen, setSuburbListOpen] = useState(false);
   const [suburbQuery, setSuburbQuery] = useState("");
-  const [selectedBoundaryId, setSelectedBoundaryId] = useState<number | undefined>();
+  const [selectedSuburbKey, setSelectedSuburbKey] = useState<string | undefined>();
+  const [selectedSuburbTarget, setSelectedSuburbTarget] = useState<SuburbMapTarget | undefined>();
+  const suburbButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const suburbRequestRef = useRef(0);
 
   const refresh = useCallback(() => setRefreshKey((value) => value + 1), []);
 
@@ -167,6 +171,17 @@ export function LocationFinderApp() {
     [mapData.boundaries, suburbQuery],
   );
 
+  useEffect(() => {
+    if (!suburbListOpen || !selectedSuburbKey) {
+      return;
+    }
+
+    suburbButtonRefs.current.get(selectedSuburbKey)?.scrollIntoView({
+      block: "center",
+      behavior: "smooth",
+    });
+  }, [selectedSuburbKey, suburbListOpen, suburbRegions]);
+
   function onSearchResultClick(result: SearchResult) {
     setQuery(result.title);
     setSearchResults([]);
@@ -189,6 +204,34 @@ export function LocationFinderApp() {
     refresh();
   }
 
+  async function selectSuburb(region: SuburbRegion) {
+    const requestId = suburbRequestRef.current + 1;
+    suburbRequestRef.current = requestId;
+    setSelectedSuburbKey(region.key);
+    setSelectedSuburbTarget({ key: region.key, boundaryId: region.boundaryId });
+
+    try {
+      const response = await fetch(`/api/suburb-center?name=${encodeURIComponent(region.name)}`);
+      if (!response.ok) {
+        return;
+      }
+      const payload = (await response.json()) as { center: [number, number] | null };
+      if (suburbRequestRef.current !== requestId) {
+        return;
+      }
+      setSelectedSuburbTarget({
+        key: region.key,
+        boundaryId: region.boundaryId,
+        center: payload.center ?? undefined,
+      });
+    } catch {
+      if (suburbRequestRef.current !== requestId) {
+        return;
+      }
+      setSelectedSuburbTarget({ key: region.key, boundaryId: region.boundaryId });
+    }
+  }
+
   return (
     <main className="relative h-dvh min-h-[720px] overflow-hidden bg-[#e9eef5] text-[#111827]">
       <AucklandMap
@@ -197,7 +240,7 @@ export function LocationFinderApp() {
         boundaries={mapData.boundaries}
         highlightedPersonIds={highlightedPersonIds}
         selectedSoldPropertyId={selectedSoldPropertyId}
-        selectedBoundaryId={selectedBoundaryId}
+        selectedSuburbTarget={selectedSuburbTarget}
         onSelectPerson={selectPerson}
         onSelectSoldProperty={selectSoldProperty}
       />
@@ -348,17 +391,17 @@ export function LocationFinderApp() {
                   {suburbRegions.map((region) => (
                     <button
                       key={region.key}
-                      type="button"
-                      onClick={() => {
-                        if (region.boundaryId) {
-                          setSelectedBoundaryId(region.boundaryId);
+                      ref={(node) => {
+                        if (node) {
+                          suburbButtonRefs.current.set(region.key, node);
+                        } else {
+                          suburbButtonRefs.current.delete(region.key);
                         }
-                        setSuburbListOpen(false);
                       }}
+                      type="button"
+                      onClick={() => void selectSuburb(region)}
                       disabled={!region.boundaryId}
-                      className={`block min-h-11 w-full border-b border-[#e2e8f0] px-3 py-2 text-left text-sm last:border-b-0 hover:bg-[#eef3f8] focus:bg-[#eef3f8] focus:outline-none ${
-                        selectedBoundaryId === region.boundaryId ? "bg-[#e8f2fc] text-[#0056a7]" : "text-[#111827]"
-                      }`}
+                      className="block min-h-11 w-full border-b border-[#e2e8f0] px-3 py-2 text-left text-sm text-[#111827] last:border-b-0 hover:bg-[#eef3f8] focus:bg-[#eef3f8] focus:outline-none disabled:cursor-not-allowed disabled:text-[#94a3b8]"
                     >
                       <span className="block font-semibold">{region.name}</span>
                       <span className="block text-xs text-[#64748b]">

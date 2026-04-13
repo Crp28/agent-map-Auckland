@@ -157,6 +157,55 @@ export async function geocodeAddress(
   return null;
 }
 
+function suburbSearchCandidates(suburb: string) {
+  const normalized = normalizeAddressQuery(suburb);
+  return unique([
+    normalized,
+    normalized.replace(/^SAINT\s+/, "ST "),
+    normalized.replace(/^ST\s+/, "SAINT "),
+  ]);
+}
+
+export async function findSuburbCenter(suburb: string) {
+  for (const searchText of suburbSearchCandidates(suburb)) {
+    for (const suffix of [" AUCKLAND", ""]) {
+      const url = arcgisQueryUrl(GEOMAPS.addressLookup, {
+        where: `UPPER(FullAddress) LIKE '%${escapeArcgisLike(`${searchText}${suffix}`)}%'`,
+        outFields: "OBJECTID,FullAddress",
+        returnGeometry: "true",
+        f: "json",
+        resultRecordCount: "500",
+        outSR: "4326",
+      });
+
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) {
+        return null;
+      }
+
+      const data = (await response.json()) as ArcGisQueryResponse<ArcGisPointFeature>;
+      const points = (data.features ?? [])
+        .map((feature) => feature.geometry)
+        .filter((geometry): geometry is { x: number; y: number } => Boolean(geometry));
+
+      if (points.length > 0) {
+        const total = points.reduce(
+          (sum, point) => ({ x: sum.x + point.x, y: sum.y + point.y }),
+          { x: 0, y: 0 },
+        );
+
+        return {
+          longitude: total.x / points.length,
+          latitude: total.y / points.length,
+          sampleSize: points.length,
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
 export async function syncCouncilAreaBoundaries() {
   ensureDatabase();
   const db = getDb();

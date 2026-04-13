@@ -53,3 +53,6 @@
 - Cleared one false-positive coordinate on the `_`/`_` Person row after finding that SQL `LIKE` treated `_` as a wildcard.
 - Read the new TODO.md request without interrupting the geocoding work; it asks for suburb click centering at zoom 8, removal of multi-suburb highlighting, sidebar autoscroll to the currently centered suburb, and `FEATURE_STATEMENT.md` updates.
 - Verified the geocoding slice with `npm run test`, `npm run lint`, `npm run build`, and a SQLite count check showing 419 geocoded People and 43 still missing coordinates.
+- Started the queued TODO.md suburb drawer update after committing the geocoding slice.
+- Added a suburb-center API backed by Auckland Council Address MapServer, passed suburb-specific targets to the map, removed subdivision-based drawer row highlighting, and added auto-scroll to the active clicked suburb row.
+- Verified the suburb drawer update with `npm run test`, `npm run lint`, `npm run build`, a `/api/suburb-center?name=Highland%20Park` probe, and an `agent-browser` click-through showing Highland Park centered at zoom 8 without multi-row highlight styling.

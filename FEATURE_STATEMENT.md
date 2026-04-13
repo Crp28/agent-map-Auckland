@@ -9,7 +9,7 @@
 9. The user can manage Sold Properties from a popup manager, including viewing, adding, editing details, and deleting records.
 10. The user can manage People from a popup manager, including viewing, adding, editing details, and deleting records.
 11. The user can bulk import People using a CSV file to quickly add multiple People entries in one action.
-12. The user can open a retractable side list of Auckland suburb/region names, search inside it, and click one to move the map to that region at a local suburb-level zoom.
+12. The user can open a retractable side list of Auckland suburb/region names, search inside it, and click one to move the map to that suburb at a local zoom.
 
 ====== ACCEPTANCE CRITERIA ======
 1. The map of Auckland should be fetched from Auckland Council GeoMaps (https://geomapspublic.aucklandcouncil.govt.nz/viewer/index.html), and GeoMaps boundary data is updated once every month at least.
@@ -23,5 +23,5 @@
 9. Sold Property fields are validated before create or update. Validation errors prevent the action and show in a red line of text under the respective field.
 10. People fields are validated before create or update. Email fields accept only valid email format. Last update time is updated. Validation errors prevent the action and show in a red line of text under the respective field.
 11. The system accepts .csv files only. Fully redundant entries are discarded, while partially different entries are updated. Show a summary of imported and failed record numbers after processing.
-12. A retractable side list shows Auckland suburb/region names from the v1 suburb catalog mapped to GeoMaps boundary data. The side list is hidden behind a handle by default, doubles the previous expanded height, includes a mini search field, and clicking a row moves the map to the corresponding region and highlights the selected row.
+12. A retractable side list shows Auckland suburb/region names from the v1 suburb catalog mapped to GeoMaps boundary data. The side list is hidden behind a handle by default, doubles the previous expanded height, includes a mini search field, and clicking a row moves the map to a suburb-specific center point at zoom level 8. The list does not highlight all rows that share the same GeoMaps subdivision, and it scrolls the active clicked suburb row into view when the list is open.
 13. People records without latitude and longitude are saved and available in record managers, but do not render as map dots until coordinates are added or geocoded.

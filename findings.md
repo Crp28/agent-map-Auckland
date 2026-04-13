@@ -24,6 +24,8 @@
 - The v1 suburb catalog now maps central, northern, and eastern suburb names onto the available cached GeoMaps subdivision boundary groups; individual suburb polygons are still not available from the current v1 boundary cache.
 - The current `image.png` reference shows a local suburb-level view, so selected suburb navigation now uses a fixed ArcGIS zoom level of 12 instead of the farthest zoom-out level.
 - After the latest request, the expanded suburb drawer is `h-[28rem]`, which is double the prior `h-56` height.
+- Suburb row highlighting by GeoMaps subdivision is misleading because several catalog suburbs can share one subdivision boundary id. The drawer now avoids subdivision-based selected-row styling and uses scroll position instead.
+- Address MapServer can provide a workable suburb-specific center by averaging sampled address points for a suburb name. Some suburbs require the query without an `AUCKLAND` suffix, for example Mairangi Bay.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.

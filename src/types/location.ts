@@ -46,6 +46,12 @@ export type SuburbRegion = {
   boundaryId?: number;
 };
 
+export type SuburbMapTarget = {
+  key: string;
+  boundaryId?: number;
+  center?: [number, number];
+};
+
 export type SyncRecord = {
   sourceName: string;
   sourceUrl: string;

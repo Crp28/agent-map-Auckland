@@ -1,7 +1,7 @@
 "use client";
 
 import { GEOMAPS, PERSON_COLOR, SOLD_PROPERTY_COLOR } from "@/lib/constants";
-import type { BoundaryRecord, PersonRecord, SoldPropertyRecord } from "@/types/location";
+import type { BoundaryRecord, PersonRecord, SoldPropertyRecord, SuburbMapTarget } from "@/types/location";
 import Graphic from "@arcgis/core/Graphic";
 import Map from "@arcgis/core/Map";
 import Point from "@arcgis/core/geometry/Point";
@@ -17,7 +17,7 @@ type AucklandMapProps = {
   boundaries: BoundaryRecord[];
   highlightedPersonIds: number[];
   selectedSoldPropertyId?: number;
-  selectedBoundaryId?: number;
+  selectedSuburbTarget?: SuburbMapTarget;
   onSelectPerson: (person: PersonRecord) => void;
   onSelectSoldProperty: (soldProperty: SoldPropertyRecord) => void;
 };
@@ -32,7 +32,7 @@ function makePoint(longitude: number, latitude: number) {
 
 const aucklandOverviewCenter: [number, number] = [174.83, -36.78];
 const aucklandMinZoom = 0;
-const selectedBoundaryZoom = 12;
+const selectedBoundaryZoom = 8;
 
 export function AucklandMap({
   people,
@@ -40,7 +40,7 @@ export function AucklandMap({
   boundaries,
   highlightedPersonIds,
   selectedSoldPropertyId,
-  selectedBoundaryId,
+  selectedSuburbTarget,
   onSelectPerson,
   onSelectSoldProperty,
 }: AucklandMapProps) {
@@ -208,29 +208,37 @@ export function AucklandMap({
 
   useEffect(() => {
     const view = viewRef.current;
-    if (!view || selectedBoundaryId === undefined) {
+    if (!view || !selectedSuburbTarget) {
       return;
     }
 
-    const boundary = boundaries.find((item) => item.id === selectedBoundaryId);
-    if (!boundary?.geometry.rings) {
+    const boundary = boundaries.find((item) => item.id === selectedSuburbTarget.boundaryId);
+    if (!selectedSuburbTarget.center && !boundary?.geometry.rings) {
       return;
     }
 
-    const polygon = new Polygon({
-      rings: boundary.geometry.rings,
-      spatialReference: { wkid: 4326 },
-    });
-    const center = polygon.extent?.center;
+    const polygon = boundary?.geometry.rings
+      ? new Polygon({
+          rings: boundary.geometry.rings,
+          spatialReference: { wkid: 4326 },
+        })
+      : null;
+    const center = selectedSuburbTarget.center
+      ? makePoint(selectedSuburbTarget.center[0], selectedSuburbTarget.center[1])
+      : polygon?.extent?.center;
+    const target = center ?? polygon;
+    if (!target) {
+      return;
+    }
 
     void view.goTo(
       {
-        target: center ?? polygon,
+        target,
         zoom: selectedBoundaryZoom,
       },
       { duration: 450 },
     );
-  }, [boundaries, selectedBoundaryId]);
+  }, [boundaries, selectedSuburbTarget]);
 
   useEffect(() => {
     const propertyLayer = propertyLayerRef.current;

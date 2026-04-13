@@ -15,7 +15,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 9. Complete: Apply TODO.md suburb search/list, editable details, delete actions, and record-manager modal changes.
 10. Complete: Apply TODO.md sidebar height, suburb zoom, default sold-property visibility, People marker explanation, and feature statement updates.
 11. Complete: Add and run a People geocoding backfill for the imported valid rows missing coordinates.
-12. Pending: Apply TODO.md suburb navigation centering, remove suburb highlight behavior, add sidebar autoscroll, and update `FEATURE_STATEMENT.md`.
+12. Complete: Apply TODO.md suburb navigation centering, remove suburb highlight behavior, add sidebar autoscroll, and update `FEATURE_STATEMENT.md`.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.
