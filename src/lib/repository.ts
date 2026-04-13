@@ -30,12 +30,20 @@ async function resolveCoordinates(input: {
   return { latitude: result.latitude, longitude: result.longitude };
 }
 
-export async function createOrUpdatePerson(input: PersonInput) {
+export async function createOrUpdatePerson(
+  input: PersonInput,
+  options: { geocode?: boolean } = {},
+) {
   ensureDatabase();
   const db = getDb();
 
   const timestamp = nowIso();
-  const coordinates = await resolveCoordinates(input);
+  const coordinates =
+    options.geocode === false
+      ? { latitude: input.latitude, longitude: input.longitude }
+      : await resolveCoordinates(input);
+  const shouldPreserveExistingCoordinates =
+    options.geocode === false && coordinates.latitude === null && coordinates.longitude === null;
   const identityKey = normalizeKey(input.name, input.streetAddress, input.suburb);
 
   await db
@@ -65,8 +73,8 @@ export async function createOrUpdatePerson(input: PersonInput) {
         email: input.email.trim().toLowerCase(),
         purchasingPowerMin: input.purchasingPowerMin,
         purchasingPowerMax: input.purchasingPowerMax,
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude,
+        latitude: shouldPreserveExistingCoordinates ? sql`${people.latitude}` : coordinates.latitude,
+        longitude: shouldPreserveExistingCoordinates ? sql`${people.longitude}` : coordinates.longitude,
         lastUpdatedAt: timestamp,
         updatedAt: timestamp,
       },

@@ -20,6 +20,11 @@
 - 2026-04-13: Started the dev server on `http://127.0.0.1:3000` and confirmed the app endpoint returned HTTP 200.
 - 2026-04-13: Updated the map overview to start wider and allow zooming out to level 6 so all of Auckland can fit on screen.
 - 2026-04-13: Verified the map zoom-out change with `npm run lint`, `npm run build`, and `npm run test`.
+- 2026-04-13: Added a retractable Auckland suburb/region side list that moves the map to the selected GeoMaps boundary region.
+- 2026-04-13: Extended People CSV import to normalize contact-export CSV files, including `Contact Type`, `First Name`, `Last Name`, `Preferred Name`, `Email`, phone, address, and suburb columns.
+- 2026-04-13: Investigated a contact CSV CLI import timeout. The root cause was serial geocoding for hundreds of valid contacts; the CLI import now skips geocoding for bulk speed and preserves existing coordinates on updates.
+- 2026-04-13: Imported `695023-69d71c7b67df2.csv` into SQLite. Result: 401 imported, 6 updated, 55 duplicates, 1711 invalid/skipped. The People table now contains 462 rows, with 6 currently geocoded.
+- 2026-04-13: Verified the suburb-list/contact-import changes with `npm run test`, `npm run lint`, and `npm run build`.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.

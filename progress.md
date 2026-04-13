@@ -19,3 +19,8 @@
 - Started the dev server on `http://127.0.0.1:3000` and confirmed the app endpoint returned HTTP 200.
 - Updated the map overview center/zoom and lowered the minimum zoom to support an all-Auckland view.
 - Verified the TODO.md map zoom-out change with `npm run lint`, `npm run build`, and `npm run test`.
+- Added a retractable Auckland suburb/region side list that moves the map to the selected GeoMaps boundary region.
+- Extended People CSV import to normalize the supplied contact-export CSV format and added `npm run import:people -- <csv>`.
+- Investigated the contact CSV import timeout; 61 people imported before timeout, and the CLI path now skips bulk geocoding to complete the remaining valid rows quickly.
+- Imported `695023-69d71c7b67df2.csv` into SQLite: 401 imported, 6 updated, 55 duplicates, 1711 invalid/skipped. The People table now contains 462 rows; 6 currently have coordinates.
+- Verified the TODO suburb-list/contact-import changes with `npm run test`, `npm run lint`, and `npm run build`.

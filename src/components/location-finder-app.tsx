@@ -13,9 +13,10 @@ import type {
   SearchResult,
   SelectedItem,
   SoldPropertyRecord,
+  SuburbRegion,
 } from "@/types/location";
 import { format, subYears } from "date-fns";
-import { Database, FileUp, LocateFixed, Plus, Search, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, Database, FileUp, LocateFixed, Plus, Search, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 const today = new Date();
@@ -47,6 +48,8 @@ export function LocationFinderApp() {
   const [personDialogOpen, setPersonDialogOpen] = useState(false);
   const [propertyDialogOpen, setPropertyDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [suburbListOpen, setSuburbListOpen] = useState(true);
+  const [selectedBoundaryId, setSelectedBoundaryId] = useState<number | undefined>();
 
   const refresh = useCallback(() => setRefreshKey((value) => value + 1), []);
 
@@ -137,6 +140,18 @@ export function LocationFinderApp() {
   );
 
   const highlightedPersonIds = useMemo(() => nearbyPeople.map((person) => person.id), [nearbyPeople]);
+  const suburbRegions = useMemo<SuburbRegion[]>(
+    () =>
+      mapData.boundaries
+        .map((boundary) => ({
+          id: boundary.id,
+          name: boundary.subdivision,
+          board: boundary.board,
+          ward: boundary.ward,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [mapData.boundaries],
+  );
 
   function onSearchResultClick(result: SearchResult) {
     setQuery(result.title);
@@ -168,9 +183,53 @@ export function LocationFinderApp() {
         boundaries={mapData.boundaries}
         highlightedPersonIds={highlightedPersonIds}
         selectedSoldPropertyId={selectedSoldPropertyId}
+        selectedBoundaryId={selectedBoundaryId}
         onSelectPerson={selectPerson}
         onSelectSoldProperty={selectSoldProperty}
       />
+
+      <aside
+        className={`absolute left-3 top-3 z-30 max-h-[calc(100dvh-1.5rem)] w-[min(86vw,300px)] transition-transform duration-200 ${
+          suburbListOpen ? "translate-x-0" : "-translate-x-[calc(100%-44px)]"
+        }`}
+        aria-label="Auckland suburb navigation"
+      >
+        <div className="flex overflow-hidden rounded-md border border-[#cbd5e1] bg-white shadow-lg">
+          <div className="w-full min-w-0">
+            <div className="border-b border-[#e2e8f0] px-3 py-3">
+              <p className="text-sm font-semibold text-[#111827]">Auckland suburbs</p>
+              <p className="text-xs leading-5 text-[#64748b]">Select a region to move the map.</p>
+            </div>
+            <div className="max-h-[calc(100dvh-9rem)] overflow-auto">
+              {suburbRegions.map((region) => (
+                <button
+                  key={region.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedBoundaryId(region.id);
+                    setSuburbListOpen(false);
+                  }}
+                  className={`block min-h-11 w-full border-b border-[#e2e8f0] px-3 py-2 text-left text-sm last:border-b-0 hover:bg-[#eef3f8] focus:bg-[#eef3f8] focus:outline-none ${
+                    selectedBoundaryId === region.id ? "bg-[#e8f2fc] text-[#0056a7]" : "text-[#111827]"
+                  }`}
+                >
+                  <span className="block font-semibold">{region.name}</span>
+                  <span className="block text-xs text-[#64748b]">{region.board ?? region.ward ?? "Auckland"}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSuburbListOpen((open) => !open)}
+            aria-expanded={suburbListOpen}
+            className="grid min-h-11 min-w-11 place-items-center border-l border-[#e2e8f0] bg-[#f8fafc] text-[#334155] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+          >
+            {suburbListOpen ? <ChevronLeft aria-hidden="true" size={20} /> : <ChevronRight aria-hidden="true" size={20} />}
+            <span className="sr-only">{suburbListOpen ? "Collapse suburb list" : "Open suburb list"}</span>
+          </button>
+        </div>
+      </aside>
 
       <section className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col gap-3 p-3 md:items-end">
         <div className="pointer-events-auto w-full max-w-xl rounded-md border border-[#cbd5e1] bg-white p-3 shadow-lg">

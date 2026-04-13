@@ -38,6 +38,13 @@ export type BoundaryRecord = {
   };
 };
 
+export type SuburbRegion = {
+  id: number;
+  name: string;
+  board: string | null;
+  ward: string | null;
+};
+
 export type SyncRecord = {
   sourceName: string;
   sourceUrl: string;

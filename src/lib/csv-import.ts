@@ -13,7 +13,55 @@ export type ImportSummary = {
   errors: Array<{ row: number; message: string }>;
 };
 
-const requiredColumns = ["name", "streetAddress", "suburb", "phone", "email"];
+export type ImportPeopleCsvOptions = {
+  geocode?: boolean;
+};
+
+const appRequiredColumns = ["name", "streetAddress", "suburb", "phone", "email"];
+const contactExportColumns = ["Contact Type", "First Name", "Last Name", "Preferred Name", "Email"];
+
+function hasColumns(row: CsvRow | undefined, columns: string[]) {
+  return Boolean(row && columns.every((column) => column in row));
+}
+
+function fullName(row: CsvRow) {
+  const preferredName = row["Preferred Name"]?.trim();
+  const legalName = row["Legal Name"]?.trim();
+  const firstName = row["First Name"]?.trim();
+  const lastName = row["Last Name"]?.trim();
+  return preferredName || [firstName, lastName].filter(Boolean).join(" ") || legalName || "";
+}
+
+function normalizeCsvRow(row: CsvRow) {
+  if ("Contact Type" in row) {
+    if (row["Contact Type"]?.trim() !== "Person") {
+      return {
+        normalized: null,
+        skipReason: "Only Contact Type = Person rows are imported as People.",
+      };
+    }
+
+    return {
+      normalized: {
+        name: fullName(row),
+        streetAddress: row.Address?.trim() || row["Postal Address"]?.trim() || "",
+        suburb: row.Suburb?.trim() || row["Postal Suburb"]?.trim() || "",
+        phone: row.Mobile?.trim() || row.Phone?.trim() || row["Work Phone"]?.trim() || "",
+        email: row.Email?.trim() || "",
+        purchasingPowerMin: row.purchasingPowerMin?.trim() || "",
+        purchasingPowerMax: row.purchasingPowerMax?.trim() || "",
+        latitude: row.latitude?.trim() || "",
+        longitude: row.longitude?.trim() || "",
+      },
+      skipReason: null,
+    };
+  }
+
+  return {
+    normalized: row,
+    skipReason: null,
+  };
+}
 
 function comparableInput(row: CsvRow) {
   return {
@@ -49,7 +97,10 @@ function comparableExisting(row: Record<string, unknown>) {
   };
 }
 
-export async function importPeopleCsv(csvContent: string): Promise<ImportSummary> {
+export async function importPeopleCsv(
+  csvContent: string,
+  options: ImportPeopleCsvOptions = {},
+): Promise<ImportSummary> {
   const rows = parse(csvContent, {
     columns: true,
     skip_empty_lines: true,
@@ -64,17 +115,30 @@ export async function importPeopleCsv(csvContent: string): Promise<ImportSummary
     errors: [],
   };
 
-  for (const column of requiredColumns) {
-    if (!rows[0] || !(column in rows[0])) {
-      summary.failed = rows.length;
-      summary.errors.push({ row: 1, message: `Missing required column: ${column}` });
-      return summary;
-    }
+  const firstRow = rows[0];
+  const isAppFormat = hasColumns(firstRow, appRequiredColumns);
+  const isContactExportFormat = hasColumns(firstRow, contactExportColumns);
+
+  if (!isAppFormat && !isContactExportFormat) {
+    summary.failed = rows.length;
+    summary.errors.push({
+      row: 1,
+      message:
+        "Missing required People import columns. Expected app columns or the contact-export format.",
+    });
+    return summary;
   }
 
   for (const [index, row] of rows.entries()) {
     const rowNumber = index + 2;
-    const parsed = personInputSchema.safeParse(row);
+    const { normalized, skipReason } = normalizeCsvRow(row);
+    if (!normalized) {
+      summary.failed += 1;
+      summary.errors.push({ row: rowNumber, message: skipReason ?? "Row could not be imported." });
+      continue;
+    }
+
+    const parsed = personInputSchema.safeParse(normalized);
     if (!parsed.success) {
       summary.failed += 1;
       summary.errors.push({
@@ -87,14 +151,14 @@ export async function importPeopleCsv(csvContent: string): Promise<ImportSummary
     const identityKey = normalizeKey(parsed.data.name, parsed.data.streetAddress, parsed.data.suburb);
     const existing = getRawPeopleByIdentity(identityKey) as Record<string, unknown> | undefined;
     const before = existing ? JSON.stringify(comparableExisting(existing)) : null;
-    const comparable = JSON.stringify(comparableInput(row));
+    const comparable = JSON.stringify(comparableInput(normalized));
 
     if (before === comparable) {
       summary.duplicates += 1;
       continue;
     }
 
-    await createOrUpdatePerson(parsed.data);
+    await createOrUpdatePerson(parsed.data, { geocode: options.geocode });
     if (existing) {
       summary.updated += 1;
     } else {

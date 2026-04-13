@@ -13,3 +13,8 @@
 
 ## Tooling
 - PowerShell blocks `npm.ps1`; use `cmd /c npm ...`, `npm.cmd`, or `npx.cmd`.
+
+## CSV Import
+- `695023-69d71c7b67df2.csv` is a contact export with 2173 rows: 2127 `Person` contacts and 46 `Business` contacts.
+- Under current People validation, 462 rows are valid People imports. The successful import summary was 401 imported, 6 updated, 55 duplicates, and 1711 invalid/skipped.
+- CLI bulk import skips geocoding for speed and preserves existing coordinates on updates.

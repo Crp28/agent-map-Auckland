@@ -9,6 +9,7 @@
 9. The user can manually add a Sold Property to the database by filling a form in a popup modal.
 10. The user can manually add a People to the database by filling a form in a popup modal.
 11. The user can bulk import People using a CSV file to quickly add multiple People entries in one action. 
+12. The user can open a retractable side list of Auckland suburb/region names and click one to move the map to that region.
 
 
 
@@ -24,3 +25,4 @@
 9. all fields are required. Any error will prevent the action and show in a red line of text under the respective field.
 10. xxx fields are required. Email field accepts only valid email format. Last update time is updated. Any error will prevent the action and show in a red line of text under the respective field.
 11. The system accepts .csv files only. Fully redundant entries are discarded, while partially different entries are updated. Show a summary of imported and failed records numbers after processing.
+12. A retractable side list shows the Auckland suburb/region names from the GeoMaps boundary data. Clicking a row moves the map to the corresponding region and highlights the selected row.

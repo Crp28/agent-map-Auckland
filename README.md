@@ -8,6 +8,7 @@ A Next.js, React, TailwindCSS, and SQLite web app for viewing Auckland sold prop
 cmd /c npm install
 Copy-Item .env.example .env
 cmd /c npm run sync:geomaps
+cmd /c npm run import:people -- 695023-69d71c7b67df2.csv
 cmd /c npm run dev
 ```
 
@@ -21,6 +22,7 @@ cmd /c npm run build
 cmd /c npm run lint
 cmd /c npm run test
 cmd /c npm run sync:geomaps
+cmd /c npm run import:people -- path\to\people.csv
 ```
 
 ## Database
@@ -56,6 +58,8 @@ purchasingPowerMin,purchasingPowerMax,latitude,longitude
 ```
 
 Fully duplicate rows are skipped. Rows with the same normalized `name + streetAddress + suburb` identity update the existing record. Invalid rows are counted in the import summary.
+
+The importer also accepts the contact-export format used by `695023-69d71c7b67df2.csv`. Only rows with `Contact Type` set to `Person` and valid name, address, suburb, phone, and email values are imported into People. The CLI import skips geocoding for bulk speed and preserves existing coordinates on updates.
 
 ## V1 Assumptions
 

@@ -17,6 +17,7 @@ type AucklandMapProps = {
   boundaries: BoundaryRecord[];
   highlightedPersonIds: number[];
   selectedSoldPropertyId?: number;
+  selectedBoundaryId?: number;
   onSelectPerson: (person: PersonRecord) => void;
   onSelectSoldProperty: (soldProperty: SoldPropertyRecord) => void;
 };
@@ -37,6 +38,7 @@ export function AucklandMap({
   boundaries,
   highlightedPersonIds,
   selectedSoldPropertyId,
+  selectedBoundaryId,
   onSelectPerson,
   onSelectSoldProperty,
 }: AucklandMapProps) {
@@ -201,6 +203,31 @@ export function AucklandMap({
         ),
     );
   }, [boundaries]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view || selectedBoundaryId === undefined) {
+      return;
+    }
+
+    const boundary = boundaries.find((item) => item.id === selectedBoundaryId);
+    if (!boundary?.geometry.rings) {
+      return;
+    }
+
+    const polygon = new Polygon({
+      rings: boundary.geometry.rings,
+      spatialReference: { wkid: 4326 },
+    });
+
+    void view.goTo(
+      {
+        target: polygon.extent?.expand(1.3) ?? polygon,
+        zoom: Math.max(view.zoom, 10),
+      },
+      { duration: 450 },
+    );
+  }, [boundaries, selectedBoundaryId]);
 
   useEffect(() => {
     const propertyLayer = propertyLayerRef.current;
