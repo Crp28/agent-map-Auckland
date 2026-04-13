@@ -9,6 +9,7 @@ cmd /c npm install
 Copy-Item .env.example .env
 cmd /c npm run sync:geomaps
 cmd /c npm run import:people -- 695023-69d71c7b67df2.csv
+cmd /c npm run geocode:people
 cmd /c npm run dev
 ```
 
@@ -23,6 +24,7 @@ cmd /c npm run lint
 cmd /c npm run test
 cmd /c npm run sync:geomaps
 cmd /c npm run import:people -- path\to\people.csv
+cmd /c npm run geocode:people
 ```
 
 ## Database
@@ -60,6 +62,8 @@ purchasingPowerMin,purchasingPowerMax,latitude,longitude
 Fully duplicate rows are skipped. Rows with the same normalized `name + streetAddress + suburb` identity update the existing record. Invalid rows are counted in the import summary.
 
 The importer also accepts the contact-export format used by `695023-69d71c7b67df2.csv`. Only rows with `Contact Type` set to `Person` and valid name, address, suburb, phone, and email values are imported into People. The CLI import skips geocoding for bulk speed and preserves existing coordinates on updates. Imported People without coordinates remain stored and editable, but do not render as map dots until latitude and longitude are added or geocoded.
+
+Run `cmd /c npm run geocode:people` after a bulk contact import to backfill missing People coordinates through Auckland Council Address MapServer. The command is resumable: by default it only retries People rows that still lack coordinates. Use `-- --all` to recheck every Person, `-- --dry-run` to test without writing, and `-- --concurrency=4 --timeout-ms=20000` to tune slower GeoMaps batches.
 
 ## V1 Assumptions
 

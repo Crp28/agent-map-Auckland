@@ -10,6 +10,8 @@
 - Address lookup endpoint: `https://mapspublic.aklc.govt.nz/arcgis/rest/services/Address/MapServer/0`.
 - V1 outline endpoint: `https://mapspublic.aklc.govt.nz/arcgis/rest/services/LiveMaps/AucklandCouncilBoundaries/MapServer/1`.
 - Council subdivision/local-board polygons are used as suburb outlines for v1 by decision.
+- GeoMaps address lookup needs normalized query variants for common contact-export forms: street suffix abbreviations, `Mt`/`Pt` suburb abbreviations, comma-separated full addresses, `Lot n /` prefixes, and `_x000D_` line-break artifacts.
+- Raw SQL `LIKE` treats `_` as a wildcard; contact rows with `_` as address/suburb must not be sent to GeoMaps because they can falsely match arbitrary addresses.
 
 ## Tooling
 - PowerShell blocks `npm.ps1`; use `cmd /c npm ...`, `npm.cmd`, or `npx.cmd`.
@@ -33,3 +35,4 @@
 - `695023-69d71c7b67df2.csv` is a contact export with 2173 rows: 2127 `Person` contacts and 46 `Business` contacts.
 - Under current People validation, 462 rows are valid People imports. The successful import summary was 401 imported, 6 updated, 55 duplicates, and 1711 invalid/skipped.
 - CLI bulk import skips geocoding for speed and preserves existing coordinates on updates.
+- After running the resumable People geocoding backfill, 419 of 462 People rows have coordinates. The remaining 43 include PO boxes, missing house numbers, outside-Auckland addresses, typos, or addresses GeoMaps did not match from the stored text.

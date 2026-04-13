@@ -46,3 +46,10 @@
 - Checked the local SQLite counts: 462 People rows exist, 6 have coordinates, and 456 are stored without coordinates, so only the 6 coordinate-bearing People rows can appear as map dots.
 - Updated `FEATURE_STATEMENT.md`, `DOCUMENTATION.md`, and `findings.md` for the latest TODO behavior.
 - Verified the latest TODO slice with `npm run test`, `npm run lint`, `npm run build`, a default `/api/map-data` probe, and an `agent-browser` check of the taller suburb drawer and Highland Park selection.
+- Started a People coordinate backfill request for the imported valid rows. Existing workspace dirt before this work: `COMPONENTS.md`, `TODO.md`, and `image.png`, which remain user-owned and untouched.
+- Added a resumable `geocode:people` script and request timeout support for Auckland Council GeoMaps address lookup.
+- The first geocoding run timed out after 15 minutes while still running in the background and only moved People coordinates from 6 to 15. Stopped the lingering process and added bounded concurrency plus per-request timeout before resuming.
+- The next pass increased geocoded People to 40, then the normalized-address pass increased the count to 411, and the final conservative normalization pass increased it to 419.
+- Cleared one false-positive coordinate on the `_`/`_` Person row after finding that SQL `LIKE` treated `_` as a wildcard.
+- Read the new TODO.md request without interrupting the geocoding work; it asks for suburb click centering at zoom 8, removal of multi-suburb highlighting, sidebar autoscroll to the currently centered suburb, and `FEATURE_STATEMENT.md` updates.
+- Verified the geocoding slice with `npm run test`, `npm run lint`, `npm run build`, and a SQLite count check showing 419 geocoded People and 43 still missing coordinates.

@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "db:push": "drizzle-kit push",
     "sync:geomaps": "tsx scripts/sync-geomaps.ts",
-    "import:people": "tsx scripts/import-people-csv.ts"
+    "import:people": "tsx scripts/import-people-csv.ts",
+    "geocode:people": "tsx scripts/geocode-people.ts"
   },
   "dependencies": {
     "@arcgis/core": "5.0.16",

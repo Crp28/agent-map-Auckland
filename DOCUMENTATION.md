@@ -38,6 +38,7 @@
 - 2026-04-14: Doubled the expanded suburb drawer height, adjusted suburb selection to a local suburb-level zoom matching the `image.png` reference, and changed the default sold-property date filters to blank so all geocoded Sold Property pins render by default.
 - 2026-04-14: Investigated People map-marker counts in SQLite. The database has 462 People rows, but only 6 currently have both latitude and longitude; the remaining 456 are stored and manageable but do not render as map dots until coordinates are added or geocoded.
 - 2026-04-14: Updated `FEATURE_STATEMENT.md` to reflect default sold-property visibility, the taller searchable suburb drawer, local suburb-level navigation, record managers, and coordinate-required People map dots.
+- 2026-04-14: Added `npm run geocode:people`, hardened GeoMaps address lookup normalization, and backfilled People coordinates. The local database now has 419 geocoded People and 43 remaining ungeocoded People rows that GeoMaps could not match from the stored address text.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
@@ -48,6 +49,7 @@
 - The broader suburb list is a v1 navigation catalog mapped onto available Council subdivision boundaries, not individual suburb polygon geometry.
 - Sold Property date filters are blank by default so all geocoded Sold Property pins show on first load; entering dates narrows the map.
 - People records without coordinates remain valid database records, but the map intentionally omits them because there is no point to place.
+- Bulk People geocoding is a separate resumable step after contact CSV import because the import path skips geocoding for speed.
 
 ## Notes
 - Use `cmd /c npm ...`, `npm.cmd`, or `npx.cmd` in PowerShell because this machine blocks `npm.ps1`.

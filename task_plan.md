@@ -14,6 +14,8 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 8. Complete: Apply TODO.md right-side hidden suburb list and maximum zoom-out navigation changes.
 9. Complete: Apply TODO.md suburb search/list, editable details, delete actions, and record-manager modal changes.
 10. Complete: Apply TODO.md sidebar height, suburb zoom, default sold-property visibility, People marker explanation, and feature statement updates.
+11. Complete: Add and run a People geocoding backfill for the imported valid rows missing coordinates.
+12. Pending: Apply TODO.md suburb navigation centering, remove suburb highlight behavior, add sidebar autoscroll, and update `FEATURE_STATEMENT.md`.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.
@@ -36,3 +38,5 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 | Selected-boundary map navigation still fit the region extent while setting `zoom` | Browser smoke check | Changed the `goTo` target from polygon extent to boundary center and lowered the configured minimum zoom to the farthest ArcGIS level. |
 | React hooks lint rejected manager record loading from an effect | Lint verification | Root cause was state-setting work hidden behind a loader called directly from the effect; split fetch and state update so the effect updates state from promise continuations. |
 | PowerShell treated expected API 404 responses as command failures | API smoke check | Re-ran the probes with `try/catch` and inspected response status/body directly. |
+| People geocoding backfill timed out after 15 minutes | Bulk geocoding | Root cause was serial GeoMaps requests without per-request timeout; stopped the lingering process and added bounded concurrency plus fetch abort timeouts. |
+| `_`/`_` Person row received an arbitrary coordinate | Bulk geocoding | Root cause was SQL `LIKE` wildcard handling; added address specificity checks and cleared the false-positive coordinate. |

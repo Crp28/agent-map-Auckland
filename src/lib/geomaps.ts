@@ -45,33 +45,116 @@ function escapeArcgisLike(value: string) {
   return value.trim().replaceAll("'", "''").toUpperCase();
 }
 
-export async function geocodeAddress(streetAddress: string, suburb: string) {
-  const searchText = escapeArcgisLike(`${streetAddress} ${suburb}`);
-  const url = arcgisQueryUrl(GEOMAPS.addressLookup, {
-    where: `UPPER(FullAddress) LIKE '%${searchText}%'`,
-    outFields: "OBJECTID,FullAddress",
-    returnGeometry: "true",
-    f: "json",
-    resultRecordCount: "1",
-    outSR: "4326",
-  });
+function normalizeAddressQuery(value: string) {
+  return value
+    .toUpperCase()
+    .replace(/_X000D_/g, " ")
+    .replace(/[.,]/g, " ")
+    .replace(/^LOT\s+\d+\s*\/\s*/g, "")
+    .replace(/\bRD\d+\b/g, "")
+    .replace(/\bMT\b/g, "MOUNT")
+    .replace(/\bPT\b/g, "POINT")
+    .replace(/\bSAINT LUKES\b/g, "ST LUKES")
+    .replace(/\bCRESENT\b/g, "CRESCENT")
+    .replace(/\bRD\b/g, "ROAD")
+    .replace(/\bPL\b/g, "PLACE")
+    .replace(/\bDR\b/g, "DRIVE")
+    .replace(/\bAVE\b/g, "AVENUE")
+    .replace(/\bCRES\b/g, "CRESCENT")
+    .replace(/\bCT\b/g, "COURT")
+    .replace(/\bTCE\b/g, "TERRACE")
+    .replace(/\bCL\b/g, "CLOSE")
+    .replace(/\bLN\b/g, "LANE")
+    .replace(/\bPDE\b/g, "PARADE")
+    .replace(/\bHWY\b/g, "HIGHWAY")
+    .replace(/\bST\b\s*$/g, "STREET")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) {
-    return null;
+function canGeocodeStreetAddress(streetAddress: string) {
+  const normalized = normalizeAddressQuery(streetAddress);
+  return (
+    /\d/.test(normalized) &&
+    !/\bPO BOX\b/.test(normalized) &&
+    normalized !== "_" &&
+    normalized !== "-" &&
+    normalized !== "AUCKLAND"
+  );
+}
+
+function unique(values: string[]) {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function geocodeSearchCandidates(streetAddress: string, suburb: string) {
+  if (!canGeocodeStreetAddress(streetAddress)) {
+    return [];
   }
 
-  const data = (await response.json()) as ArcGisQueryResponse<ArcGisPointFeature>;
-  const feature = data.features?.find((item) => item.geometry);
-  if (!feature?.geometry) {
-    return null;
+  const normalizedStreet = normalizeAddressQuery(streetAddress);
+  const normalizedSuburb = normalizeAddressQuery(suburb);
+  const firstAddressPart = normalizeAddressQuery(streetAddress.split(",")[0] ?? "");
+  const suburbIsGeneric = normalizedSuburb === "" || normalizedSuburb === "AUCKLAND";
+
+  return unique(
+    [
+      suburbIsGeneric ? normalizedStreet : `${normalizedStreet} ${normalizedSuburb}`,
+      suburbIsGeneric || firstAddressPart === normalizedStreet
+        ? ""
+        : `${firstAddressPart} ${normalizedSuburb}`,
+      normalizedStreet,
+      firstAddressPart === normalizedStreet ? "" : firstAddressPart,
+    ].map((candidate) => candidate.replace(/[%_]/g, "").trim()),
+  );
+}
+
+function addressIncludesSuburb(fullAddress: string | undefined, suburb: string) {
+  const normalizedSuburb = normalizeAddressQuery(suburb);
+  if (!fullAddress || normalizedSuburb === "" || normalizedSuburb === "AUCKLAND") {
+    return true;
   }
 
-  return {
-    latitude: feature.geometry.y,
-    longitude: feature.geometry.x,
-    matchedAddress: feature.attributes.FullAddress ?? null,
-  };
+  return normalizeAddressQuery(fullAddress).includes(normalizedSuburb);
+}
+
+export async function geocodeAddress(
+  streetAddress: string,
+  suburb: string,
+  options: { signal?: AbortSignal } = {},
+) {
+  const searchCandidates = geocodeSearchCandidates(streetAddress, suburb);
+
+  for (const searchText of searchCandidates) {
+    const url = arcgisQueryUrl(GEOMAPS.addressLookup, {
+      where: `UPPER(FullAddress) LIKE '%${escapeArcgisLike(searchText)}%'`,
+      outFields: "OBJECTID,FullAddress",
+      returnGeometry: "true",
+      f: "json",
+      resultRecordCount: "5",
+      outSR: "4326",
+    });
+
+    const response = await fetch(url, { cache: "no-store", signal: options.signal });
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = (await response.json()) as ArcGisQueryResponse<ArcGisPointFeature>;
+    const feature =
+      data.features?.find(
+        (item) => item.geometry && addressIncludesSuburb(item.attributes.FullAddress, suburb),
+      ) ?? data.features?.find((item) => item.geometry);
+    if (feature?.geometry) {
+      return {
+        latitude: feature.geometry.y,
+        longitude: feature.geometry.x,
+        matchedAddress: feature.attributes.FullAddress ?? null,
+      };
+    }
+  }
+
+  return null;
 }
 
 export async function syncCouncilAreaBoundaries() {
