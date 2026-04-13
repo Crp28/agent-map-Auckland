@@ -1,14 +1,9 @@
 import { getMapData } from "@/lib/repository";
 import { ensureRecentCouncilAreaBoundaries } from "@/lib/geomaps";
 import { mapFilterSchema } from "@/lib/validation";
-import { subYears } from "date-fns";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
-
-function dateOnly(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -24,10 +19,9 @@ export async function GET(request: Request) {
 
   await ensureRecentCouncilAreaBoundaries();
 
-  const today = new Date();
   const data = await getMapData({
-    from: parsed.data.from ?? dateOnly(subYears(today, 1)),
-    to: parsed.data.to ?? dateOnly(today),
+    from: parsed.data.from ?? "0000-01-01",
+    to: parsed.data.to ?? "9999-12-31",
     price: parsed.data.price,
   });
 

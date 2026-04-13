@@ -32,6 +32,7 @@ function makePoint(longitude: number, latitude: number) {
 
 const aucklandOverviewCenter: [number, number] = [174.83, -36.78];
 const aucklandMinZoom = 0;
+const selectedBoundaryZoom = 12;
 
 export function AucklandMap({
   people,
@@ -225,7 +226,7 @@ export function AucklandMap({
     void view.goTo(
       {
         target: center ?? polygon,
-        zoom: aucklandMinZoom,
+        zoom: selectedBoundaryZoom,
       },
       { duration: 450 },
     );

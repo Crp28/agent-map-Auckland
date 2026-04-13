@@ -37,3 +37,12 @@
 - Added double-click editable detail rows and red delete controls with confirmation for People and Sold Property details.
 - Fixed the manager record-loading effect after ESLint flagged synchronous effect-triggered state updates.
 - Verified the new TODO slice with `npm run test`, `npm run lint`, `npm run build`, `agent-browser` drawer/manager smoke checks, and non-mutating API probes for list/update/delete behavior.
+
+## 2026-04-14
+- Started the next TODO.md request: double the suburb sidebar height, adjust suburb-click zoom to match `image.png`, show all sold property pins by default, explain why 6 of 462 People render on the map, and reflect the behavior in `FEATURE_STATEMENT.md`.
+- Doubled the expanded suburb drawer from `h-56` to `h-[28rem]` and increased its scrollable list height.
+- Changed suburb selection from the prior maximum zoom-out behavior to a local suburb-level zoom that matches the `image.png` reference more closely.
+- Changed default Sold Property map loading to omit date query parameters and let the API return all geocoded Sold Properties when the date fields are blank.
+- Checked the local SQLite counts: 462 People rows exist, 6 have coordinates, and 456 are stored without coordinates, so only the 6 coordinate-bearing People rows can appear as map dots.
+- Updated `FEATURE_STATEMENT.md`, `DOCUMENTATION.md`, and `findings.md` for the latest TODO behavior.
+- Verified the latest TODO slice with `npm run test`, `npm run lint`, `npm run build`, a default `/api/map-data` probe, and an `agent-browser` check of the taller suburb drawer and Highland Park selection.

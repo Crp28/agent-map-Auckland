@@ -17,13 +17,8 @@ import type {
   SoldPropertyRecord,
   SuburbRegion,
 } from "@/types/location";
-import { format, subYears } from "date-fns";
 import { ChevronLeft, ChevronRight, Database, FileUp, LocateFixed, Plus, Search, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-
-const today = new Date();
-const defaultTo = format(today, "yyyy-MM-dd");
-const defaultFrom = format(subYears(today, 1), "yyyy-MM-dd");
 
 const emptyMapData: MapData = {
   soldProperties: [],
@@ -34,8 +29,8 @@ const emptyMapData: MapData = {
 
 export function LocationFinderApp() {
   const [mapData, setMapData] = useState<MapData>(emptyMapData);
-  const [fromDate, setFromDate] = useState(defaultFrom);
-  const [toDate, setToDate] = useState(defaultTo);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [price, setPrice] = useState("");
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -61,10 +56,13 @@ export function LocationFinderApp() {
   useEffect(() => {
     const controller = new AbortController();
 
-    const params = new URLSearchParams({
-      from: fromDate,
-      to: toDate,
-    });
+    const params = new URLSearchParams();
+    if (fromDate) {
+      params.set("from", fromDate);
+    }
+    if (toDate) {
+      params.set("to", toDate);
+    }
     if (price.trim()) {
       params.set("price", price.trim());
     }
@@ -310,11 +308,11 @@ export function LocationFinderApp() {
 
         <div
           className={`pointer-events-none relative w-full max-w-xl overflow-visible transition-[height] duration-200 ${
-            suburbListOpen ? "h-56" : "h-11"
+            suburbListOpen ? "h-[28rem]" : "h-11"
           }`}
         >
           <aside
-            className={`pointer-events-auto absolute right-0 top-0 flex max-h-56 w-[min(86vw,340px)] overflow-hidden rounded-md border border-[#cbd5e1] bg-white shadow-lg transition-transform duration-200 ${
+            className={`pointer-events-auto absolute right-0 top-0 flex max-h-[28rem] w-[min(86vw,340px)] overflow-hidden rounded-md border border-[#cbd5e1] bg-white shadow-lg transition-transform duration-200 ${
               suburbListOpen ? "translate-x-0" : "translate-x-[calc(100%-44px)]"
             }`}
             aria-label="Auckland suburb navigation"
@@ -346,7 +344,7 @@ export function LocationFinderApp() {
                     />
                   </label>
                 </div>
-                <div className="max-h-28 overflow-auto">
+                <div className="max-h-80 overflow-auto">
                   {suburbRegions.map((region) => (
                     <button
                       key={region.key}

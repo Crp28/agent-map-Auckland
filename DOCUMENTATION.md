@@ -35,6 +35,9 @@
 - 2026-04-13: Replaced direct Person/Sold Property add behavior with manager dialogs listing existing records, each with details and delete actions plus an add button.
 - 2026-04-13: Added double-click inline editing for detail fields and red delete controls with confirmation in People and Sold Property detail modals.
 - 2026-04-13: Verified the record-management TODO slice with `npm run test`, `npm run lint`, `npm run build`, `agent-browser` drawer/manager checks, and non-mutating API probes.
+- 2026-04-14: Doubled the expanded suburb drawer height, adjusted suburb selection to a local suburb-level zoom matching the `image.png` reference, and changed the default sold-property date filters to blank so all geocoded Sold Property pins render by default.
+- 2026-04-14: Investigated People map-marker counts in SQLite. The database has 462 People rows, but only 6 currently have both latitude and longitude; the remaining 456 are stored and manageable but do not render as map dots until coordinates are added or geocoded.
+- 2026-04-14: Updated `FEATURE_STATEMENT.md` to reflect default sold-property visibility, the taller searchable suburb drawer, local suburb-level navigation, record managers, and coordinate-required People map dots.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
@@ -43,6 +46,8 @@
 - The suburb navigation is hidden behind a right-side handle by default so the main map remains the primary workspace.
 - Person and Sold Property managers use the full database list, while the map still uses filtered/geocoded records for rendering.
 - The broader suburb list is a v1 navigation catalog mapped onto available Council subdivision boundaries, not individual suburb polygon geometry.
+- Sold Property date filters are blank by default so all geocoded Sold Property pins show on first load; entering dates narrows the map.
+- People records without coordinates remain valid database records, but the map intentionally omits them because there is no point to place.
 
 ## Notes
 - Use `cmd /c npm ...`, `npm.cmd`, or `npx.cmd` in PowerShell because this machine blocks `npm.ps1`.

@@ -20,10 +20,14 @@
 - ArcGIS `goTo` with a polygon extent target can fit that extent even when a `zoom` value is supplied; using the boundary center as the target allows the requested maximum zoom-out level to apply.
 - The right-side suburb drawer overlaps the nearby people panel at a 720px-tall viewport when expanded to `h-72`; `h-56` leaves visible separation while keeping the suburb rows scrollable.
 - The v1 suburb catalog now maps central, northern, and eastern suburb names onto the available cached GeoMaps subdivision boundary groups; individual suburb polygons are still not available from the current v1 boundary cache.
+- The current `image.png` reference shows a local suburb-level view, so selected suburb navigation now uses a fixed ArcGIS zoom level of 12 instead of the farthest zoom-out level.
+- After the latest request, the expanded suburb drawer is `h-[28rem]`, which is double the prior `h-56` height.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.
 - React hooks lint treats state-setting loaders called directly from effects as synchronous effect state updates; using a fetch helper and setting state from the promise continuation satisfies the rule.
+- Sold Property map data now defaults to an all-date range when no date filters are supplied, so every geocoded Sold Property pin is included on first load.
+- People map data still requires coordinates. In the current local database, 6 of 462 People rows have both latitude and longitude; the other 456 rows were preserved by the CSV import but cannot be plotted until coordinates are added or geocoded.
 
 ## CSV Import
 - `695023-69d71c7b67df2.csv` is a contact export with 2173 rows: 2127 `Person` contacts and 46 `Business` contacts.
