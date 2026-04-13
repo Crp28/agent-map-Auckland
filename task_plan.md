@@ -6,8 +6,8 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 ## Phases
 1. Complete: Initialize Git.
 2. Complete: Create documentation trackers and project scaffold.
-3. In progress: Implement database, validation, GeoMaps/geocoding, sync services, and API routes.
-4. Pending: Implement map UI, filters, search, forms, modals, CSV import, and status display.
+3. Complete: Implement database, validation, GeoMaps/geocoding, sync services, and API routes.
+4. In progress: Implement map UI, filters, search, forms, modals, CSV import, and status display.
 5. Pending: Add tests, README, final documentation updates, verification, and final commit.
 
 ## Decisions
@@ -21,3 +21,5 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 | --- | --- | --- |
 | `npm install` reported 4 moderate audit findings | Dependency install | Logged for follow-up; not auto-fixed because `npm audit fix --force` may introduce breaking changes. |
 | Next build rejected `next/dynamic` with `ssr:false` in a Server Component | Scaffold build | Root cause was the dynamic import living in `src/app/page.tsx`; moved it into a client wrapper component. |
+| Next build hit `SQLITE_BUSY` while collecting API route page data | Backend build | Root cause was SQLite opening at module import time across parallel workers; changed DB/Drizzle access to lazy `getDb()`/`getRawDb()` functions. |
+| `npm test` found no test files | Backend verification | Tests have not been added yet; will add focused tests in the test phase. |

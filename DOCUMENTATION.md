@@ -8,6 +8,9 @@
 - 2026-04-13: Installed dependencies. `npm install` reported four moderate audit findings in transitive packages; no force fix was applied because it may introduce breaking changes.
 - 2026-04-13: Fixed the Next 16 build boundary by keeping `src/app/page.tsx` as a Server Component and moving `next/dynamic({ ssr: false })` into `src/components/location-finder-loader.tsx`.
 - 2026-04-13: Verified the scaffold with `npm run lint` and `npm run build`.
+- 2026-04-13: Added backend foundations: SQLite schema/init, validation schemas, Auckland Council GeoMaps address lookup and boundary sync, map/search/nearby repositories, People CSV import, API routes, and `npm run sync:geomaps`.
+- 2026-04-13: Refactored SQLite and Drizzle access to lazy initialization so Next's parallel build workers do not open the database at module import time.
+- 2026-04-13: Verified the backend slice with `npm run lint`, `npm run build`, and `npm run sync:geomaps`. The sync script fetched 18 subdivision outline records into `data/locationfinder.db`, which is intentionally ignored by Git.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
