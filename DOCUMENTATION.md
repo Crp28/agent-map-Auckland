@@ -43,6 +43,9 @@
 - 2026-04-14: Changed the default map center to Highland Park, made nearby filtering affect only People dots while keeping date-filtered Sold Property pins visible, added a Cancel action for the active nearby filter, and moved the suburb drawer into the same bottom-right control stack as the nearby controls.
 - 2026-04-14: Stabilized the ArcGIS view so nearby-controller edits no longer recreate the map, centered Sold Property search-result selections at zoom level 6, delayed suburb movement until the suburb-center lookup resolves, and changed People storage to support multiple addresses per person through a new `people_addresses` table.
 - 2026-04-14: Updated the Add Person dialog and Person detail modal for multi-address editing. Map/search/nearby Person selections now keep the clicked address on the top-level fields so a map-dot modal shows only that address.
+- 2026-04-14: Fixed older local databases that still lacked `people.person_key` by moving unique-index creation after the conditional multi-address column migration in `ensureDatabase()`.
+- 2026-04-14: Hardened suburb navigation and Sold Property search-result focusing by sending explicit WGS84 ArcGIS `Point` geometries into `view.goTo()`. The live view uses NZTM (`wkid 2193`), so explicit point geometries are more reliable than bare coordinate arrays for these jumps.
+- 2026-04-14: Re-verified the remaining TODO behavior in the live browser: property search hits center at zoom 6, nearby-controller changes keep the current map position, Sold Property pins remain visible through nearby filtering, and suburb navigation returns from Glenfield to Highland Park at zoom 8.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
@@ -58,6 +61,7 @@
 - Nearby filtering intentionally narrows only the People layer. Sold Property pins continue to follow the date filters, and applying or canceling the nearby filter does not recenter the map.
 - The suburb drawer shares the bottom-right stack with the nearby People controls so the drawer shrinks within the remaining height instead of overlapping the filter panel.
 - People are now stored as one logical person row plus one-or-more address rows. The map, search, and nearby APIs flatten those address rows back into address-specific Person records so one person can render multiple dots.
+- Older local databases must add `people.person_key` before creating the unique index introduced by the multi-address migration.
 
 ## Notes
 - Use `cmd /c npm ...`, `npm.cmd`, or `npx.cmd` in PowerShell because this machine blocks `npm.ps1`.

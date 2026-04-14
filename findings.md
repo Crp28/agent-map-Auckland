@@ -32,6 +32,7 @@
 - The remaining map-reset bug came from the ArcGIS view setup effect depending on selection callbacks that changed whenever nearby-controller inputs changed. Keeping the callback identities stable prevents the map from being destroyed and recreated on nearby-controller edits.
 - Search-result navigation for Sold Properties is a separate map-focus action from pin selection. Centering the map on a property search hit should not be tied to general property selection, otherwise normal pin clicks would also reframe the map unexpectedly.
 - The suburb-centering bug was partly caused by moving to the boundary fallback immediately and only correcting later when the suburb-center lookup returned. Waiting for the suburb-center lookup before setting the map target avoids the initial jump to the wrong location.
+- This ArcGIS view runs in NZTM (`wkid 2193`) even though suburb/property centers originate from WGS84 longitude/latitude values. Passing explicit `Point` geometries with `wkid 4326` to `view.goTo()` makes suburb navigation and property search-result focusing deterministic.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.
@@ -40,6 +41,7 @@
 - People map data still requires coordinates. In the current local database, 6 of 462 People rows have both latitude and longitude; the other 456 rows were preserved by the CSV import but cannot be plotted until coordinates are added or geocoded.
 - The new People model needs a logical person identity separate from each address identity. A `people_addresses` table fits the map requirement cleanly because one person can render multiple dots while still sharing one name, phone, email, and purchasing-power range.
 - For map, search, and nearby flows, address-specific flattened person records work better than raw logical-person rows. They keep the clicked address on the top-level fields while still carrying the full address list for manager editing.
+- Older local databases may already have the `people` table but not the new `person_key` column. Migration order matters: add the column before creating the unique index, or SQLite will throw `no such column: person_key` on app startup.
 
 ## CSV Import
 - `695023-69d71c7b67df2.csv` is a contact export with 2173 rows: 2127 `Person` contacts and 46 `Business` contacts.

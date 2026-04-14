@@ -242,17 +242,17 @@ export function AucklandMap({
           spatialReference: { wkid: 4326 },
         })
       : null;
-    const center = selectedSuburbTarget.center
+    const fallbackCenter = polygon?.extent?.center;
+    const targetCenter = selectedSuburbTarget.center
       ? makePoint(selectedSuburbTarget.center[0], selectedSuburbTarget.center[1])
-      : polygon?.extent?.center;
-    const target = center ?? polygon;
-    if (!target) {
+      : fallbackCenter ?? null;
+    if (!targetCenter) {
       return;
     }
 
     void view.goTo(
       {
-        target,
+        center: targetCenter,
         zoom: selectedBoundaryZoom,
       },
       { duration: 450 },
@@ -267,7 +267,7 @@ export function AucklandMap({
 
     void view.goTo(
       {
-        center: selectedPropertyTarget.center,
+        center: makePoint(selectedPropertyTarget.center[0], selectedPropertyTarget.center[1]),
         zoom: selectedPropertyTarget.zoom,
       },
       { duration: 450 },

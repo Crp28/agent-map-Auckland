@@ -66,3 +66,6 @@
 - Stabilized the ArcGIS view by removing nearby-controller state from the map-construction effect, added property search-result focus targets, and changed suburb navigation to wait for the resolved suburb center before moving the map.
 - Updated the Add Person dialog and Person detail modal for multi-address editing, while map-driven Person selections keep the clicked address as the only visible address in that modal.
 - Verified the new schema and UI slice with `npm run test`, `npm run lint`, and `npm run build`.
+- Resumed against the live app after the multi-address commit and found older local databases could crash at startup with `SqliteError: no such column: person_key`; fixed `ensureDatabase()` so the `person_key` column migration runs before the unique index is created.
+- Hardened suburb/property map jumps by using explicit WGS84 ArcGIS `Point` geometries for `view.goTo()` targets, which keeps map focusing correct even though the live ArcGIS view runs in NZTM (`wkid 2193`).
+- Re-verified the remaining TODO behaviors in the live browser: Sold Property search results center the map at zoom 6, nearby-controller edits keep the current map position, nearby filtering changes only People dots while Sold Property pins stay visible, and suburb navigation returns from Glenfield to a centered Highland Park view at zoom 8.

@@ -161,7 +161,6 @@ export function ensureDatabase() {
     );
 
     CREATE INDEX IF NOT EXISTS people_suburb_idx ON people(suburb);
-    CREATE UNIQUE INDEX IF NOT EXISTS people_person_key_unique ON people(person_key);
 
     CREATE TABLE IF NOT EXISTS people_addresses (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

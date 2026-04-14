@@ -18,6 +18,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 12. Complete: Apply TODO.md suburb navigation centering, remove suburb highlight behavior, add sidebar autoscroll, and update `FEATURE_STATEMENT.md`.
 13. Complete: Apply TODO.md Highland Park default, persistent Sold Property pins during nearby People filtering, nearby filter cancellation, shared bottom-right drawer layout, and `FEATURE_STATEMENT.md` updates.
 14. Complete: Apply TODO.md stable property-pin visibility, property-search map centering, suburb-centering fix, nearby-controller map stability, multi-address People schema, and `FEATURE_STATEMENT.md` updates.
+15. Complete: Finish the remaining live TODO verification/fixes by repairing old-database multi-address migration order, hardening ArcGIS suburb/property focusing with explicit map points, and re-running browser verification.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.
@@ -42,3 +43,4 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 | PowerShell treated expected API 404 responses as command failures | API smoke check | Re-ran the probes with `try/catch` and inspected response status/body directly. |
 | People geocoding backfill timed out after 15 minutes | Bulk geocoding | Root cause was serial GeoMaps requests without per-request timeout; stopped the lingering process and added bounded concurrency plus fetch abort timeouts. |
 | `_`/`_` Person row received an arbitrary coordinate | Bulk geocoding | Root cause was SQL `LIKE` wildcard handling; added address specificity checks and cleared the false-positive coordinate. |
+| Existing local database crashed on `no such column: person_key` after the multi-address schema change | Live app verification | Root cause was `ensureDatabase()` creating the `people_person_key_unique` index before older databases had added the new `person_key` column; moved index creation after the conditional column migration. |
