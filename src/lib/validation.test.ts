@@ -2,6 +2,32 @@ import { describe, expect, it } from "vitest";
 import { nearbySchema, personInputSchema, soldPropertyInputSchema } from "./validation";
 
 describe("personInputSchema", () => {
+  it("parses multiple addresses for one person", () => {
+    const result = personInputSchema.safeParse({
+      name: "Ana Buyer",
+      phone: "021 000 000",
+      email: "ana@example.com",
+      purchasingPowerMin: "",
+      purchasingPowerMax: "",
+      addresses: [
+        {
+          streetAddress: "1 Queen Street",
+          suburb: "Auckland Central",
+          latitude: "",
+          longitude: "",
+        },
+        {
+          streetAddress: "2 High Street",
+          suburb: "Auckland Central",
+          latitude: "",
+          longitude: "",
+        },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it("rejects invalid email addresses", () => {
     const result = personInputSchema.safeParse({
       name: "Ana Buyer",
@@ -32,6 +58,26 @@ describe("personInputSchema", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("still accepts legacy single-address payloads", () => {
+    const result = personInputSchema.safeParse({
+      name: "Ana Buyer",
+      streetAddress: "1 Queen Street",
+      suburb: "Auckland Central",
+      phone: "021 000 000",
+      email: "ana@example.com",
+      purchasingPowerMin: "",
+      purchasingPowerMax: "",
+      latitude: "",
+      longitude: "",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.addresses).toHaveLength(1);
+      expect(result.data.addresses[0]?.streetAddress).toBe("1 Queen Street");
+    }
   });
 });
 

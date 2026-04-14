@@ -17,6 +17,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 11. Complete: Add and run a People geocoding backfill for the imported valid rows missing coordinates.
 12. Complete: Apply TODO.md suburb navigation centering, remove suburb highlight behavior, add sidebar autoscroll, and update `FEATURE_STATEMENT.md`.
 13. Complete: Apply TODO.md Highland Park default, persistent Sold Property pins during nearby People filtering, nearby filter cancellation, shared bottom-right drawer layout, and `FEATURE_STATEMENT.md` updates.
+14. Complete: Apply TODO.md stable property-pin visibility, property-search map centering, suburb-centering fix, nearby-controller map stability, multi-address People schema, and `FEATURE_STATEMENT.md` updates.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.

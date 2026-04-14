@@ -22,17 +22,13 @@ const optionalLongitude = z.preprocess(
     .nullable(),
 );
 
-export const personInputSchema = z
+const personBaseSchema = z
   .object({
     name: requiredText("Name"),
-    streetAddress: requiredText("Street address"),
-    suburb: requiredText("Suburb"),
     phone: requiredText("Phone"),
     email: requiredText("Email").email("Enter a valid email address"),
     purchasingPowerMin: optionalInteger,
     purchasingPowerMax: optionalInteger,
-    latitude: optionalLatitude,
-    longitude: optionalLongitude,
   })
   .refine(
     (data) =>
@@ -43,11 +39,50 @@ export const personInputSchema = z
       message: "Minimum power must be less than or equal to maximum power",
       path: ["purchasingPowerMin"],
     },
-  )
+  );
+
+export const personAddressInputSchema = z
+  .object({
+    streetAddress: requiredText("Street address"),
+    suburb: requiredText("Suburb"),
+    latitude: optionalLatitude,
+    longitude: optionalLongitude,
+  })
   .refine((data) => (data.latitude === null) === (data.longitude === null), {
     message: "Latitude and longitude must be supplied together",
     path: ["latitude"],
   });
+
+export const personFormSchema = personBaseSchema.extend({
+  addresses: z.array(personAddressInputSchema).min(1, "At least one address is required"),
+});
+
+export const personInputSchema = z.preprocess((value) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  if (Array.isArray(candidate.addresses)) {
+    return candidate;
+  }
+
+  return {
+    name: candidate.name,
+    phone: candidate.phone,
+    email: candidate.email,
+    purchasingPowerMin: candidate.purchasingPowerMin,
+    purchasingPowerMax: candidate.purchasingPowerMax,
+    addresses: [
+      {
+        streetAddress: candidate.streetAddress,
+        suburb: candidate.suburb,
+        latitude: candidate.latitude,
+        longitude: candidate.longitude,
+      },
+    ],
+  };
+}, personFormSchema);
 
 export const soldPropertyInputSchema = z
   .object({
@@ -94,5 +129,6 @@ export const nearbySchema = z.object({
     .default(true),
 });
 
-export type PersonInput = z.infer<typeof personInputSchema>;
+export type PersonAddressInput = z.output<typeof personAddressInputSchema>;
+export type PersonInput = z.output<typeof personInputSchema>;
 export type SoldPropertyInput = z.infer<typeof soldPropertyInputSchema>;

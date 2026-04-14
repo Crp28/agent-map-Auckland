@@ -1,14 +1,14 @@
 "use client";
 
 import { AppDialog } from "@/components/ui/dialog";
-import type { PersonRecord, SelectedItem, SoldPropertyRecord } from "@/types/location";
+import type { PersonAddressRecord, PersonRecord, SelectedItem, SoldPropertyRecord } from "@/types/location";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, Plus, Trash2, Upload } from "lucide-react";
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
-import { personInputSchema, soldPropertyInputSchema } from "@/lib/validation";
+import { personFormSchema, personInputSchema, soldPropertyInputSchema } from "@/lib/validation";
 
 type FormStatus = { type: "success" | "error"; message: string } | null;
 
@@ -25,7 +25,6 @@ function FieldError({ message }: { message?: string }) {
   return message ? <p className={errorClass}>{message}</p> : null;
 }
 
-type PersonForm = z.input<typeof personInputSchema>;
 type SoldPropertyForm = z.input<typeof soldPropertyInputSchema>;
 type RecordKind = "person" | "soldProperty";
 type ManagedRecord = PersonRecord | SoldPropertyRecord;
@@ -40,21 +39,32 @@ export function AddPersonDialog({
 }) {
   const [status, setStatus] = useState<FormStatus>(null);
   const {
+    control,
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
-  } = useForm<PersonForm>({
-    resolver: zodResolver(personInputSchema),
+  } = useForm({
+    resolver: zodResolver(personFormSchema),
     defaultValues: {
       purchasingPowerMin: "",
       purchasingPowerMax: "",
-      latitude: "",
-      longitude: "",
+      addresses: [
+        {
+          streetAddress: "",
+          suburb: "",
+          latitude: "",
+          longitude: "",
+        },
+      ],
     },
   });
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "addresses",
+  });
 
-  async function onSubmit(values: PersonForm) {
+  async function onSubmit(values: z.output<typeof personInputSchema>) {
     setStatus(null);
     const response = await fetch("/api/people", {
       method: "POST",
@@ -92,16 +102,6 @@ export function AddPersonDialog({
             <FieldError message={errors.email?.message} />
           </label>
           <label className={labelClass}>
-            Suburb
-            <input className={inputClass} {...register("suburb")} />
-            <FieldError message={errors.suburb?.message} />
-          </label>
-          <label className={`${labelClass} sm:col-span-2`}>
-            Street address
-            <input className={inputClass} {...register("streetAddress")} />
-            <FieldError message={errors.streetAddress?.message} />
-          </label>
-          <label className={labelClass}>
             Purchasing power min
             <input className={inputClass} inputMode="numeric" {...register("purchasingPowerMin")} />
             <FieldError message={errors.purchasingPowerMin?.message} />
@@ -111,16 +111,69 @@ export function AddPersonDialog({
             <input className={inputClass} inputMode="numeric" {...register("purchasingPowerMax")} />
             <FieldError message={errors.purchasingPowerMax?.message} />
           </label>
-          <label className={labelClass}>
-            Latitude fallback
-            <input className={inputClass} inputMode="decimal" {...register("latitude")} />
-            <FieldError message={errors.latitude?.message} />
-          </label>
-          <label className={labelClass}>
-            Longitude fallback
-            <input className={inputClass} inputMode="decimal" {...register("longitude")} />
-            <FieldError message={errors.longitude?.message} />
-          </label>
+          <div className="sm:col-span-2">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <p className={labelClass}>Addresses</p>
+              <button
+                type="button"
+                onClick={() =>
+                  append({
+                    streetAddress: "",
+                    suburb: "",
+                    latitude: "",
+                    longitude: "",
+                  })
+                }
+                className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#cbd5e1] px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+              >
+                <Plus aria-hidden="true" size={18} />
+                Add address
+              </button>
+            </div>
+            <div className="grid gap-4">
+              {fields.map((field, index) => (
+                <div key={field.id} className="rounded-md border border-[#e2e8f0] p-3">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-[#111827]">Address {index + 1}</p>
+                    {fields.length > 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => remove(index)}
+                        className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#fecdca] px-3 py-2 text-sm font-semibold text-[#b42318] hover:bg-[#fff1f0] focus:outline-none focus:ring-2 focus:ring-[#b42318]"
+                      >
+                        <Trash2 aria-hidden="true" size={18} />
+                        Remove
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className={`${labelClass} sm:col-span-2`}>
+                      Street address
+                      <input className={inputClass} {...register(`addresses.${index}.streetAddress`)} />
+                      <FieldError message={errors.addresses?.[index]?.streetAddress?.message} />
+                    </label>
+                    <label className={labelClass}>
+                      Suburb
+                      <input className={inputClass} {...register(`addresses.${index}.suburb`)} />
+                      <FieldError message={errors.addresses?.[index]?.suburb?.message} />
+                    </label>
+                    <div />
+                    <label className={labelClass}>
+                      Latitude fallback
+                      <input className={inputClass} inputMode="decimal" {...register(`addresses.${index}.latitude`)} />
+                      <FieldError message={errors.addresses?.[index]?.latitude?.message} />
+                    </label>
+                    <label className={labelClass}>
+                      Longitude fallback
+                      <input className={inputClass} inputMode="decimal" {...register(`addresses.${index}.longitude`)} />
+                      <FieldError message={errors.addresses?.[index]?.longitude?.message} />
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <FieldError message={errors.addresses?.message as string | undefined} />
+          </div>
         </div>
         {status ? (
           <p className={status.type === "error" ? errorClass : "text-sm text-[#166534]"}>
@@ -473,7 +526,8 @@ export function DetailsDialog({
       {selected?.type === "person" ? (
         <PersonDetails
           person={selected.item}
-          onChange={(person) => onSelectedChange({ type: "person", item: person })}
+          source={selected.source}
+          onChange={(person) => onSelectedChange({ type: "person", item: person, source: selected.source })}
           onDeleted={() => {
             onSelectedChange(null);
             refresh();
@@ -584,14 +638,16 @@ function optionalNumberFromDraft(value: string) {
 function personPayload(person: PersonRecord) {
   return {
     name: person.name,
-    streetAddress: person.streetAddress,
-    suburb: person.suburb,
     phone: person.phone,
     email: person.email,
     purchasingPowerMin: person.purchasingPowerMin,
     purchasingPowerMax: person.purchasingPowerMax,
-    latitude: person.latitude,
-    longitude: person.longitude,
+    addresses: person.addresses.map((address) => ({
+      streetAddress: address.streetAddress,
+      suburb: address.suburb,
+      latitude: address.latitude,
+      longitude: address.longitude,
+    })),
   };
 }
 
@@ -617,11 +673,13 @@ async function requestJson<T>(url: string, init: RequestInit) {
 
 function PersonDetails({
   person,
+  source,
   onChange,
   onDeleted,
   refresh,
 }: {
   person: PersonRecord;
+  source: "manager" | "map";
   onChange: (person: PersonRecord) => void;
   onDeleted: () => void;
   refresh: () => void;
@@ -644,6 +702,22 @@ function PersonDetails({
     onDeleted();
   }
 
+  const selectedAddress =
+    person.addresses.find((address) => address.id === person.addressId) ?? person.addresses[0] ?? null;
+  const visibleAddresses =
+    source === "manager" ? person.addresses : selectedAddress ? [selectedAddress] : [];
+
+  function updateAddresses(
+    nextAddresses: PersonAddressRecord[],
+    nextAddressId: number | null = person.addressId,
+  ) {
+    return savePerson({
+      ...person,
+      addressId: nextAddressId ?? nextAddresses[0]?.id ?? null,
+      addresses: nextAddresses,
+    });
+  }
+
   return (
     <div className="grid gap-4">
       <div className="flex justify-end">
@@ -658,40 +732,126 @@ function PersonDetails({
       </div>
       <dl className="grid gap-3 sm:grid-cols-2">
         <EditableDetailRow label="Name" value={person.name} onSave={(value) => savePerson({ ...person, name: value })} />
-        <EditableDetailRow
-          label="Street address"
-          value={person.streetAddress}
-          onSave={(value) => savePerson({ ...person, streetAddress: value })}
-        />
-        <EditableDetailRow label="Suburb" value={person.suburb} onSave={(value) => savePerson({ ...person, suburb: value })} />
         <EditableDetailRow label="Phone" value={person.phone} onSave={(value) => savePerson({ ...person, phone: value })} />
         <EditableDetailRow label="Email" value={person.email} inputType="email" onSave={(value) => savePerson({ ...person, email: value })} />
         <EditableDetailRow
-          label="Power min"
+          label="Purchasing power min"
           value={person.purchasingPowerMin}
           inputType="number"
           onSave={(value) => savePerson({ ...person, purchasingPowerMin: optionalNumberFromDraft(value) })}
         />
         <EditableDetailRow
-          label="Power max"
+          label="Purchasing power max"
           value={person.purchasingPowerMax}
           inputType="number"
           onSave={(value) => savePerson({ ...person, purchasingPowerMax: optionalNumberFromDraft(value) })}
         />
-        <EditableDetailRow
-          label="Latitude"
-          value={person.latitude}
-          inputType="number"
-          onSave={(value) => savePerson({ ...person, latitude: optionalNumberFromDraft(value) })}
-        />
-        <EditableDetailRow
-          label="Longitude"
-          value={person.longitude}
-          inputType="number"
-          onSave={(value) => savePerson({ ...person, longitude: optionalNumberFromDraft(value) })}
-        />
         <DetailRow label="Last update" value={new Date(person.lastUpdatedAt).toLocaleString()} />
       </dl>
+      <div className="grid gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-[#111827]">
+            {source === "manager" ? `Addresses (${person.addresses.length})` : "Selected address"}
+          </p>
+          {source === "manager" ? (
+            <button
+              type="button"
+              onClick={() =>
+                void updateAddresses([
+                  ...person.addresses,
+                  {
+                    id: Date.now() * -1,
+                    personId: person.id,
+                    identityKey: "",
+                    streetAddress: "",
+                    suburb: "",
+                    latitude: null,
+                    longitude: null,
+                    createdAt: person.createdAt,
+                    updatedAt: person.updatedAt,
+                  },
+                ])
+              }
+              className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#cbd5e1] px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+            >
+              <Plus aria-hidden="true" size={18} />
+              Add address
+            </button>
+          ) : null}
+        </div>
+        {visibleAddresses.map((address) => (
+          <div key={address.id} className="rounded-md border border-[#e2e8f0] p-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-[#111827]">{address.streetAddress || "Address"}</p>
+              {source === "manager" && person.addresses.length > 1 ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    void updateAddresses(
+                      person.addresses.filter((item) => item.id !== address.id),
+                      person.addressId === address.id
+                        ? person.addresses.find((item) => item.id !== address.id)?.id ?? null
+                        : person.addressId,
+                    )
+                  }
+                  className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#fecdca] px-3 py-2 text-sm font-semibold text-[#b42318] hover:bg-[#fff1f0] focus:outline-none focus:ring-2 focus:ring-[#b42318]"
+                >
+                  <Trash2 aria-hidden="true" size={18} />
+                  Remove
+                </button>
+              ) : null}
+            </div>
+            <dl className="grid gap-3 sm:grid-cols-2">
+              <EditableDetailRow
+                label="Street address"
+                value={address.streetAddress}
+                onSave={(value) =>
+                  updateAddresses(
+                    person.addresses.map((item) =>
+                      item.id === address.id ? { ...item, streetAddress: value } : item,
+                    ),
+                  )
+                }
+              />
+              <EditableDetailRow
+                label="Suburb"
+                value={address.suburb}
+                onSave={(value) =>
+                  updateAddresses(
+                    person.addresses.map((item) =>
+                      item.id === address.id ? { ...item, suburb: value } : item,
+                    ),
+                  )
+                }
+              />
+              <EditableDetailRow
+                label="Latitude"
+                value={address.latitude}
+                inputType="number"
+                onSave={(value) =>
+                  updateAddresses(
+                    person.addresses.map((item) =>
+                      item.id === address.id ? { ...item, latitude: optionalNumberFromDraft(value) } : item,
+                    ),
+                  )
+                }
+              />
+              <EditableDetailRow
+                label="Longitude"
+                value={address.longitude}
+                inputType="number"
+                onSave={(value) =>
+                  updateAddresses(
+                    person.addresses.map((item) =>
+                      item.id === address.id ? { ...item, longitude: optionalNumberFromDraft(value) } : item,
+                    ),
+                  )
+                }
+              />
+            </dl>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -756,9 +916,9 @@ function SoldPropertyDetails({
         />
         <EditableDetailRow
           label="Sold price"
-          value={soldProperty.soldPrice}
+          value={`$${soldProperty.soldPrice?.toLocaleString()}`}
           inputType="number"
-          onSave={(value) => saveSoldProperty({ ...soldProperty, soldPrice: Number(value) })}
+          onSave={(value) => saveSoldProperty({ ...soldProperty, soldPrice: Number(value.slice(1)) })}
         />
         <EditableDetailRow
           label="Latitude"

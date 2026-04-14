@@ -33,6 +33,7 @@ cmd /c npm run geocode:people
 - Override it with `DATABASE_PATH` in `.env`.
 - Database files are ignored by Git.
 - Tables are created automatically when server-side code first needs the database.
+- Legacy single-address People rows are migrated in place to a logical-person-plus-addresses model the next time the app touches the database.
 
 ## GeoMaps
 
@@ -49,7 +50,10 @@ The outline layer is refreshed by `npm run sync:geomaps` and automatically refre
 - The map opens centered on Highland Park.
 - Sold Property pins follow only the date filters and stay visible when a nearby People filter is applied.
 - Applying or canceling a nearby People filter does not recenter the map.
+- Changing nearby-controller inputs also keeps the current map position.
+- Clicking a Sold Property search result centers the map on that property at zoom level 6.
 - The suburb drawer shares the bottom-right control stack with the nearby People controls so expanded suburb navigation stays within the available height.
+- One Person can hold multiple addresses, and each coordinate-bearing address renders its own map dot.
 
 ## CSV Format
 
@@ -67,6 +71,8 @@ purchasingPowerMin,purchasingPowerMax,latitude,longitude
 ```
 
 Fully duplicate rows are skipped. Rows with the same normalized `name + streetAddress + suburb` identity update the existing record. Invalid rows are counted in the import summary.
+
+With the multi-address People model, CSV imports still submit one address per row. Rows for the same normalized person identity with a new address append that address to the existing person, while rows for the same person and same address update that address.
 
 The importer also accepts the contact-export format used by `695023-69d71c7b67df2.csv`. Only rows with `Contact Type` set to `Person` and valid name, address, suburb, phone, and email values are imported into People. The CLI import skips geocoding for bulk speed and preserves existing coordinates on updates. Imported People without coordinates remain stored and editable, but do not render as map dots until latitude and longitude are added or geocoded.
 

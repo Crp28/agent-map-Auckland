@@ -1,6 +1,20 @@
+export type PersonAddressRecord = {
+  id: number;
+  personId: number;
+  identityKey: string;
+  streetAddress: string;
+  suburb: string;
+  latitude: number | null;
+  longitude: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type PersonRecord = {
   id: number;
+  personKey: string;
   name: string;
+  addressId: number | null;
   streetAddress: string;
   suburb: string;
   phone: string;
@@ -9,6 +23,7 @@ export type PersonRecord = {
   purchasingPowerMax: number | null;
   latitude: number | null;
   longitude: number | null;
+  addresses: PersonAddressRecord[];
   lastUpdatedAt: string;
   createdAt: string;
   updatedAt: string;
@@ -52,6 +67,12 @@ export type SuburbMapTarget = {
   center?: [number, number];
 };
 
+export type PointMapTarget = {
+  key: string;
+  center: [number, number];
+  zoom: number;
+};
+
 export type SyncRecord = {
   sourceName: string;
   sourceUrl: string;
@@ -85,6 +106,6 @@ export type SearchResult =
     };
 
 export type SelectedItem =
-  | { type: "person"; item: PersonRecord }
+  | { type: "person"; item: PersonRecord; source: "manager" | "map" }
   | { type: "soldProperty"; item: SoldPropertyRecord }
   | null;

@@ -5,6 +5,7 @@ export const people = sqliteTable(
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
     identityKey: text("identity_key").notNull(),
+    personKey: text("person_key").notNull(),
     name: text("name").notNull(),
     streetAddress: text("street_address").notNull(),
     suburb: text("suburb").notNull(),
@@ -20,7 +21,28 @@ export const people = sqliteTable(
   },
   (table) => [
     uniqueIndex("people_identity_key_unique").on(table.identityKey),
+    uniqueIndex("people_person_key_unique").on(table.personKey),
     index("people_suburb_idx").on(table.suburb),
+  ],
+);
+
+export const peopleAddresses = sqliteTable(
+  "people_addresses",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    personId: integer("person_id").notNull().references(() => people.id, { onDelete: "cascade" }),
+    identityKey: text("identity_key").notNull(),
+    streetAddress: text("street_address").notNull(),
+    suburb: text("suburb").notNull(),
+    latitude: real("latitude"),
+    longitude: real("longitude"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("people_addresses_identity_key_unique").on(table.identityKey),
+    index("people_addresses_person_id_idx").on(table.personId),
+    index("people_addresses_suburb_idx").on(table.suburb),
   ],
 );
 
@@ -70,6 +92,8 @@ export const syncMetadata = sqliteTable("sync_metadata", {
 
 export type Person = typeof people.$inferSelect;
 export type NewPerson = typeof people.$inferInsert;
+export type PersonAddress = typeof peopleAddresses.$inferSelect;
+export type NewPersonAddress = typeof peopleAddresses.$inferInsert;
 export type SoldProperty = typeof soldProperties.$inferSelect;
 export type NewSoldProperty = typeof soldProperties.$inferInsert;
 export type CouncilAreaBoundary = typeof councilAreaBoundaries.$inferSelect;

@@ -61,3 +61,8 @@
 - Moved the suburb drawer into the bottom-right nearby-control stack and gave that stack a fixed top/bottom span so the open drawer uses remaining height instead of overlapping the nearby People panel.
 - Updated `FEATURE_STATEMENT.md`, `DOCUMENTATION.md`, `README.md`, and `findings.md` for the new nearby-filter and shared-stack behavior.
 - Verified the latest TODO slice with `npm run test`, `npm run lint`, `npm run build`, and an `agent-browser` smoke check covering Highland Park default view, nearby filter apply/cancel behavior, and the non-overlapping shared bottom-right stack.
+- Started the next TODO.md request: fully stabilize Sold Property pin visibility, center property search hits at zoom 6, fix suburb centering, stop nearby-controller changes from resetting the map, and allow one Person to hold multiple addresses.
+- Reworked People storage to keep one logical person row plus a `people_addresses` table, migrated legacy single-address People into that shape during database init, and flattened address-specific person records back out for map/search/nearby flows.
+- Stabilized the ArcGIS view by removing nearby-controller state from the map-construction effect, added property search-result focus targets, and changed suburb navigation to wait for the resolved suburb center before moving the map.
+- Updated the Add Person dialog and Person detail modal for multi-address editing, while map-driven Person selections keep the clicked address as the only visible address in that modal.
+- Verified the new schema and UI slice with `npm run test`, `npm run lint`, and `npm run build`.

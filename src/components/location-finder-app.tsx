@@ -12,6 +12,7 @@ import { AUCKLAND_SUBURBS } from "@/lib/auckland-suburbs";
 import type {
   MapData,
   PersonRecord,
+  PointMapTarget,
   SearchResult,
   SelectedItem,
   SoldPropertyRecord,
@@ -28,6 +29,8 @@ const emptyMapData: MapData = {
   sync: null,
 };
 
+const highlandParkCenter: [number, number] = [174.90935, -36.89934];
+
 export function LocationFinderApp() {
   const [mapData, setMapData] = useState<MapData>(emptyMapData);
   const [fromDate, setFromDate] = useState("");
@@ -39,6 +42,7 @@ export function LocationFinderApp() {
   const [selectedSoldPropertyId, setSelectedSoldPropertyId] = useState<number | undefined>();
   const [nearbyPeople, setNearbyPeople] = useState<Array<PersonRecord & { distanceKm: number }>>([]);
   const [nearbyFilterActive, setNearbyFilterActive] = useState(false);
+  const [selectedPropertyTarget, setSelectedPropertyTarget] = useState<PointMapTarget | undefined>();
   const [distanceKm, setDistanceKm] = useState("2");
   const [sameSuburb, setSameSuburb] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -55,8 +59,15 @@ export function LocationFinderApp() {
   const [selectedSuburbTarget, setSelectedSuburbTarget] = useState<SuburbMapTarget | undefined>();
   const suburbButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const suburbRequestRef = useRef(0);
+  const distanceKmRef = useRef(distanceKm);
+  const sameSuburbRef = useRef(sameSuburb);
 
   const refresh = useCallback(() => setRefreshKey((value) => value + 1), []);
+
+  useEffect(() => {
+    distanceKmRef.current = distanceKm;
+    sameSuburbRef.current = sameSuburb;
+  }, [distanceKm, sameSuburb]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -115,12 +126,16 @@ export function LocationFinderApp() {
   }, [query]);
 
   const loadNearby = useCallback(
-    async (property: SoldPropertyRecord) => {
+    async (
+      property: SoldPropertyRecord,
+      overrides?: { distanceKm?: string; sameSuburb?: boolean },
+    ) => {
       setSelectedSoldPropertyId(property.id);
+      const effectiveDistanceKm = overrides?.distanceKm ?? distanceKmRef.current ?? "2";
       const params = new URLSearchParams({
         propertyId: String(property.id),
-        distanceKm: distanceKm || "2",
-        sameSuburb: String(sameSuburb),
+        distanceKm: effectiveDistanceKm,
+        sameSuburb: String(overrides?.sameSuburb ?? sameSuburbRef.current),
       });
       const response = await fetch(`/api/nearby?${params.toString()}`);
       if (!response.ok) {
@@ -132,16 +147,30 @@ export function LocationFinderApp() {
       };
       setNearbyPeople(payload.people);
     },
-    [distanceKm, sameSuburb],
+    [],
   );
 
   const selectPerson = useCallback((person: PersonRecord) => {
-    setSelected({ type: "person", item: person });
+    setSelected({ type: "person", item: person, source: "map" });
   }, []);
 
   const selectSoldProperty = useCallback(
-    (soldProperty: SoldPropertyRecord) => {
+    (
+      soldProperty: SoldPropertyRecord,
+      options?: { focus?: boolean; zoom?: number },
+    ) => {
       setSelected({ type: "soldProperty", item: soldProperty });
+      if (
+        options?.focus &&
+        soldProperty.longitude !== null &&
+        soldProperty.latitude !== null
+      ) {
+        setSelectedPropertyTarget({
+          key: `${soldProperty.id}-${options.zoom ?? 8}-${Date.now()}`,
+          center: [soldProperty.longitude, soldProperty.latitude],
+          zoom: options.zoom ?? 8,
+        });
+      }
       void loadNearby(soldProperty);
     },
     [loadNearby],
@@ -149,7 +178,7 @@ export function LocationFinderApp() {
 
   const visiblePeople = nearbyFilterActive ? nearbyPeople : mapData.people;
   const highlightedPersonIds = useMemo(
-    () => (nearbyFilterActive ? nearbyPeople.map((person) => person.id) : []),
+    () => (nearbyFilterActive ? nearbyPeople.map((person) => person.addressId ?? person.id) : []),
     [nearbyFilterActive, nearbyPeople],
   );
   const suburbRegions = useMemo<SuburbRegion[]>(
@@ -193,7 +222,7 @@ export function LocationFinderApp() {
     if (result.type === "person") {
       selectPerson(result.item);
     } else {
-      selectSoldProperty(result.item);
+      selectSoldProperty(result.item, { focus: true, zoom: 6 });
     }
   }
 
@@ -213,11 +242,20 @@ export function LocationFinderApp() {
     const requestId = suburbRequestRef.current + 1;
     suburbRequestRef.current = requestId;
     setSelectedSuburbKey(region.key);
-    setSelectedSuburbTarget({ key: region.key, boundaryId: region.boundaryId });
+    const fallbackCenter =
+      region.name === "Highland Park" ? highlandParkCenter : undefined;
 
     try {
       const response = await fetch(`/api/suburb-center?name=${encodeURIComponent(region.name)}`);
       if (!response.ok) {
+        if (suburbRequestRef.current !== requestId) {
+          return;
+        }
+        setSelectedSuburbTarget({
+          key: region.key,
+          boundaryId: region.boundaryId,
+          center: fallbackCenter,
+        });
         return;
       }
       const payload = (await response.json()) as { center: [number, number] | null };
@@ -227,13 +265,17 @@ export function LocationFinderApp() {
       setSelectedSuburbTarget({
         key: region.key,
         boundaryId: region.boundaryId,
-        center: payload.center ?? undefined,
+        center: payload.center ?? fallbackCenter,
       });
     } catch {
       if (suburbRequestRef.current !== requestId) {
         return;
       }
-      setSelectedSuburbTarget({ key: region.key, boundaryId: region.boundaryId });
+      setSelectedSuburbTarget({
+        key: region.key,
+        boundaryId: region.boundaryId,
+        center: fallbackCenter,
+      });
     }
   }
 
@@ -262,6 +304,7 @@ export function LocationFinderApp() {
         highlightedPersonIds={highlightedPersonIds}
         selectedSoldPropertyId={selectedSoldPropertyId}
         selectedSuburbTarget={selectedSuburbTarget}
+        selectedPropertyTarget={selectedPropertyTarget}
         onSelectPerson={selectPerson}
         onSelectSoldProperty={selectSoldProperty}
       />
@@ -532,7 +575,7 @@ export function LocationFinderApp() {
         onSelect={(record) => {
           setPersonManagerOpen(false);
           if ("name" in record) {
-            selectPerson(record);
+            setSelected({ type: "person", item: record, source: "manager" });
           }
         }}
         refresh={refresh}

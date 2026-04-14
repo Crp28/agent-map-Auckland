@@ -29,12 +29,17 @@
 - The nearby filter should narrow the People marker layer only; Sold Property pins that satisfy the date filters need to stay visible so the selected property context is not lost.
 - The suburb drawer and nearby People controller need a shared bottom-right flex stack. Letting the drawer consume only the remaining vertical space keeps it from overlapping the nearby controls when the drawer expands.
 - The app defaults to the Highland Park map center; applying or canceling nearby People filters does not update the selected suburb target or call map recentering.
+- The remaining map-reset bug came from the ArcGIS view setup effect depending on selection callbacks that changed whenever nearby-controller inputs changed. Keeping the callback identities stable prevents the map from being destroyed and recreated on nearby-controller edits.
+- Search-result navigation for Sold Properties is a separate map-focus action from pin selection. Centering the map on a property search hit should not be tied to general property selection, otherwise normal pin clicks would also reframe the map unexpectedly.
+- The suburb-centering bug was partly caused by moving to the boundary fallback immediately and only correcting later when the suburb-center lookup returned. Waiting for the suburb-center lookup before setting the map target avoids the initial jump to the wrong location.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.
 - React hooks lint treats state-setting loaders called directly from effects as synchronous effect state updates; using a fetch helper and setting state from the promise continuation satisfies the rule.
 - Sold Property map data now defaults to an all-date range when no date filters are supplied, so every geocoded Sold Property pin is included on first load.
 - People map data still requires coordinates. In the current local database, 6 of 462 People rows have both latitude and longitude; the other 456 rows were preserved by the CSV import but cannot be plotted until coordinates are added or geocoded.
+- The new People model needs a logical person identity separate from each address identity. A `people_addresses` table fits the map requirement cleanly because one person can render multiple dots while still sharing one name, phone, email, and purchasing-power range.
+- For map, search, and nearby flows, address-specific flattened person records work better than raw logical-person rows. They keep the clicked address on the top-level fields while still carrying the full address list for manager editing.
 
 ## CSV Import
 - `695023-69d71c7b67df2.csv` is a contact export with 2173 rows: 2127 `Person` contacts and 46 `Business` contacts.

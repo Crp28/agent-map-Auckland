@@ -66,10 +66,10 @@ function normalizeCsvRow(row: CsvRow) {
 function comparableInput(row: CsvRow) {
   return {
     name: row.name?.trim() ?? "",
-    streetAddress: row.streetAddress?.trim() ?? "",
-    suburb: row.suburb?.trim() ?? "",
     phone: row.phone?.trim() ?? "",
     email: row.email?.trim().toLowerCase() ?? "",
+    streetAddress: row.streetAddress?.trim() ?? "",
+    suburb: row.suburb?.trim() ?? "",
     purchasingPowerMin: row.purchasingPowerMin?.trim() || null,
     purchasingPowerMax: row.purchasingPowerMax?.trim() || null,
     latitude: row.latitude?.trim() || null,
@@ -80,10 +80,10 @@ function comparableInput(row: CsvRow) {
 function comparableExisting(row: Record<string, unknown>) {
   return {
     name: String(row.name ?? ""),
-    streetAddress: String(row.street_address ?? ""),
-    suburb: String(row.suburb ?? ""),
     phone: String(row.phone ?? ""),
     email: String(row.email ?? ""),
+    streetAddress: String(row.street_address ?? ""),
+    suburb: String(row.suburb ?? ""),
     purchasingPowerMin:
       row.purchasing_power_min === null || row.purchasing_power_min === undefined
         ? null
@@ -148,7 +148,9 @@ export async function importPeopleCsv(
       continue;
     }
 
-    const identityKey = normalizeKey(parsed.data.name, parsed.data.streetAddress, parsed.data.suburb);
+    const personKey = normalizeKey(parsed.data.name, parsed.data.email, parsed.data.phone);
+    const primaryAddress = parsed.data.addresses[0];
+    const identityKey = normalizeKey(personKey, primaryAddress.streetAddress, primaryAddress.suburb);
     const existing = getRawPeopleByIdentity(identityKey) as Record<string, unknown> | undefined;
     const before = existing ? JSON.stringify(comparableExisting(existing)) : null;
     const comparable = JSON.stringify(comparableInput(normalized));

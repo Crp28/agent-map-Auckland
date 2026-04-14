@@ -1,7 +1,13 @@
 "use client";
 
 import { GEOMAPS, PERSON_COLOR, SOLD_PROPERTY_COLOR } from "@/lib/constants";
-import type { BoundaryRecord, PersonRecord, SoldPropertyRecord, SuburbMapTarget } from "@/types/location";
+import type {
+  BoundaryRecord,
+  PersonRecord,
+  PointMapTarget,
+  SoldPropertyRecord,
+  SuburbMapTarget,
+} from "@/types/location";
 import Graphic from "@arcgis/core/Graphic";
 import Map from "@arcgis/core/Map";
 import Point from "@arcgis/core/geometry/Point";
@@ -18,6 +24,7 @@ type AucklandMapProps = {
   highlightedPersonIds: number[];
   selectedSoldPropertyId?: number;
   selectedSuburbTarget?: SuburbMapTarget;
+  selectedPropertyTarget?: PointMapTarget;
   onSelectPerson: (person: PersonRecord) => void;
   onSelectSoldProperty: (soldProperty: SoldPropertyRecord) => void;
 };
@@ -41,6 +48,7 @@ export function AucklandMap({
   highlightedPersonIds,
   selectedSoldPropertyId,
   selectedSuburbTarget,
+  selectedPropertyTarget,
   onSelectPerson,
   onSelectSoldProperty,
 }: AucklandMapProps) {
@@ -51,11 +59,18 @@ export function AucklandMap({
   const boundaryLayerRef = useRef<GraphicsLayer | null>(null);
   const peopleRef = useRef(people);
   const soldPropertiesRef = useRef(soldProperties);
+  const onSelectPersonRef = useRef(onSelectPerson);
+  const onSelectSoldPropertyRef = useRef(onSelectSoldProperty);
 
   useEffect(() => {
     peopleRef.current = people;
     soldPropertiesRef.current = soldProperties;
   }, [people, soldProperties]);
+
+  useEffect(() => {
+    onSelectPersonRef.current = onSelectPerson;
+    onSelectSoldPropertyRef.current = onSelectSoldProperty;
+  }, [onSelectPerson, onSelectSoldProperty]);
 
   useEffect(() => {
     if (!containerRef.current || viewRef.current) {
@@ -95,18 +110,22 @@ export function AucklandMap({
         return;
       }
 
-      const { recordType, id } = graphic.attributes as { recordType: string; id: number };
+      const { recordType, id, addressId } = graphic.attributes as {
+        recordType: string;
+        id: number;
+        addressId?: number;
+      };
       if (recordType === "person") {
-        const person = peopleRef.current.find((item) => item.id === id);
+        const person = peopleRef.current.find((item) => item.addressId === addressId || item.id === id);
         if (person) {
-          onSelectPerson(person);
+          onSelectPersonRef.current(person);
         }
       }
 
       if (recordType === "soldProperty") {
         const property = soldPropertiesRef.current.find((item) => item.id === id);
         if (property) {
-          onSelectSoldProperty(property);
+          onSelectSoldPropertyRef.current(property);
         }
       }
     });
@@ -170,7 +189,7 @@ export function AucklandMap({
       propertyLayerRef.current = null;
       boundaryLayerRef.current = null;
     };
-  }, [onSelectPerson, onSelectSoldProperty]);
+  }, []);
 
   useEffect(() => {
     const boundaryLayer = boundaryLayerRef.current;
@@ -241,6 +260,21 @@ export function AucklandMap({
   }, [boundaries, selectedSuburbTarget]);
 
   useEffect(() => {
+    const view = viewRef.current;
+    if (!view || !selectedPropertyTarget) {
+      return;
+    }
+
+    void view.goTo(
+      {
+        center: selectedPropertyTarget.center,
+        zoom: selectedPropertyTarget.zoom,
+      },
+      { duration: 450 },
+    );
+  }, [selectedPropertyTarget]);
+
+  useEffect(() => {
     const propertyLayer = propertyLayerRef.current;
     if (!propertyLayer) {
       return;
@@ -286,12 +320,13 @@ export function AucklandMap({
       people
         .filter((person) => person.latitude !== null && person.longitude !== null)
         .map((person) => {
-          const isHighlighted = highlighted.has(person.id);
+          const isHighlighted = highlighted.has(person.addressId ?? person.id);
           return new Graphic({
             geometry: makePoint(person.longitude ?? 0, person.latitude ?? 0),
             attributes: {
               recordType: "person",
               id: person.id,
+              addressId: person.addressId,
             },
             symbol: {
               type: "simple-marker",
