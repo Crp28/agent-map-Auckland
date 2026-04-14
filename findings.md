@@ -33,6 +33,8 @@
 - Search-result navigation for Sold Properties is a separate map-focus action from pin selection. Centering the map on a property search hit should not be tied to general property selection, otherwise normal pin clicks would also reframe the map unexpectedly.
 - The suburb-centering bug was partly caused by moving to the boundary fallback immediately and only correcting later when the suburb-center lookup returned. Waiting for the suburb-center lookup before setting the map target avoids the initial jump to the wrong location.
 - This ArcGIS view runs in NZTM (`wkid 2193`) even though suburb/property centers originate from WGS84 longitude/latitude values. Passing explicit `Point` geometries with `wkid 4326` to `view.goTo()` makes suburb navigation and property search-result focusing deterministic.
+- The nearby `Same suburb` checkbox needs conjunction semantics, not union semantics. When checked, nearby results should satisfy the distance limit and match the Sold Property suburb; otherwise close-by records from other suburbs still appear and the checkbox looks broken.
+- Suburb-center lookups are consistently slow, around 5 seconds even when reducing `resultRecordCount`, so suburb clicks need immediate visual movement or feedback before the exact center response arrives.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.

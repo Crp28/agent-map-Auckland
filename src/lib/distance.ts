@@ -44,3 +44,21 @@ export function purchasingPowerIncludesPrice(
 
   return true;
 }
+
+export function matchesNearbyFilter(input: {
+  distanceKm: number;
+  maxDistanceKm: number;
+  sameSuburb: boolean;
+  personSuburb: string;
+  propertySuburb: string;
+}) {
+  if (input.distanceKm > input.maxDistanceKm) {
+    return false;
+  }
+
+  if (!input.sameSuburb) {
+    return true;
+  }
+
+  return input.personSuburb.trim().toLowerCase() === input.propertySuburb.trim().toLowerCase();
+}

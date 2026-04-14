@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { distanceKm, purchasingPowerIncludesPrice } from "./distance";
+import { distanceKm, matchesNearbyFilter, purchasingPowerIncludesPrice } from "./distance";
 
 describe("distanceKm", () => {
   it("calculates nearby Auckland coordinates", () => {
@@ -24,5 +24,43 @@ describe("purchasingPowerIncludesPrice", () => {
 
   it("excludes prices outside min and max", () => {
     expect(purchasingPowerIncludesPrice(900000, 1300000, 1500000)).toBe(false);
+  });
+});
+
+describe("matchesNearbyFilter", () => {
+  it("uses distance only when sameSuburb is off", () => {
+    expect(
+      matchesNearbyFilter({
+        distanceKm: 0.6,
+        maxDistanceKm: 1,
+        sameSuburb: false,
+        personSuburb: "Auckland",
+        propertySuburb: "Glenfield",
+      }),
+    ).toBe(true);
+  });
+
+  it("requires both distance and suburb match when sameSuburb is on", () => {
+    expect(
+      matchesNearbyFilter({
+        distanceKm: 0.6,
+        maxDistanceKm: 1,
+        sameSuburb: true,
+        personSuburb: "Auckland",
+        propertySuburb: "Glenfield",
+      }),
+    ).toBe(false);
+  });
+
+  it("still excludes far same-suburb people when sameSuburb is on", () => {
+    expect(
+      matchesNearbyFilter({
+        distanceKm: 1.1,
+        maxDistanceKm: 1,
+        sameSuburb: true,
+        personSuburb: "Glenfield",
+        propertySuburb: "Glenfield",
+      }),
+    ).toBe(false);
   });
 });

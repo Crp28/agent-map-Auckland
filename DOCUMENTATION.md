@@ -46,6 +46,9 @@
 - 2026-04-14: Fixed older local databases that still lacked `people.person_key` by moving unique-index creation after the conditional multi-address column migration in `ensureDatabase()`.
 - 2026-04-14: Hardened suburb navigation and Sold Property search-result focusing by sending explicit WGS84 ArcGIS `Point` geometries into `view.goTo()`. The live view uses NZTM (`wkid 2193`), so explicit point geometries are more reliable than bare coordinate arrays for these jumps.
 - 2026-04-14: Re-verified the remaining TODO behavior in the live browser: property search hits center at zoom 6, nearby-controller changes keep the current map position, Sold Property pins remain visible through nearby filtering, and suburb navigation returns from Glenfield to Highland Park at zoom 8.
+- 2026-04-14: Changed the nearby `Same suburb` checkbox to act as a real suburb filter layered on top of distance, rather than a second inclusion path alongside distance.
+- 2026-04-14: Hardened suburb-row navigation by closing the drawer on selection, moving immediately with the available default/boundary center, caching resolved suburb centers, and then refining the map target when the slower GeoMaps suburb-center lookup completes.
+- 2026-04-14: Verified the updated nearby and suburb behavior with direct `/api/nearby` probes plus an `agent-browser` click-through showing suburb selection collapses the drawer and moves the map immediately.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
@@ -59,6 +62,7 @@
 - Bulk People geocoding is a separate resumable step after contact CSV import because the import path skips geocoding for speed.
 - Suburb drawer navigation uses Address MapServer sample points for the clicked suburb center and falls back to the mapped Council subdivision boundary when no suburb-center sample is available.
 - Nearby filtering intentionally narrows only the People layer. Sold Property pins continue to follow the date filters, and applying or canceling the nearby filter does not recenter the map.
+- When `Same suburb` is checked, nearby People must satisfy both the distance limit and the Sold Property suburb match.
 - The suburb drawer shares the bottom-right stack with the nearby People controls so the drawer shrinks within the remaining height instead of overlapping the filter panel.
 - People are now stored as one logical person row plus one-or-more address rows. The map, search, and nearby APIs flatten those address rows back into address-specific Person records so one person can render multiple dots.
 - Older local databases must add `people.person_key` before creating the unique index introduced by the multi-address migration.

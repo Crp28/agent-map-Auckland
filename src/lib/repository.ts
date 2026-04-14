@@ -2,7 +2,7 @@ import { getDb, getRawDb } from "@/db/client";
 import { ensureDatabase } from "@/db/init";
 import { people, peopleAddresses, soldProperties, syncMetadata } from "@/db/schema";
 import { GEOMAPS_BOUNDARY_SOURCE_NAME } from "@/lib/constants";
-import { distanceKm, purchasingPowerIncludesPrice } from "@/lib/distance";
+import { distanceKm, matchesNearbyFilter, purchasingPowerIncludesPrice } from "@/lib/distance";
 import { geocodeAddress } from "@/lib/geomaps";
 import { normalizeKey, normalizeText } from "@/lib/normalize";
 import type { PersonAddressInput, PersonInput, SoldPropertyInput } from "@/lib/validation";
@@ -558,10 +558,14 @@ export async function findNearbyPeople(input: {
         { latitude: person.latitude ?? 0, longitude: person.longitude ?? 0 },
       ),
     }))
-    .filter(
-      (person) =>
-        person.distanceKm <= input.distanceKm ||
-        (input.sameSuburb && person.suburb.toLowerCase() === property.suburb.toLowerCase()),
+    .filter((person) =>
+      matchesNearbyFilter({
+        distanceKm: person.distanceKm,
+        maxDistanceKm: input.distanceKm,
+        sameSuburb: input.sameSuburb,
+        personSuburb: person.suburb,
+        propertySuburb: property.suburb,
+      }),
     )
     .sort((a, b) => a.distanceKm - b.distanceKm);
 

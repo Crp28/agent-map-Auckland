@@ -51,8 +51,9 @@ The outline layer is refreshed by `npm run sync:geomaps` and automatically refre
 - Sold Property pins follow only the date filters and stay visible when a nearby People filter is applied.
 - Applying or canceling a nearby People filter does not recenter the map.
 - Changing nearby-controller inputs also keeps the current map position.
+- Checking `Same suburb` makes the nearby People filter require both the distance limit and a suburb match.
 - Clicking a Sold Property search result centers the map on that property at zoom level 6.
-- The suburb drawer shares the bottom-right control stack with the nearby People controls so expanded suburb navigation stays within the available height.
+- The suburb drawer shares the bottom-right control stack with the nearby People controls so expanded suburb navigation stays within the available height, and clicking a suburb row immediately moves toward that suburb before refining to the resolved suburb center.
 - One Person can hold multiple addresses, and each coordinate-bearing address renders its own map dot.
 
 ## CSV Format

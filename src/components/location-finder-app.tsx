@@ -59,6 +59,7 @@ export function LocationFinderApp() {
   const [selectedSuburbTarget, setSelectedSuburbTarget] = useState<SuburbMapTarget | undefined>();
   const suburbButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const suburbRequestRef = useRef(0);
+  const suburbCenterCacheRef = useRef(new Map<string, [number, number] | null>());
   const distanceKmRef = useRef(distanceKm);
   const sameSuburbRef = useRef(sameSuburb);
 
@@ -242,8 +243,27 @@ export function LocationFinderApp() {
     const requestId = suburbRequestRef.current + 1;
     suburbRequestRef.current = requestId;
     setSelectedSuburbKey(region.key);
+    setSuburbListOpen(false);
     const fallbackCenter =
       region.name === "Highland Park" ? highlandParkCenter : undefined;
+    const cachedCenter = suburbCenterCacheRef.current.get(region.name);
+
+    if (cachedCenter !== undefined) {
+      setSelectedSuburbTarget({
+        key: `${region.key}-${requestId}-cached`,
+        boundaryId: region.boundaryId,
+        center: cachedCenter ?? fallbackCenter,
+      });
+      setNotice(null);
+      return;
+    }
+
+    setNotice(`Moving to ${region.name}...`);
+    setSelectedSuburbTarget({
+      key: `${region.key}-${requestId}-preview`,
+      boundaryId: region.boundaryId,
+      center: fallbackCenter,
+    });
 
     try {
       const response = await fetch(`/api/suburb-center?name=${encodeURIComponent(region.name)}`);
@@ -251,31 +271,37 @@ export function LocationFinderApp() {
         if (suburbRequestRef.current !== requestId) {
           return;
         }
+        suburbCenterCacheRef.current.set(region.name, null);
         setSelectedSuburbTarget({
-          key: region.key,
+          key: `${region.key}-${requestId}-fallback`,
           boundaryId: region.boundaryId,
           center: fallbackCenter,
         });
+        setNotice(null);
         return;
       }
       const payload = (await response.json()) as { center: [number, number] | null };
       if (suburbRequestRef.current !== requestId) {
         return;
       }
+      suburbCenterCacheRef.current.set(region.name, payload.center);
       setSelectedSuburbTarget({
-        key: region.key,
+        key: `${region.key}-${requestId}-resolved`,
         boundaryId: region.boundaryId,
         center: payload.center ?? fallbackCenter,
       });
+      setNotice(null);
     } catch {
       if (suburbRequestRef.current !== requestId) {
         return;
       }
+      suburbCenterCacheRef.current.set(region.name, null);
       setSelectedSuburbTarget({
-        key: region.key,
+        key: `${region.key}-${requestId}-error`,
         boundaryId: region.boundaryId,
         center: fallbackCenter,
       });
+      setNotice(null);
     }
   }
 
