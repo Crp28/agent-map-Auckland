@@ -73,3 +73,7 @@
 - Changed nearby filtering so `Same suburb` now requires both the distance limit and a suburb match instead of treating suburb as an alternate inclusion path.
 - Changed suburb selection to close the drawer, move immediately using the available default/boundary center, cache resolved suburb centers, and then refine to the exact suburb center when GeoMaps returns.
 - Verified the new TODO slice with `npm run test`, `npm run lint`, `npm run build`, direct `/api/nearby` probes for checked vs unchecked suburb behavior, and an `agent-browser` click-through showing a suburb-row click collapsing the drawer and moving the map immediately.
+- Started the next TODO.md request: replace runtime GeoMaps suburb-center lookups for sidebar navigation with hard-coded catalog coordinates and reflect the behavior in `FEATURE_STATEMENT.md`.
+- Added hard-coded center coordinates to every v1 Auckland suburb catalog entry, switched sidebar suburb selection to use those centers directly, and kept the existing GeoMaps boundary id as outline context only.
+- Updated `FEATURE_STATEMENT.md`, `DOCUMENTATION.md`, `README.md`, and `findings.md` for hard-coded sidebar suburb center behavior.
+- Verified the latest TODO slice with `npm run test`, `npm run lint`, `npm run build`, and an `agent-browser` filtered suburb click/HAR check showing the drawer collapses and no `/api/suburb-center` request is made for the click.

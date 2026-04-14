@@ -29,8 +29,6 @@ const emptyMapData: MapData = {
   sync: null,
 };
 
-const highlandParkCenter: [number, number] = [174.90935, -36.89934];
-
 export function LocationFinderApp() {
   const [mapData, setMapData] = useState<MapData>(emptyMapData);
   const [fromDate, setFromDate] = useState("");
@@ -58,8 +56,7 @@ export function LocationFinderApp() {
   const [selectedSuburbKey, setSelectedSuburbKey] = useState<string | undefined>();
   const [selectedSuburbTarget, setSelectedSuburbTarget] = useState<SuburbMapTarget | undefined>();
   const suburbButtonRefs = useRef(new Map<string, HTMLButtonElement>());
-  const suburbRequestRef = useRef(0);
-  const suburbCenterCacheRef = useRef(new Map<string, [number, number] | null>());
+  const suburbTargetKeyRef = useRef(0);
   const distanceKmRef = useRef(distanceKm);
   const sameSuburbRef = useRef(sameSuburb);
 
@@ -201,6 +198,7 @@ export function LocationFinderApp() {
         area: suburb.area,
         boundarySubdivision: suburb.boundarySubdivision,
         boundaryId: boundariesBySubdivision.get(suburb.boundarySubdivision.toLowerCase()),
+        center: suburb.center,
       }));
     },
     [mapData.boundaries, suburbQuery],
@@ -239,70 +237,16 @@ export function LocationFinderApp() {
     refresh();
   }
 
-  async function selectSuburb(region: SuburbRegion) {
-    const requestId = suburbRequestRef.current + 1;
-    suburbRequestRef.current = requestId;
+  function selectSuburb(region: SuburbRegion) {
+    const targetKey = suburbTargetKeyRef.current + 1;
+    suburbTargetKeyRef.current = targetKey;
     setSelectedSuburbKey(region.key);
     setSuburbListOpen(false);
-    const fallbackCenter =
-      region.name === "Highland Park" ? highlandParkCenter : undefined;
-    const cachedCenter = suburbCenterCacheRef.current.get(region.name);
-
-    if (cachedCenter !== undefined) {
-      setSelectedSuburbTarget({
-        key: `${region.key}-${requestId}-cached`,
-        boundaryId: region.boundaryId,
-        center: cachedCenter ?? fallbackCenter,
-      });
-      setNotice(null);
-      return;
-    }
-
-    setNotice(`Moving to ${region.name}...`);
     setSelectedSuburbTarget({
-      key: `${region.key}-${requestId}-preview`,
+      key: `${region.key}-${targetKey}`,
       boundaryId: region.boundaryId,
-      center: fallbackCenter,
+      center: region.center,
     });
-
-    try {
-      const response = await fetch(`/api/suburb-center?name=${encodeURIComponent(region.name)}`);
-      if (!response.ok) {
-        if (suburbRequestRef.current !== requestId) {
-          return;
-        }
-        suburbCenterCacheRef.current.set(region.name, null);
-        setSelectedSuburbTarget({
-          key: `${region.key}-${requestId}-fallback`,
-          boundaryId: region.boundaryId,
-          center: fallbackCenter,
-        });
-        setNotice(null);
-        return;
-      }
-      const payload = (await response.json()) as { center: [number, number] | null };
-      if (suburbRequestRef.current !== requestId) {
-        return;
-      }
-      suburbCenterCacheRef.current.set(region.name, payload.center);
-      setSelectedSuburbTarget({
-        key: `${region.key}-${requestId}-resolved`,
-        boundaryId: region.boundaryId,
-        center: payload.center ?? fallbackCenter,
-      });
-      setNotice(null);
-    } catch {
-      if (suburbRequestRef.current !== requestId) {
-        return;
-      }
-      suburbCenterCacheRef.current.set(region.name, null);
-      setSelectedSuburbTarget({
-        key: `${region.key}-${requestId}-error`,
-        boundaryId: region.boundaryId,
-        center: fallbackCenter,
-      });
-      setNotice(null);
-    }
   }
 
   async function applyNearbyFilter() {
@@ -492,9 +436,8 @@ export function LocationFinderApp() {
                         }
                       }}
                       type="button"
-                      onClick={() => void selectSuburb(region)}
-                      disabled={!region.boundaryId}
-                      className="block min-h-11 w-full border-b border-[#e2e8f0] px-3 py-2 text-left text-sm text-[#111827] last:border-b-0 hover:bg-[#eef3f8] focus:bg-[#eef3f8] focus:outline-none disabled:cursor-not-allowed disabled:text-[#94a3b8]"
+                      onClick={() => selectSuburb(region)}
+                      className="block min-h-11 w-full border-b border-[#e2e8f0] px-3 py-2 text-left text-sm text-[#111827] last:border-b-0 hover:bg-[#eef3f8] focus:bg-[#eef3f8] focus:outline-none"
                     >
                       <span className="block font-semibold">{region.name}</span>
                       <span className="block text-xs text-[#64748b]">

@@ -35,6 +35,7 @@
 - This ArcGIS view runs in NZTM (`wkid 2193`) even though suburb/property centers originate from WGS84 longitude/latitude values. Passing explicit `Point` geometries with `wkid 4326` to `view.goTo()` makes suburb navigation and property search-result focusing deterministic.
 - The nearby `Same suburb` checkbox needs conjunction semantics, not union semantics. When checked, nearby results should satisfy the distance limit and match the Sold Property suburb; otherwise close-by records from other suburbs still appear and the checkbox looks broken.
 - Suburb-center lookups are consistently slow, around 5 seconds even when reducing `resultRecordCount`, so suburb clicks need immediate visual movement or feedback before the exact center response arrives.
+- Sidebar suburb navigation is now better served by hard-coded catalog centers. The v1 suburb list is finite, and storing one center per catalog row removes per-click GeoMaps latency while preserving the GeoMaps basemap/boundary layers.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.

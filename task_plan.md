@@ -20,6 +20,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 14. Complete: Apply TODO.md stable property-pin visibility, property-search map centering, suburb-centering fix, nearby-controller map stability, multi-address People schema, and `FEATURE_STATEMENT.md` updates.
 15. Complete: Finish the remaining live TODO verification/fixes by repairing old-database multi-address migration order, hardening ArcGIS suburb/property focusing with explicit map points, and re-running browser verification.
 16. Complete: Fix the `Same suburb` nearby-filter semantics, harden suburb-row click navigation so selection moves immediately and then resolves to the exact suburb center, and update docs/verification.
+17. Complete: Replace runtime GeoMaps suburb-center lookups for sidebar navigation with hard-coded suburb center coordinates and update verification/docs.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.

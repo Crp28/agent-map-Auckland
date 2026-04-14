@@ -59,6 +59,7 @@ export type SuburbRegion = {
   area: string;
   boundarySubdivision: string;
   boundaryId?: number;
+  center: [number, number];
 };
 
 export type SuburbMapTarget = {

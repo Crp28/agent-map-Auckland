@@ -49,6 +49,7 @@
 - 2026-04-14: Changed the nearby `Same suburb` checkbox to act as a real suburb filter layered on top of distance, rather than a second inclusion path alongside distance.
 - 2026-04-14: Hardened suburb-row navigation by closing the drawer on selection, moving immediately with the available default/boundary center, caching resolved suburb centers, and then refining the map target when the slower GeoMaps suburb-center lookup completes.
 - 2026-04-14: Verified the updated nearby and suburb behavior with direct `/api/nearby` probes plus an `agent-browser` click-through showing suburb selection collapses the drawer and moves the map immediately.
+- 2026-04-14: Replaced runtime GeoMaps suburb-center lookups in sidebar navigation with hard-coded coordinates in the Auckland suburb catalog, including static fallbacks for Arch Hill, Golflands, and Huntington Park where the address lookup was missing or ambiguous.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
@@ -60,7 +61,7 @@
 - Sold Property date filters are blank by default so all geocoded Sold Property pins show on first load; entering dates narrows the map.
 - People records without coordinates remain valid database records, but the map intentionally omits them because there is no point to place.
 - Bulk People geocoding is a separate resumable step after contact CSV import because the import path skips geocoding for speed.
-- Suburb drawer navigation uses Address MapServer sample points for the clicked suburb center and falls back to the mapped Council subdivision boundary when no suburb-center sample is available.
+- Suburb drawer navigation uses hard-coded center coordinates from the v1 Auckland suburb catalog. GeoMaps still provides the basemap and boundary outlines, but sidebar clicks do not wait for Address MapServer center lookups.
 - Nearby filtering intentionally narrows only the People layer. Sold Property pins continue to follow the date filters, and applying or canceling the nearby filter does not recenter the map.
 - When `Same suburb` is checked, nearby People must satisfy both the distance limit and the Sold Property suburb match.
 - The suburb drawer shares the bottom-right stack with the nearby People controls so the drawer shrinks within the remaining height instead of overlapping the filter panel.
