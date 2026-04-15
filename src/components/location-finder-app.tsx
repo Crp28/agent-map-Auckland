@@ -387,13 +387,11 @@ export function LocationFinderApp() {
 
       <aside className="absolute bottom-3 left-3 right-3 top-56 z-20 flex min-h-0 flex-col justify-end gap-3 md:left-auto md:w-[380px]">
         <div
-          className={`pointer-events-none relative w-full min-h-0 overflow-visible transition-[height] duration-200 ${
-            suburbListOpen ? "flex-1" : "h-11 shrink-0"
-          }`}
+          className="pointer-events-none relative min-h-0 w-full flex-1 overflow-visible"
         >
           <section
-            className={`pointer-events-auto absolute inset-y-0 right-0 flex max-h-full w-[min(86vw,340px)] overflow-hidden rounded-md border border-[#cbd5e1] bg-white shadow-lg transition-transform duration-200 ${
-              suburbListOpen ? "translate-x-0" : "translate-x-[calc(100%-44px)]"
+            className={`pointer-events-auto absolute bottom-0 right-0 flex max-h-full overflow-hidden rounded-md border border-[#cbd5e1] bg-white shadow-lg transition-[width] duration-200 ${
+              suburbListOpen ? "top-0 w-[min(86vw,340px)]" : "h-11 w-11"
             }`}
             aria-label="Auckland suburb navigation"
           >
@@ -401,7 +399,7 @@ export function LocationFinderApp() {
               type="button"
               onClick={() => setSuburbListOpen((open) => !open)}
               aria-expanded={suburbListOpen}
-              className="grid min-h-11 min-w-11 place-items-center border-r border-[#e2e8f0] bg-[#f8fafc] text-[#334155] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+              className="order-last grid min-h-11 min-w-11 shrink-0 place-items-center border-l border-[#e2e8f0] bg-[#f8fafc] text-[#334155] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
             >
               {suburbListOpen ? (
                 <ChevronRight aria-hidden="true" size={20} />

@@ -50,6 +50,7 @@
 - 2026-04-14: Hardened suburb-row navigation by closing the drawer on selection, moving immediately with the available default/boundary center, caching resolved suburb centers, and then refining the map target when the slower GeoMaps suburb-center lookup completes.
 - 2026-04-14: Verified the updated nearby and suburb behavior with direct `/api/nearby` probes plus an `agent-browser` click-through showing suburb selection collapses the drawer and moves the map immediately.
 - 2026-04-14: Replaced runtime GeoMaps suburb-center lookups in sidebar navigation with hard-coded coordinates in the Auckland suburb catalog, including static fallbacks for Arch Hill, Golflands, and Huntington Park where the address lookup was missing or ambiguous.
+- 2026-04-16: Stabilized the suburb drawer reveal by reserving its bottom-right stack slot, keeping the handle fixed on the right edge, and animating only the clipped drawer width so opening no longer makes the map or controls appear to shift left.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
@@ -65,6 +66,7 @@
 - Nearby filtering intentionally narrows only the People layer. Sold Property pins continue to follow the date filters, and applying or canceling the nearby filter does not recenter the map.
 - When `Same suburb` is checked, nearby People must satisfy both the distance limit and the Sold Property suburb match.
 - The suburb drawer shares the bottom-right stack with the nearby People controls so the drawer shrinks within the remaining height instead of overlapping the filter panel.
+- The suburb drawer handle stays fixed on the right edge while the drawer content reveals leftward, avoiding transient main-content shifts during the open animation.
 - People are now stored as one logical person row plus one-or-more address rows. The map, search, and nearby APIs flatten those address rows back into address-specific Person records so one person can render multiple dots.
 - Older local databases must add `people.person_key` before creating the unique index introduced by the multi-address migration.
 

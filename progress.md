@@ -77,3 +77,9 @@
 - Added hard-coded center coordinates to every v1 Auckland suburb catalog entry, switched sidebar suburb selection to use those centers directly, and kept the existing GeoMaps boundary id as outline context only.
 - Updated `FEATURE_STATEMENT.md`, `DOCUMENTATION.md`, `README.md`, and `findings.md` for hard-coded sidebar suburb center behavior.
 - Verified the latest TODO slice with `npm run test`, `npm run lint`, `npm run build`, and an `agent-browser` filtered suburb click/HAR check showing the drawer collapses and no `/api/suburb-center` request is made for the click.
+
+## 2026-04-16
+- Started the next TODO.md request: fix the suburb drawer handle opening animation that made the main content appear to shift left, and reflect the change in `FEATURE_STATEMENT.md`.
+- Reworked the suburb drawer so its bottom-right stack slot is stable, the handle remains fixed on the right edge, and the drawer content reveals leftward by width clipping instead of translating the whole panel.
+- Updated `FEATURE_STATEMENT.md`, `DOCUMENTATION.md`, and `findings.md` for the fixed handle/reveal behavior.
+- Verified the drawer fix with `npm run lint`, `npm run test`, `npm run build`, and an `agent-browser` rectangle check confirming the map, top controls, and nearby panel keep identical bounds before and after opening the drawer.
