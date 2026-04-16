@@ -51,7 +51,7 @@ The outline layer is refreshed by `npm run sync:geomaps` and automatically refre
 - Sold Property pins follow only the date filters and stay visible when a nearby People filter is applied.
 - Applying or canceling a nearby People filter does not recenter the map.
 - Canceling a nearby People filter clears the nearby People list.
-- When nearby People rows are listed, `Export CSV` downloads `First Name,Mobile Phone` rows using the selected Sold Property address and same-suburb mode in the filename.
+- When nearby People rows are listed, `Export CSV` downloads `First Name,Mobile Phone,Address` rows using the selected Sold Property address and same-suburb mode in the filename.
 - Changing nearby-controller inputs also keeps the current map position.
 - Checking `Same suburb` makes the nearby People filter require both the distance limit and a suburb match.
 - Clicking a Sold Property search result centers the map on that property at zoom level 6.

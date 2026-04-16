@@ -23,6 +23,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 17. Complete: Replace runtime GeoMaps suburb-center lookups for sidebar navigation with hard-coded suburb center coordinates and update verification/docs.
 18. Complete: Fix the suburb drawer handle animation so opening the sidebar does not make the main content appear to shift left, then update feature/docs and verify.
 19. Complete: Clear nearby People on cancel, add nearby People CSV export, update feature/docs, and verify.
+20. Complete: Add the Address column to nearby People CSV export, update feature/docs, and verify.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.

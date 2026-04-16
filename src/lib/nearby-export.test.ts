@@ -48,13 +48,21 @@ describe("firstNameFromFullName", () => {
 });
 
 describe("nearbyPeopleCsv", () => {
-  it("exports first names and mobile phone numbers", () => {
+  it("exports first names, mobile phone numbers, and addresses", () => {
     const csv = nearbyPeopleCsv([
       basePerson,
-      { ...basePerson, id: 2, name: "Bob Buyer", phone: "021,111" },
+      {
+        ...basePerson,
+        id: 2,
+        name: "Bob Buyer",
+        phone: "021,111",
+        streetAddress: "2 Test Lane, Unit 4",
+      },
     ]);
 
-    expect(csv).toBe('First Name,Mobile Phone\r\nAna,021 000 000\r\nBob,"021,111"');
+    expect(csv).toBe(
+      'First Name,Mobile Phone,Address\r\nAna,021 000 000,1 Queen Street\r\nBob,"021,111","2 Test Lane, Unit 4"',
+    );
   });
 });
 

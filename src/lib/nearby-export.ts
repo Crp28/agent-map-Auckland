@@ -24,8 +24,12 @@ function csvCell(value: string) {
 
 export function nearbyPeopleCsv(people: PersonRecord[]) {
   const rows = [
-    ["First Name", "Mobile Phone"],
-    ...people.map((person) => [firstNameFromFullName(person.name), person.phone]),
+    ["First Name", "Mobile Phone", "Address"],
+    ...people.map((person) => [
+      firstNameFromFullName(person.name),
+      person.phone,
+      person.streetAddress,
+    ]),
   ];
 
   return rows.map((row) => row.map(csvCell).join(",")).join("\r\n");

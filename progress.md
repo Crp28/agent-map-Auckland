@@ -88,3 +88,7 @@
 - Updated the nearby People panel so Cancel clears the list and Export CSV appears whenever the nearby list has rows.
 - Updated `FEATURE_STATEMENT.md`, `DOCUMENTATION.md`, `README.md`, and `findings.md` for the nearby export and clear-on-cancel behavior.
 - Verified the latest TODO slice with `npm run lint`, `npm run test`, `npm run build`, a browser check showing Cancel clears nearby rows, and a browser interception of the export click confirming the CSV filename/content.
+- Started the next TODO.md request: add an `Address` column to the nearby People CSV export.
+- Updated the nearby CSV helper and tests so exports now emit `First Name`, `Mobile Phone`, and `Address` from the flattened nearby Person records.
+- Updated `FEATURE_STATEMENT.md`, `DOCUMENTATION.md`, `README.md`, and `findings.md` for the three-column nearby People export.
+- Verified the change with the focused nearby export test, full `npm run test`, `npm run lint`, `npm run build`, and a browser interception showing `First Name,Mobile Phone,Address` in the exported CSV content.

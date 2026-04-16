@@ -51,7 +51,7 @@
 - 2026-04-14: Verified the updated nearby and suburb behavior with direct `/api/nearby` probes plus an `agent-browser` click-through showing suburb selection collapses the drawer and moves the map immediately.
 - 2026-04-14: Replaced runtime GeoMaps suburb-center lookups in sidebar navigation with hard-coded coordinates in the Auckland suburb catalog, including static fallbacks for Arch Hill, Golflands, and Huntington Park where the address lookup was missing or ambiguous.
 - 2026-04-16: Stabilized the suburb drawer reveal by reserving its bottom-right stack slot, keeping the handle fixed on the right edge, and animating only the clipped drawer width so opening no longer makes the map or controls appear to shift left.
-- 2026-04-16: Updated the nearby People panel so Cancel clears the nearby list and a CSV export button appears whenever nearby People are listed. The export contains `First Name` and `Mobile Phone` columns and uses a filename based on the selected Sold Property address plus same-suburb mode.
+- 2026-04-16: Updated the nearby People panel so Cancel clears the nearby list and a CSV export button appears whenever nearby People are listed. The export contains `First Name`, `Mobile Phone`, and `Address` columns and uses a filename based on the selected Sold Property address plus same-suburb mode.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
