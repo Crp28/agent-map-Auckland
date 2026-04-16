@@ -51,6 +51,7 @@
 - 2026-04-14: Verified the updated nearby and suburb behavior with direct `/api/nearby` probes plus an `agent-browser` click-through showing suburb selection collapses the drawer and moves the map immediately.
 - 2026-04-14: Replaced runtime GeoMaps suburb-center lookups in sidebar navigation with hard-coded coordinates in the Auckland suburb catalog, including static fallbacks for Arch Hill, Golflands, and Huntington Park where the address lookup was missing or ambiguous.
 - 2026-04-16: Stabilized the suburb drawer reveal by reserving its bottom-right stack slot, keeping the handle fixed on the right edge, and animating only the clipped drawer width so opening no longer makes the map or controls appear to shift left.
+- 2026-04-16: Updated the nearby People panel so Cancel clears the nearby list and a CSV export button appears whenever nearby People are listed. The export contains `First Name` and `Mobile Phone` columns and uses a filename based on the selected Sold Property address plus same-suburb mode.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
@@ -64,6 +65,7 @@
 - Bulk People geocoding is a separate resumable step after contact CSV import because the import path skips geocoding for speed.
 - Suburb drawer navigation uses hard-coded center coordinates from the v1 Auckland suburb catalog. GeoMaps still provides the basemap and boundary outlines, but sidebar clicks do not wait for Address MapServer center lookups.
 - Nearby filtering intentionally narrows only the People layer. Sold Property pins continue to follow the date filters, and applying or canceling the nearby filter does not recenter the map.
+- Canceling the nearby filter also clears the nearby People list. Nearby CSV export is client-side because it uses the already loaded nearby list and does not need another server round trip.
 - When `Same suburb` is checked, nearby People must satisfy both the distance limit and the Sold Property suburb match.
 - The suburb drawer shares the bottom-right stack with the nearby People controls so the drawer shrinks within the remaining height instead of overlapping the filter panel.
 - The suburb drawer handle stays fixed on the right edge while the drawer content reveals leftward, avoiding transient main-content shifts during the open animation.

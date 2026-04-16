@@ -83,3 +83,8 @@
 - Reworked the suburb drawer so its bottom-right stack slot is stable, the handle remains fixed on the right edge, and the drawer content reveals leftward by width clipping instead of translating the whole panel.
 - Updated `FEATURE_STATEMENT.md`, `DOCUMENTATION.md`, and `findings.md` for the fixed handle/reveal behavior.
 - Verified the drawer fix with `npm run lint`, `npm run test`, `npm run build`, and an `agent-browser` rectangle check confirming the map, top controls, and nearby panel keep identical bounds before and after opening the drawer.
+- Started the next TODO.md request: clear the nearby People list when Cancel is clicked and add a nearby People CSV export button.
+- Added a tested nearby export helper for `First Name,Mobile Phone` CSV content and selected-address-based filenames.
+- Updated the nearby People panel so Cancel clears the list and Export CSV appears whenever the nearby list has rows.
+- Updated `FEATURE_STATEMENT.md`, `DOCUMENTATION.md`, `README.md`, and `findings.md` for the nearby export and clear-on-cancel behavior.
+- Verified the latest TODO slice with `npm run lint`, `npm run test`, `npm run build`, a browser check showing Cancel clears nearby rows, and a browser interception of the export click confirming the CSV filename/content.

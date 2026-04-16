@@ -9,6 +9,10 @@ import {
   RecordManagerDialog,
 } from "@/components/record-dialogs";
 import { AUCKLAND_SUBURBS } from "@/lib/auckland-suburbs";
+import {
+  nearbyPeopleCsv,
+  nearbyPeopleExportFilename,
+} from "@/lib/nearby-export";
 import type {
   MapData,
   PersonRecord,
@@ -263,6 +267,28 @@ export function LocationFinderApp() {
 
   function cancelNearbyFilter() {
     setNearbyFilterActive(false);
+    setNearbyPeople([]);
+  }
+
+  function exportNearbyPeople() {
+    if (nearbyPeople.length === 0) {
+      return;
+    }
+
+    const property =
+      mapData.soldProperties.find((item) => item.id === selectedSoldPropertyId) ??
+      (selected?.type === "soldProperty" ? selected.item : undefined);
+    const blob = new Blob([nearbyPeopleCsv(nearbyPeople)], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = nearbyPeopleExportFilename(property, sameSuburb);
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   return (
@@ -498,6 +524,15 @@ export function LocationFinderApp() {
                   className="min-h-11 rounded-md bg-[#111827] px-3 py-2 text-sm font-semibold text-white hover:bg-[#1f2937] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
                 >
                   Cancel
+                </button>
+              ) : null}
+              {nearbyPeople.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={exportNearbyPeople}
+                  className="min-h-11 rounded-md bg-[#0056a7] px-3 py-2 text-sm font-semibold text-white hover:bg-[#004780] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+                >
+                  Export CSV
                 </button>
               ) : null}
             </div>
