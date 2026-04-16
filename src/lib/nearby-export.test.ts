@@ -2,6 +2,7 @@ import type { PersonRecord, SoldPropertyRecord } from "@/types/location";
 import { describe, expect, it } from "vitest";
 import {
   firstNameFromFullName,
+  nearbyPersonAddress,
   nearbyPeopleCsv,
   nearbyPeopleExportFilename,
 } from "./nearby-export";
@@ -48,6 +49,10 @@ describe("firstNameFromFullName", () => {
 });
 
 describe("nearbyPeopleCsv", () => {
+  it("combines street address and suburb for the address column", () => {
+    expect(nearbyPersonAddress(basePerson)).toBe("1 Queen Street, Auckland Central");
+  });
+
   it("exports first names, mobile phone numbers, and addresses", () => {
     const csv = nearbyPeopleCsv([
       basePerson,
@@ -61,7 +66,7 @@ describe("nearbyPeopleCsv", () => {
     ]);
 
     expect(csv).toBe(
-      'First Name,Mobile Phone,Address\r\nAna,021 000 000,1 Queen Street\r\nBob,"021,111","2 Test Lane, Unit 4"',
+      'First Name,Mobile Phone,Address\r\nAna,021 000 000,"1 Queen Street, Auckland Central"\r\nBob,"021,111","2 Test Lane, Unit 4, Auckland Central"',
     );
   });
 });

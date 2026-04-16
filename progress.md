@@ -92,3 +92,6 @@
 - Updated the nearby CSV helper and tests so exports now emit `First Name`, `Mobile Phone`, and `Address` from the flattened nearby Person records.
 - Updated `FEATURE_STATEMENT.md`, `DOCUMENTATION.md`, `README.md`, and `findings.md` for the three-column nearby People export.
 - Verified the change with the focused nearby export test, full `npm run test`, `npm run lint`, `npm run build`, and a browser interception showing `First Name,Mobile Phone,Address` in the exported CSV content.
+- Started the next TODO.md request: format the nearby People export `Address` column as `street address, suburb`.
+- Added a nearby export address helper, updated the CSV unit expectations, and reflected the behavior in `FEATURE_STATEMENT.md`, `DOCUMENTATION.md`, `README.md`, and `findings.md`.
+- Verified the change with the focused nearby export test, full `npm run test`, `npm run lint`, `npm run build`, and a browser interception confirming exported rows such as `"39 Argo Dr, Half Moon Bay"`.

@@ -24,6 +24,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 18. Complete: Fix the suburb drawer handle animation so opening the sidebar does not make the main content appear to shift left, then update feature/docs and verify.
 19. Complete: Clear nearby People on cancel, add nearby People CSV export, update feature/docs, and verify.
 20. Complete: Add the Address column to nearby People CSV export, update feature/docs, and verify.
+21. Complete: Format the nearby People export Address column as street address plus suburb, update feature/docs, and verify.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.
@@ -49,3 +50,4 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 | People geocoding backfill timed out after 15 minutes | Bulk geocoding | Root cause was serial GeoMaps requests without per-request timeout; stopped the lingering process and added bounded concurrency plus fetch abort timeouts. |
 | `_`/`_` Person row received an arbitrary coordinate | Bulk geocoding | Root cause was SQL `LIKE` wildcard handling; added address specificity checks and cleared the false-positive coordinate. |
 | Existing local database crashed on `no such column: person_key` after the multi-address schema change | Live app verification | Root cause was `ensureDatabase()` creating the `people_person_key_unique` index before older databases had added the new `person_key` column; moved index creation after the conditional column migration. |
+| `agent-browser batch` parsed `wait 700` as command `700` | Nearby export browser verification | Switched to individual `agent-browser` commands with quoted refs on PowerShell and completed the CSV interception check. |

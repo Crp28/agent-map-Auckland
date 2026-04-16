@@ -22,13 +22,17 @@ function csvCell(value: string) {
   return /[",\r\n]/.test(escaped) ? `"${escaped}"` : escaped;
 }
 
+export function nearbyPersonAddress(person: PersonRecord) {
+  return [person.streetAddress, person.suburb].filter(Boolean).join(", ");
+}
+
 export function nearbyPeopleCsv(people: PersonRecord[]) {
   const rows = [
     ["First Name", "Mobile Phone", "Address"],
     ...people.map((person) => [
       firstNameFromFullName(person.name),
       person.phone,
-      person.streetAddress,
+      nearbyPersonAddress(person),
     ]),
   ];
 
