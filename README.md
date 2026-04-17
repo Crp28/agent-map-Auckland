@@ -6,6 +6,7 @@ Location Finder is a Next.js 16 app for viewing Auckland sold properties and peo
 
 - Full-screen Auckland map workspace, defaulted to Highland Park.
 - Sold Properties render as blue pins and People with coordinates render as yellow dots.
+- ALL data is manually entered.
 - Search matches both Sold Properties and People, opens detail modals from results, and moves Sold Property results to zoom level 6.
 - Sold Property date filters are blank by default, so all coordinate-bearing Sold Properties are shown until a date range is entered.
 - People can be filtered by purchasing power and by nearby distance from a selected Sold Property.
@@ -119,11 +120,3 @@ For bulk speed, the CLI import skips geocoding during import and preserves exist
 - Checking `Same suburb` makes nearby People satisfy both the distance limit and the selected Sold Property suburb.
 - Canceling the nearby filter clears the nearby People list and does not reset the map position.
 - Changing nearby-controller inputs also keeps the current map position.
-
-## V1 Assumptions
-
-- No authentication.
-- Sold property data is manually entered.
-- Auckland Council subdivision/local-board polygons serve as the v1 outline layer.
-- Suburb drawer navigation uses hard-coded suburb centers, while GeoMaps still provides the basemap, outlines, and address lookup.
-- Coordinates come from Auckland Council address lookup or manual latitude/longitude fallback.
