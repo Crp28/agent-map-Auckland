@@ -95,3 +95,9 @@
 - Started the next TODO.md request: format the nearby People export `Address` column as `street address, suburb`.
 - Added a nearby export address helper, updated the CSV unit expectations, and reflected the behavior in `FEATURE_STATEMENT.md`, `DOCUMENTATION.md`, `README.md`, and `findings.md`.
 - Verified the change with the focused nearby export test, full `npm run test`, `npm run lint`, `npm run build`, and a browser interception confirming exported rows such as `"39 Argo Dr, Half Moon Bay"`.
+
+## 2026-04-17
+- Started a documentation refresh for `README.md` so it reflects the current app behavior instead of the earlier scaffold-era summary.
+- Rewrote `README.md` around the current product state: Highland Park default view, nearby export behavior, multi-address People storage, suburb drawer behavior, current setup flow, and full command list from `package.json`.
+- Logged the README refresh in `DOCUMENTATION.md` and tracked it as phase 22 in `task_plan.md`.
+- Verified the README refresh by checking the rewritten content against `package.json`, `FEATURE_STATEMENT.md`, and the current documentation trail. No code tests were needed because this was a docs-only change.

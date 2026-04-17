@@ -25,6 +25,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 19. Complete: Clear nearby People on cancel, add nearby People CSV export, update feature/docs, and verify.
 20. Complete: Add the Address column to nearby People CSV export, update feature/docs, and verify.
 21. Complete: Format the nearby People export Address column as street address plus suburb, update feature/docs, and verify.
+22. Complete: Refresh `README.md` so it matches the current application behavior, commands, and data model.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.
