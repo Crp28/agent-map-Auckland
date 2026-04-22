@@ -101,3 +101,9 @@
 - Rewrote `README.md` around the current product state: Highland Park default view, nearby export behavior, multi-address People storage, suburb drawer behavior, current setup flow, and full command list from `package.json`.
 - Logged the README refresh in `DOCUMENTATION.md` and tracked it as phase 22 in `task_plan.md`.
 - Verified the README refresh by checking the rewritten content against `package.json`, `FEATURE_STATEMENT.md`, and the current documentation trail. No code tests were needed because this was a docs-only change.
+
+## 2026-04-22
+- Started the People validation change so manual creation no longer requires email.
+- Changed the shared People validation schema to normalize missing email to an empty string, allow blank email, and keep rejecting malformed non-empty email values.
+- Updated the Add Person label to show email is optional, and reflected the validation behavior in `FEATURE_STATEMENT.md`, `README.md`, and `DOCUMENTATION.md`.
+- Verified the change with `npm run test -- src/lib/validation.test.ts`, `npm run lint`, `npm run test`, and `npm run build`.

@@ -44,6 +44,24 @@ describe("personInputSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts missing email addresses", () => {
+    const result = personInputSchema.safeParse({
+      name: "Ana Buyer",
+      streetAddress: "1 Queen Street",
+      suburb: "Auckland Central",
+      phone: "021 000 000",
+      purchasingPowerMin: "",
+      purchasingPowerMax: "",
+      latitude: "",
+      longitude: "",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.email).toBe("");
+    }
+  });
+
   it("requires purchasing power min to be below max", () => {
     const result = personInputSchema.safeParse({
       name: "Ana Buyer",
