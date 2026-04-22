@@ -73,7 +73,7 @@ The subdivision/local-board outline cache is refreshed by `cmd /c npm run sync:g
 
 - `Sold property` opens the Sold Property manager for viewing, adding, editing, and deleting records.
 - `Person` opens the People manager for viewing, adding, editing, and deleting records.
-- People validation allows blank email, validates non-empty email format, checks optional purchasing power min/max ordering, and validates optional coordinate pairs per address.
+- People validation requires at least one of phone or email, validates non-empty email format, checks optional purchasing power min/max ordering, and validates optional coordinate pairs per address.
 - Sold Property validation includes required address, suburb, sold date, sold price, and optional coordinates.
 
 ## CSV Import

@@ -62,6 +62,41 @@ describe("personInputSchema", () => {
     }
   });
 
+  it("accepts missing phone numbers when email is present", () => {
+    const result = personInputSchema.safeParse({
+      name: "Ana Buyer",
+      streetAddress: "1 Queen Street",
+      suburb: "Auckland Central",
+      email: "ana@example.com",
+      purchasingPowerMin: "",
+      purchasingPowerMax: "",
+      latitude: "",
+      longitude: "",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.phone).toBe("");
+    }
+  });
+
+  it("requires at least one contact method", () => {
+    const result = personInputSchema.safeParse({
+      name: "Ana Buyer",
+      streetAddress: "1 Queen Street",
+      suburb: "Auckland Central",
+      purchasingPowerMin: "",
+      purchasingPowerMax: "",
+      latitude: "",
+      longitude: "",
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.flatten().fieldErrors.phone).toContain("Enter phone or email");
+    }
+  });
+
   it("requires purchasing power min to be below max", () => {
     const result = personInputSchema.safeParse({
       name: "Ana Buyer",

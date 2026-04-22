@@ -2,6 +2,10 @@ import { z } from "zod";
 import { toOptionalInteger, toOptionalNumber } from "./normalize";
 
 const requiredText = (field: string) => z.string().trim().min(1, `${field} is required`);
+const optionalText = z.preprocess(
+  (value) => (value === undefined || value === null ? "" : value),
+  z.string().trim(),
+);
 const emailFormatSchema = z.string().email("Enter a valid email address");
 const optionalEmail = z.preprocess(
   (value) => (value === undefined || value === null ? "" : value),
@@ -35,10 +39,14 @@ const optionalLongitude = z.preprocess(
 const personBaseSchema = z
   .object({
     name: requiredText("Name"),
-    phone: requiredText("Phone"),
+    phone: optionalText,
     email: optionalEmail,
     purchasingPowerMin: optionalInteger,
     purchasingPowerMax: optionalInteger,
+  })
+  .refine((data) => data.phone !== "" || data.email !== "", {
+    message: "Enter phone or email",
+    path: ["phone"],
   })
   .refine(
     (data) =>

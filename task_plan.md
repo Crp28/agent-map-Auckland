@@ -27,6 +27,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 21. Complete: Format the nearby People export Address column as street address plus suburb, update feature/docs, and verify.
 22. Complete: Refresh `README.md` so it matches the current application behavior, commands, and data model.
 23. Complete: Make manual People email validation optional while preserving invalid non-empty email errors, then update docs and tests.
+24. Complete: Require at least one People contact method, allowing either phone or email, then update docs and tests.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.

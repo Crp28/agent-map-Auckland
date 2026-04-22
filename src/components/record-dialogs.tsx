@@ -92,12 +92,12 @@ export function AddPersonDialog({
             <FieldError message={errors.name?.message} />
           </label>
           <label className={labelClass}>
-            Phone
+            Phone (required if no email)
             <input className={inputClass} {...register("phone")} />
             <FieldError message={errors.phone?.message} />
           </label>
           <label className={labelClass}>
-            Email (optional)
+            Email (required if no phone)
             <input className={inputClass} type="email" {...register("email")} />
             <FieldError message={errors.email?.message} />
           </label>

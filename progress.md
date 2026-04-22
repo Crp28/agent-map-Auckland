@@ -107,3 +107,6 @@
 - Changed the shared People validation schema to normalize missing email to an empty string, allow blank email, and keep rejecting malformed non-empty email values.
 - Updated the Add Person label to show email is optional, and reflected the validation behavior in `FEATURE_STATEMENT.md`, `README.md`, and `DOCUMENTATION.md`.
 - Verified the change with `npm run test -- src/lib/validation.test.ts`, `npm run lint`, `npm run test`, and `npm run build`.
+- Refined the People contact validation requirement so at least one of phone or email must be present. Phone can now be blank when email is present, email can be blank when phone is present, and malformed non-empty email still fails.
+- Updated Add Person labels and documentation to describe the phone-or-email requirement.
+- Verified the phone-or-email contact rule with `npm run test -- src/lib/validation.test.ts`, `npm run lint`, `npm run test`, and `npm run build`.

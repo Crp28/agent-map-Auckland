@@ -54,6 +54,7 @@
 - 2026-04-16: Updated the nearby People panel so Cancel clears the nearby list and a CSV export button appears whenever nearby People are listed. The export contains `First Name`, `Mobile Phone`, and `Address` columns, formats Address as `street address, suburb`, and uses a filename based on the selected Sold Property address plus same-suburb mode.
 - 2026-04-17: Rewrote `README.md` to match the current application state, including the Highland Park default map view, multi-address People model, nearby export behavior, suburb drawer behavior, current setup commands, and the full command list.
 - 2026-04-22: Updated People create/update validation so email can be blank while non-empty email values still must be valid email addresses.
+- 2026-04-22: Refined People create/update validation so at least one of phone or email is required; phone may be blank when email is present.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
@@ -73,7 +74,7 @@
 - The suburb drawer handle stays fixed on the right edge while the drawer content reveals leftward, avoiding transient main-content shifts during the open animation.
 - People are now stored as one logical person row plus one-or-more address rows. The map, search, and nearby APIs flatten those address rows back into address-specific Person records so one person can render multiple dots.
 - Older local databases must add `people.person_key` before creating the unique index introduced by the multi-address migration.
-- Manual People creation treats email as optional; blank email is stored as an empty string for compatibility with the existing non-null database column.
+- Manual People creation requires at least one contact method: phone or email. Blank contact fields are stored as empty strings for compatibility with the existing non-null database columns.
 
 ## Notes
 - Use `cmd /c npm ...`, `npm.cmd`, or `npx.cmd` in PowerShell because this machine blocks `npm.ps1`.
