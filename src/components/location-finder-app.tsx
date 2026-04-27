@@ -45,6 +45,19 @@ type PersonCoordinateAuditResult = {
   distanceKm: number | null;
 };
 
+async function readJsonResponse<T>(response: Response) {
+  const text = await response.text();
+  if (!text) {
+    return null as T | null;
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error("Server returned an invalid response.");
+  }
+}
+
 export function LocationFinderApp() {
   const [mapData, setMapData] = useState<MapData>(emptyMapData);
   const [fromDate, setFromDate] = useState("");
@@ -258,12 +271,12 @@ export function LocationFinderApp() {
   async function syncGeomaps() {
     setNotice("Syncing GeoMaps...");
     const response = await fetch("/api/sync/geomaps", { method: "POST" });
-    const payload = await response.json();
+    const payload = await readJsonResponse<{ error?: string; count?: number }>(response);
     if (!response.ok) {
-      setNotice(payload.error ?? "GeoMaps sync failed.");
+      setNotice(payload?.error ?? "GeoMaps sync failed.");
       return;
     }
-    setNotice(`GeoMaps synced: ${payload.count} areas.`);
+    setNotice(`GeoMaps synced: ${payload?.count ?? 0} areas.`);
     refresh();
   }
 
@@ -278,11 +291,11 @@ export function LocationFinderApp() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "audit", addressIds: batch }),
       });
-      const payload = await response.json();
+      const payload = await readJsonResponse<{ error?: string; results?: PersonCoordinateAuditResult[] }>(response);
       if (!response.ok) {
-        throw new Error(typeof payload.error === "string" ? payload.error : "Coordinate audit failed.");
+        throw new Error(typeof payload?.error === "string" ? payload.error : "Coordinate audit failed.");
       }
-      results.push(...(payload.results as PersonCoordinateAuditResult[]));
+      results.push(...(payload?.results ?? []));
     }
 
     return results;
@@ -299,11 +312,11 @@ export function LocationFinderApp() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "refresh", addressIds: batch }),
       });
-      const payload = await response.json();
+      const payload = await readJsonResponse<{ error?: string; refreshedAddressIds?: number[] }>(response);
       if (!response.ok) {
-        throw new Error(typeof payload.error === "string" ? payload.error : "Coordinate refresh failed.");
+        throw new Error(typeof payload?.error === "string" ? payload.error : "Coordinate refresh failed.");
       }
-      refreshedAddressIds.push(...((payload.refreshedAddressIds as number[]) ?? []));
+      refreshedAddressIds.push(...(payload?.refreshedAddressIds ?? []));
     }
 
     return refreshedAddressIds;
@@ -316,12 +329,12 @@ export function LocationFinderApp() {
     try {
       setNotice("Loading people for coordinate audit...");
       const response = await fetch("/api/people");
-      const payload = await response.json();
+      const payload = await readJsonResponse<{ error?: string; people?: PersonRecord[] }>(response);
       if (!response.ok) {
-        throw new Error(typeof payload.error === "string" ? payload.error : "People could not be loaded.");
+        throw new Error(typeof payload?.error === "string" ? payload.error : "People could not be loaded.");
       }
 
-      const people = payload.people as PersonRecord[];
+      const people = payload?.people ?? [];
       const addressIds = people.flatMap((person) =>
         person.addresses
           .filter((address) => address.latitude !== null && address.longitude !== null)

@@ -98,6 +98,14 @@ async function geocodeWithTimeout(streetAddress: string, suburb: string, timeout
 
   try {
     return await geocodeAddress(streetAddress, suburb, { signal: controller.signal });
+  } catch (error) {
+    if (
+      (error instanceof DOMException && error.name === "AbortError") ||
+      (error instanceof Error && error.name === "AbortError")
+    ) {
+      return null;
+    }
+    throw error;
   } finally {
     clearTimeout(timeout);
   }

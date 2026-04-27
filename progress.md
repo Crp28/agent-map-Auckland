@@ -127,3 +127,7 @@
 - Reworked the manager-side `Add address` flow to use a local draft with explicit save/cancel controls, because immediately PATCHing a blank new address row always fails validation.
 - Added duplicate-address validation plus focused repository tests covering stable address ids, selected-address preservation, and primary-address listing behavior.
 - Verified the multi-address hardening pass with focused repository/validation tests, full `npm run test`, `npm run lint`, and `npm run build`. An `agent-browser` smoke check against the running dev server remained stuck on the existing loading screen, so live UI verification for the new address-draft flow could not be completed in-browser this pass.
+- Investigated a new `Audit People coords` failure that surfaced as `Failed to execute 'json' on 'Response': Unexpected end of JSON input` in the browser.
+- Traced the actual server-side root cause to `AbortError` exceptions from the 8-second GeoMaps timeout inside `auditPersonAddressCoordinates()`. One timed-out lookup was aborting the entire batch request, leaving the client with an empty 500 body.
+- Fixed the audit/retry geocode timeout helper to treat `AbortError` as an `unverified` lookup instead of a thrown failure, wrapped the coordinates API route in a JSON 500 response, and hardened the main app's coordinate-audit fetch code against empty/invalid JSON bodies.
+- Verified the audit fix with focused route/repository tests, direct CLI repro against address `8468`, full `npm run lint`, `npm run test`, and `npm run build`.

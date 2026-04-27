@@ -191,4 +191,38 @@ describe("multi-address repository behavior", () => {
     expect(listed).toHaveLength(1);
     expect(listed[0]?.streetAddress).toBe("2 High Street");
   });
+
+  it("treats timed out geocode audits as unverified instead of throwing", async () => {
+    vi.doMock("./geomaps", async () => {
+      const actual = await vi.importActual<typeof import("./geomaps")>("./geomaps");
+      return {
+        ...actual,
+        geocodeAddress: vi.fn(async () => {
+          throw new DOMException("This operation was aborted", "AbortError");
+        }),
+      };
+    });
+    await loadRepository();
+
+    const created = await repository.createOrUpdatePerson({
+      name: "Timeout Case",
+      phone: "021 999 9999",
+      email: "timeout@example.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      addresses: [
+        {
+          streetAddress: "1 Queen Street",
+          suburb: "Auckland Central",
+          latitude: -36.847,
+          longitude: 174.763,
+        },
+      ],
+    }, { geocode: false });
+
+    const result = await repository.auditPersonAddressCoordinates([created!.addresses[0]!.id]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.status).toBe("unverified");
+  });
 });
