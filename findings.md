@@ -41,6 +41,7 @@
 - Nearby People CSV export can be generated on the client from the `nearbyPeople` state. This keeps the export aligned with the currently visible nearby list and avoids introducing a duplicate API query path.
 - The nearby People export address column should combine each flattened Person record's `streetAddress` and `suburb` as `street address, suburb`, so multi-address People still export the specific nearby address context.
 - Bulk coordinate auditing should be chunked from the client instead of sent as one large API request. The GeoMaps lookup is network-bound and safe at small batch sizes, while one giant audit call risks request timeouts and poor progress feedback.
+- Multi-address People markers must resolve the clicked modal record by `addressId` before falling back to `person.id`. Otherwise a secondary address marker can open the first flattened address row for the same person even though the marker itself is drawn at the correct coordinates.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.

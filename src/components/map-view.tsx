@@ -1,6 +1,7 @@
 "use client";
 
 import { GEOMAPS, PERSON_AUDIT_COLOR, PERSON_COLOR, SOLD_PROPERTY_COLOR } from "@/lib/constants";
+import { resolveSelectedPerson } from "@/lib/person-selection";
 import type {
   BoundaryRecord,
   PersonRecord,
@@ -118,7 +119,7 @@ export function AucklandMap({
         addressId?: number;
       };
       if (recordType === "person") {
-        const person = peopleRef.current.find((item) => item.addressId === addressId || item.id === id);
+        const person = resolveSelectedPerson(peopleRef.current, id, addressId);
         if (person) {
           onSelectPersonRef.current(person);
         }

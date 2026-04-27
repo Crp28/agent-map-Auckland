@@ -119,3 +119,5 @@
 - Added a main-page `Audit People coords` workflow that audits coordinate-bearing People addresses in chunks, marks mismatches red, offers a bulk refresh pass, and rechecks the refreshed rows.
 - Added a small retry button to the map-opened Person modal so one selected address can rerun GeoMaps and refresh its coordinates directly.
 - Verified the geocode-correction slice with focused `geomaps` and route tests, full `npm run lint`, `npm run test`, `npm run build`, and an `agent-browser` smoke check confirming the main audit button and the modal retry button are present in the live UI.
+- Investigated a multi-address marker bug where clicking Michael Boulgaris's Karaka marker opened the Remuera address in the modal even though both markers were rendered at their stored coordinates.
+- Fixed the map click selection logic to prefer exact `addressId` matches before falling back to `person.id`, and added a focused unit test for the secondary-address case.
