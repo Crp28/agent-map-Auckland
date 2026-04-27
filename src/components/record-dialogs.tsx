@@ -3,7 +3,7 @@
 import { AppDialog } from "@/components/ui/dialog";
 import type { PersonAddressRecord, PersonRecord, SelectedItem, SoldPropertyRecord } from "@/types/location";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, Plus, Trash2, Upload } from "lucide-react";
+import { Eye, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
@@ -19,6 +19,16 @@ const errorClass = "mt-1 text-sm text-[#b42318]";
 
 type DialogActions = {
   refresh: () => void;
+};
+
+type PersonCoordinateAuditResult = {
+  personId: number;
+  addressId: number;
+  streetAddress: string;
+  suburb: string;
+  status: "ok" | "mismatch" | "unverified";
+  matchedAddress: string | null;
+  distanceKm: number | null;
 };
 
 function FieldError({ message }: { message?: string }) {
@@ -503,11 +513,13 @@ export function DetailsDialog({
   selected,
   onOpenChange,
   onSelectedChange,
+  onPersonAuditResult,
   refresh,
 }: {
   selected: SelectedItem;
   onOpenChange: (open: boolean) => void;
   onSelectedChange: (selected: SelectedItem) => void;
+  onPersonAuditResult: (result: PersonCoordinateAuditResult) => void;
   refresh: () => void;
 }) {
   const open = selected !== null;
@@ -528,6 +540,7 @@ export function DetailsDialog({
           person={selected.item}
           source={selected.source}
           onChange={(person) => onSelectedChange({ type: "person", item: person, source: selected.source })}
+          onAuditResult={onPersonAuditResult}
           onDeleted={() => {
             onSelectedChange(null);
             refresh();
@@ -675,15 +688,20 @@ function PersonDetails({
   person,
   source,
   onChange,
+  onAuditResult,
   onDeleted,
   refresh,
 }: {
   person: PersonRecord;
   source: "manager" | "map";
   onChange: (person: PersonRecord) => void;
+  onAuditResult: (result: PersonCoordinateAuditResult) => void;
   onDeleted: () => void;
   refresh: () => void;
 }) {
+  const [retryingGeocode, setRetryingGeocode] = useState(false);
+  const [geocodeStatus, setGeocodeStatus] = useState<string | null>(null);
+
   async function savePerson(next: PersonRecord) {
     const payload = await requestJson<{ person: PersonRecord }>("/api/people", {
       method: "PATCH",
@@ -700,6 +718,38 @@ function PersonDetails({
     }
     await requestJson<{ deleted: boolean }>(`/api/people?id=${person.id}`, { method: "DELETE" });
     onDeleted();
+  }
+
+  async function retrySelectedAddressGeocode() {
+    if (!person.addressId) {
+      return;
+    }
+
+    setRetryingGeocode(true);
+    setGeocodeStatus(null);
+
+    try {
+      const payload = await requestJson<{ person: PersonRecord; audit: PersonCoordinateAuditResult }>(
+        "/api/people/coordinates",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "retry", addressId: person.addressId }),
+        },
+      );
+      onChange(payload.person);
+      onAuditResult(payload.audit);
+      refresh();
+      setGeocodeStatus(
+        payload.audit.status === "unverified"
+          ? "GeoMaps could not confidently place this address."
+          : "Coordinates refreshed from GeoMaps.",
+      );
+    } catch (error) {
+      setGeocodeStatus(error instanceof Error ? error.message : "Coordinates could not be refreshed.");
+    } finally {
+      setRetryingGeocode(false);
+    }
   }
 
   const selectedAddress =
@@ -720,7 +770,19 @@ function PersonDetails({
 
   return (
     <div className="grid gap-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {source === "map" && person.addressId ? (
+          <button
+            type="button"
+            onClick={() => void retrySelectedAddressGeocode()}
+            disabled={retryingGeocode}
+            className="grid h-10 w-10 place-items-center rounded-md border border-[#cbd5e1] text-[#334155] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7] disabled:cursor-wait disabled:opacity-60"
+            title="Retry GeoMaps coordinates for this address"
+          >
+            <RefreshCw aria-hidden="true" size={16} className={retryingGeocode ? "animate-spin" : ""} />
+            <span className="sr-only">Retry GeoMaps coordinates</span>
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => void deletePerson()}
@@ -730,6 +792,7 @@ function PersonDetails({
           Delete person
         </button>
       </div>
+      {geocodeStatus ? <p className="text-sm text-[#475569]">{geocodeStatus}</p> : null}
       <dl className="grid gap-3 sm:grid-cols-2">
         <EditableDetailRow label="Name" value={person.name} onSave={(value) => savePerson({ ...person, name: value })} />
         <EditableDetailRow label="Phone" value={person.phone} onSave={(value) => savePerson({ ...person, phone: value })} />

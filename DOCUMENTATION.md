@@ -55,6 +55,7 @@
 - 2026-04-17: Rewrote `README.md` to match the current application state, including the Highland Park default map view, multi-address People model, nearby export behavior, suburb drawer behavior, current setup commands, and the full command list.
 - 2026-04-22: Updated People create/update validation so email can be blank while non-empty email values still must be valid email addresses.
 - 2026-04-22: Refined People create/update validation so at least one of phone or email is required; phone may be blank when email is present.
+- 2026-04-28: Tightened GeoMaps address matching to reject unsafe substring collisions such as `1 ...` vs `171 ...`, added a chunked People-coordinate audit/refresh workflow on the main page, and added a single-address GeoMaps retry button to the map-opened Person modal.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
@@ -75,6 +76,7 @@
 - People are now stored as one logical person row plus one-or-more address rows. The map, search, and nearby APIs flatten those address rows back into address-specific Person records so one person can render multiple dots.
 - Older local databases must add `people.person_key` before creating the unique index introduced by the multi-address migration.
 - Manual People creation requires at least one contact method: phone or email. Blank contact fields are stored as empty strings for compatibility with the existing non-null database columns.
+- Person geocoding now prefers safe address-prefix and number matches over broad substring hits. If a manual address cannot be matched confidently, the app leaves it unresolved instead of accepting a likely-wrong coordinate.
 
 ## Notes
 - Use `cmd /c npm ...`, `npm.cmd`, or `npx.cmd` in PowerShell because this machine blocks `npm.ps1`.

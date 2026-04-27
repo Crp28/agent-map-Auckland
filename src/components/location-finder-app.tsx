@@ -23,7 +23,7 @@ import type {
   SuburbMapTarget,
   SuburbRegion,
 } from "@/types/location";
-import { ChevronLeft, ChevronRight, Database, FileUp, LocateFixed, Plus, Search, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, Database, FileUp, LocateFixed, Plus, RefreshCw, Search, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const emptyMapData: MapData = {
@@ -31,6 +31,18 @@ const emptyMapData: MapData = {
   people: [],
   boundaries: [],
   sync: null,
+};
+
+const PERSON_COORDINATE_BATCH_SIZE = 12;
+
+type PersonCoordinateAuditResult = {
+  personId: number;
+  addressId: number;
+  streetAddress: string;
+  suburb: string;
+  status: "ok" | "mismatch" | "unverified";
+  matchedAddress: string | null;
+  distanceKm: number | null;
 };
 
 export function LocationFinderApp() {
@@ -47,6 +59,8 @@ export function LocationFinderApp() {
   const [selectedPropertyTarget, setSelectedPropertyTarget] = useState<PointMapTarget | undefined>();
   const [distanceKm, setDistanceKm] = useState("2");
   const [sameSuburb, setSameSuburb] = useState(true);
+  const [mismatchedPersonAddressIds, setMismatchedPersonAddressIds] = useState<number[]>([]);
+  const [coordinateAuditRunning, setCoordinateAuditRunning] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
@@ -65,6 +79,18 @@ export function LocationFinderApp() {
   const sameSuburbRef = useRef(sameSuburb);
 
   const refresh = useCallback(() => setRefreshKey((value) => value + 1), []);
+
+  const applyAuditResult = useCallback((result: PersonCoordinateAuditResult) => {
+    setMismatchedPersonAddressIds((current) => {
+      const next = new Set(current);
+      if (result.status === "mismatch") {
+        next.add(result.addressId);
+      } else {
+        next.delete(result.addressId);
+      }
+      return [...next];
+    });
+  }, []);
 
   useEffect(() => {
     distanceKmRef.current = distanceKm;
@@ -241,6 +267,106 @@ export function LocationFinderApp() {
     refresh();
   }
 
+  async function auditAddressBatch(addressIds: number[], label: string) {
+    const results: PersonCoordinateAuditResult[] = [];
+
+    for (let index = 0; index < addressIds.length; index += PERSON_COORDINATE_BATCH_SIZE) {
+      const batch = addressIds.slice(index, index + PERSON_COORDINATE_BATCH_SIZE);
+      setNotice(`${label} ${Math.min(index + batch.length, addressIds.length)}/${addressIds.length}...`);
+      const response = await fetch("/api/people/coordinates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "audit", addressIds: batch }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(typeof payload.error === "string" ? payload.error : "Coordinate audit failed.");
+      }
+      results.push(...(payload.results as PersonCoordinateAuditResult[]));
+    }
+
+    return results;
+  }
+
+  async function refreshAddressBatch(addressIds: number[], label: string) {
+    const refreshedAddressIds: number[] = [];
+
+    for (let index = 0; index < addressIds.length; index += PERSON_COORDINATE_BATCH_SIZE) {
+      const batch = addressIds.slice(index, index + PERSON_COORDINATE_BATCH_SIZE);
+      setNotice(`${label} ${Math.min(index + batch.length, addressIds.length)}/${addressIds.length}...`);
+      const response = await fetch("/api/people/coordinates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "refresh", addressIds: batch }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(typeof payload.error === "string" ? payload.error : "Coordinate refresh failed.");
+      }
+      refreshedAddressIds.push(...((payload.refreshedAddressIds as number[]) ?? []));
+    }
+
+    return refreshedAddressIds;
+  }
+
+  async function auditAllPeopleCoordinates() {
+    setCoordinateAuditRunning(true);
+    setMismatchedPersonAddressIds([]);
+
+    try {
+      setNotice("Loading people for coordinate audit...");
+      const response = await fetch("/api/people");
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(typeof payload.error === "string" ? payload.error : "People could not be loaded.");
+      }
+
+      const people = payload.people as PersonRecord[];
+      const addressIds = people.flatMap((person) =>
+        person.addresses
+          .filter((address) => address.latitude !== null && address.longitude !== null)
+          .map((address) => address.id),
+      );
+
+      if (addressIds.length === 0) {
+        setNotice("No People coordinates are available to audit.");
+        return;
+      }
+
+      const results = await auditAddressBatch(addressIds, "Auditing People coordinates");
+      const mismatches = results.filter((result) => result.status === "mismatch").map((result) => result.addressId);
+      const unverifiedCount = results.filter((result) => result.status === "unverified").length;
+      setMismatchedPersonAddressIds(mismatches);
+
+      setNotice(
+        `Coordinate audit complete: ${mismatches.length} mismatches, ${unverifiedCount} unverified, ${results.length} checked.`,
+      );
+
+      if (
+        mismatches.length > 0 &&
+        window.confirm(
+          `${mismatches.length} People locations look wrong. Auto-refresh those coordinates now?`,
+        )
+      ) {
+        const refreshed = await refreshAddressBatch(mismatches, "Refreshing mismatched People coordinates");
+        refresh();
+        const rechecked = await auditAddressBatch(mismatches, "Rechecking refreshed People coordinates");
+        const remainingMismatches = rechecked
+          .filter((result) => result.status === "mismatch")
+          .map((result) => result.addressId);
+        const remainingUnverified = rechecked.filter((result) => result.status === "unverified").length;
+        setMismatchedPersonAddressIds(remainingMismatches);
+        setNotice(
+          `Coordinate refresh complete: ${refreshed.length} refreshed, ${remainingMismatches.length} still mismatched, ${remainingUnverified} unverified.`,
+        );
+      }
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Coordinate audit failed.");
+    } finally {
+      setCoordinateAuditRunning(false);
+    }
+  }
+
   function selectSuburb(region: SuburbRegion) {
     const targetKey = suburbTargetKeyRef.current + 1;
     suburbTargetKeyRef.current = targetKey;
@@ -298,6 +424,7 @@ export function LocationFinderApp() {
         soldProperties={mapData.soldProperties}
         boundaries={mapData.boundaries}
         highlightedPersonIds={highlightedPersonIds}
+        mismatchedPersonIds={mismatchedPersonAddressIds}
         selectedSoldPropertyId={selectedSoldPropertyId}
         selectedSuburbTarget={selectedSuburbTarget}
         selectedPropertyTarget={selectedPropertyTarget}
@@ -406,6 +533,15 @@ export function LocationFinderApp() {
           >
             <Database aria-hidden="true" size={18} />
             Sync GeoMaps
+          </button>
+          <button
+            type="button"
+            onClick={() => void auditAllPeopleCoordinates()}
+            disabled={coordinateAuditRunning}
+            className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#cbd5e1] bg-white px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7] disabled:cursor-wait disabled:opacity-60"
+          >
+            <RefreshCw aria-hidden="true" size={18} className={coordinateAuditRunning ? "animate-spin" : ""} />
+            Audit People coords
           </button>
         </div>
 
@@ -558,6 +694,8 @@ export function LocationFinderApp() {
           {" | "}
           {nearbyFilterActive ? `${visiblePeople.length} visible people` : `${mapData.people.length} people`}
           {" | "}
+          {mismatchedPersonAddressIds.length} flagged
+          {" | "}
           Last GeoMaps sync:{" "}
           {mapData.sync?.lastSuccessfulSyncAt
             ? new Date(mapData.sync.lastSuccessfulSyncAt).toLocaleString()
@@ -613,6 +751,7 @@ export function LocationFinderApp() {
         selected={selected}
         onOpenChange={(open) => !open && setSelected(null)}
         onSelectedChange={setSelected}
+        onPersonAuditResult={applyAuditResult}
         refresh={refresh}
       />
     </main>

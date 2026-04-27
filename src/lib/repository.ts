@@ -40,6 +40,29 @@ type ResolvedAddress = PersonAddressInput & {
   updatedAt: string;
 };
 
+type AuditAddressRow = {
+  person_id: number;
+  address_id: number;
+  street_address: string;
+  suburb: string;
+  latitude: number | null;
+  longitude: number | null;
+};
+
+export type PersonCoordinateAuditResult = {
+  personId: number;
+  addressId: number;
+  streetAddress: string;
+  suburb: string;
+  status: "ok" | "mismatch" | "unverified";
+  matchedAddress: string | null;
+  distanceKm: number | null;
+};
+
+const PERSON_GEOCODE_AUDIT_DISTANCE_THRESHOLD_KM = 0.15;
+const PERSON_GEOCODE_TIMEOUT_MS = 8000;
+const PERSON_GEOCODE_CONCURRENCY = 4;
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -62,6 +85,122 @@ async function resolveAddressCoordinates(
   }
 
   return { latitude: result.latitude, longitude: result.longitude };
+}
+
+async function geocodeWithTimeout(streetAddress: string, suburb: string, timeoutMs = PERSON_GEOCODE_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await geocodeAddress(streetAddress, suburb, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function classifyPersonCoordinateAudit(
+  row: AuditAddressRow,
+  geocoded: Awaited<ReturnType<typeof geocodeWithTimeout>>,
+): PersonCoordinateAuditResult {
+  if (!geocoded || row.latitude === null || row.longitude === null) {
+    return {
+      personId: row.person_id,
+      addressId: row.address_id,
+      streetAddress: row.street_address,
+      suburb: row.suburb,
+      status: "unverified",
+      matchedAddress: geocoded?.matchedAddress ?? null,
+      distanceKm: null,
+    };
+  }
+
+  const geocodeDistanceKm = distanceKm(
+    { latitude: row.latitude, longitude: row.longitude },
+    { latitude: geocoded.latitude, longitude: geocoded.longitude },
+  );
+
+  return {
+    personId: row.person_id,
+    addressId: row.address_id,
+    streetAddress: row.street_address,
+    suburb: row.suburb,
+    status: geocodeDistanceKm > PERSON_GEOCODE_AUDIT_DISTANCE_THRESHOLD_KM ? "mismatch" : "ok",
+    matchedAddress: geocoded.matchedAddress ?? null,
+    distanceKm: geocodeDistanceKm,
+  };
+}
+
+function getAuditAddressRows(addressIds: number[]) {
+  ensureDatabase();
+  if (addressIds.length === 0) {
+    return [] as AuditAddressRow[];
+  }
+
+  const placeholders = addressIds.map(() => "?").join(", ");
+  return getRawDb()
+    .prepare(
+      `SELECT
+         a.person_id,
+         a.id AS address_id,
+         a.street_address,
+         a.suburb,
+         a.latitude,
+         a.longitude
+       FROM people_addresses a
+       WHERE a.id IN (${placeholders})
+       ORDER BY a.id ASC`,
+    )
+    .all(...addressIds) as AuditAddressRow[];
+}
+
+async function runAddressBatch<T>(
+  rows: AuditAddressRow[],
+  work: (row: AuditAddressRow) => Promise<T>,
+  concurrency = PERSON_GEOCODE_CONCURRENCY,
+) {
+  const results: T[] = new Array(rows.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < rows.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      results[currentIndex] = await work(rows[currentIndex] as AuditAddressRow);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, rows.length) }, () => worker()),
+  );
+
+  return results;
+}
+
+async function updatePersonAddressCoordinates(
+  row: AuditAddressRow,
+  coordinates: { latitude: number; longitude: number },
+  timestamp: string,
+) {
+  const db = getDb();
+
+  await db
+    .update(peopleAddresses)
+    .set({
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+      updatedAt: timestamp,
+    })
+    .where(eq(peopleAddresses.id, row.address_id));
+
+  await db
+    .update(people)
+    .set({
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+      lastUpdatedAt: timestamp,
+      updatedAt: timestamp,
+    })
+    .where(and(eq(people.id, row.person_id), eq(people.streetAddress, row.street_address), eq(people.suburb, row.suburb)));
 }
 
 function buildPersonRecord(
@@ -288,9 +427,31 @@ async function syncPersonAddresses(
   return resolvedAddresses;
 }
 
-async function getPersonRecordById(id: number) {
+async function getPersonRecordById(id: number, selectedAddressId?: number | null) {
   const peopleRecords = await listPeopleWithAddresses();
-  return peopleRecords.find((person) => person.id === id) ?? null;
+  const person = peopleRecords.find((item) => item.id === id) ?? null;
+  if (!person) {
+    return null;
+  }
+
+  if (selectedAddressId === undefined || selectedAddressId === null) {
+    return person;
+  }
+
+  const selectedAddress =
+    person.addresses.find((address) => address.id === selectedAddressId) ?? person.addresses[0] ?? null;
+  if (!selectedAddress) {
+    return person;
+  }
+
+  return {
+    ...person,
+    addressId: selectedAddress.id,
+    streetAddress: selectedAddress.streetAddress,
+    suburb: selectedAddress.suburb,
+    latitude: selectedAddress.latitude,
+    longitude: selectedAddress.longitude,
+  };
 }
 
 export async function createOrUpdatePerson(
@@ -570,6 +731,70 @@ export async function findNearbyPeople(input: {
     .sort((a, b) => a.distanceKm - b.distanceKm);
 
   return { property, people: nearby };
+}
+
+export async function retryPersonAddressGeocode(addressId: number) {
+  const row = getAuditAddressRows([addressId])[0];
+  if (!row) {
+    return null;
+  }
+
+  const geocoded = await geocodeWithTimeout(row.street_address, row.suburb);
+  const audit = classifyPersonCoordinateAudit(row, geocoded);
+
+  if (geocoded) {
+    const timestamp = nowIso();
+    await updatePersonAddressCoordinates(
+      row,
+      { latitude: geocoded.latitude, longitude: geocoded.longitude },
+      timestamp,
+    );
+  }
+
+  const person = await getPersonRecordById(row.person_id, row.address_id);
+  if (!person) {
+    return null;
+  }
+
+  return {
+    person,
+    audit: geocoded
+      ? {
+          ...audit,
+          status: "ok" as const,
+          distanceKm: 0,
+        }
+      : audit,
+  };
+}
+
+export async function auditPersonAddressCoordinates(addressIds: number[]) {
+  const rows = getAuditAddressRows(addressIds);
+  return runAddressBatch(rows, async (row) =>
+    classifyPersonCoordinateAudit(row, await geocodeWithTimeout(row.street_address, row.suburb)),
+  );
+}
+
+export async function refreshPersonAddressCoordinates(addressIds: number[]) {
+  const rows = getAuditAddressRows(addressIds);
+  const refreshedAddressIds: number[] = [];
+
+  await runAddressBatch(rows, async (row) => {
+    const geocoded = await geocodeWithTimeout(row.street_address, row.suburb);
+    if (!geocoded) {
+      return null;
+    }
+
+    await updatePersonAddressCoordinates(
+      row,
+      { latitude: geocoded.latitude, longitude: geocoded.longitude },
+      nowIso(),
+    );
+    refreshedAddressIds.push(row.address_id);
+    return null;
+  });
+
+  return refreshedAddressIds;
 }
 
 export function getRawPeopleByIdentity(identityKey: string) {

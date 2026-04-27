@@ -28,6 +28,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 22. Complete: Refresh `README.md` so it matches the current application behavior, commands, and data model.
 23. Complete: Make manual People email validation optional while preserving invalid non-empty email errors, then update docs and tests.
 24. Complete: Require at least one People contact method, allowing either phone or email, then update docs and tests.
+25. Complete: Tighten Person geocode matching, add single-person geocode retry from the map details modal, add chunked bulk coordinate audit/refresh with red mismatch markers, and update docs/tests.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.

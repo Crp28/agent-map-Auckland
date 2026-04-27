@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 type ArcGisPointFeature = {
   attributes: {
     OBJECTID: number;
+    FullNumber?: string;
     FullAddress?: string;
   };
   geometry?: {
@@ -31,6 +32,13 @@ type ArcGisQueryResponse<T> = {
     message?: string;
     details?: string[];
   };
+};
+
+type AddressPointCandidate = {
+  fullNumber?: string;
+  fullAddress?: string;
+  latitude: number;
+  longitude: number;
 };
 
 function arcgisQueryUrl(baseUrl: string, params: Record<string, string>) {
@@ -87,6 +95,112 @@ function unique(values: string[]) {
   return [...new Set(values.filter(Boolean))];
 }
 
+function addressNumberTokens(value: string) {
+  const normalized = normalizeAddressQuery(value);
+  const firstToken = normalized.split(" ")[0] ?? "";
+  if (!/\d/.test(firstToken)) {
+    return [];
+  }
+
+  const parts = firstToken.split("/").filter(Boolean);
+  return unique([firstToken, parts.at(-1) ?? ""]);
+}
+
+function addressPrefixMatches(fullAddress: string, prefix: string) {
+  return (
+    fullAddress === prefix ||
+    fullAddress.startsWith(`${prefix} `) ||
+    fullAddress.includes(`/${prefix} `)
+  );
+}
+
+function addressPrefixCandidates(streetAddress: string, suburb: string) {
+  const normalizedStreet = normalizeAddressQuery(streetAddress);
+  const normalizedSuburb = normalizeAddressQuery(suburb);
+  const firstAddressPart = normalizeAddressQuery(streetAddress.split(",")[0] ?? "");
+
+  return unique([
+    normalizedSuburb ? `${normalizedStreet} ${normalizedSuburb}` : "",
+    normalizedStreet,
+    normalizedSuburb && firstAddressPart !== normalizedStreet ? `${firstAddressPart} ${normalizedSuburb}` : "",
+    firstAddressPart !== normalizedStreet ? firstAddressPart : "",
+  ]);
+}
+
+export function pickBestGeocodeCandidate(
+  candidates: AddressPointCandidate[],
+  streetAddress: string,
+  suburb: string,
+) {
+  const inputNumberTokens = addressNumberTokens(streetAddress);
+  const normalizedSuburb = normalizeAddressQuery(suburb);
+  const genericSuburb = normalizedSuburb === "" || normalizedSuburb === "AUCKLAND";
+  const prefixes = addressPrefixCandidates(streetAddress, suburb);
+  let bestMatch: (AddressPointCandidate & { matchedAddress: string; score: number }) | null = null;
+
+  for (const candidate of candidates) {
+    const matchedAddress = candidate.fullAddress ?? "";
+    const normalizedMatchedAddress = normalizeAddressQuery(matchedAddress);
+    if (!normalizedMatchedAddress) {
+      continue;
+    }
+
+    if (!genericSuburb && !addressIncludesSuburb(candidate.fullAddress, suburb)) {
+      continue;
+    }
+
+    const candidateNumberTokens = unique([
+      ...addressNumberTokens(candidate.fullNumber ?? ""),
+      ...addressNumberTokens(matchedAddress),
+    ]);
+    if (
+      inputNumberTokens.length > 0 &&
+      !candidateNumberTokens.some((token) => inputNumberTokens.includes(token))
+    ) {
+      continue;
+    }
+
+    let prefixScore = -1;
+    for (const prefix of prefixes) {
+      if (!prefix) {
+        continue;
+      }
+      if (normalizedMatchedAddress === prefix) {
+        prefixScore = Math.max(prefixScore, 6);
+        continue;
+      }
+      if (addressPrefixMatches(normalizedMatchedAddress, prefix)) {
+        prefixScore = Math.max(prefixScore, 5);
+      }
+    }
+
+    if (prefixScore < 0) {
+      continue;
+    }
+
+    const score =
+      prefixScore +
+      (genericSuburb ? 0 : 3) +
+      (candidate.fullNumber && inputNumberTokens.includes(normalizeAddressQuery(candidate.fullNumber)) ? 2 : 0);
+
+    if (!bestMatch || score > bestMatch.score) {
+      bestMatch = {
+        ...candidate,
+        matchedAddress,
+        score,
+      };
+    }
+  }
+
+  return bestMatch
+    ? {
+        latitude: bestMatch.latitude,
+        longitude: bestMatch.longitude,
+        matchedAddress: bestMatch.matchedAddress,
+      }
+    : null;
+}
+
 function geocodeSearchCandidates(streetAddress: string, suburb: string) {
   if (!canGeocodeStreetAddress(streetAddress)) {
     return [];
@@ -126,31 +240,48 @@ export async function geocodeAddress(
   const searchCandidates = geocodeSearchCandidates(streetAddress, suburb);
 
   for (const searchText of searchCandidates) {
-    const url = arcgisQueryUrl(GEOMAPS.addressLookup, {
-      where: `UPPER(FullAddress) LIKE '%${escapeArcgisLike(searchText)}%'`,
-      outFields: "OBJECTID,FullAddress",
-      returnGeometry: "true",
-      f: "json",
-      resultRecordCount: "5",
-      outSR: "4326",
-    });
+    for (const where of [
+      [
+        `UPPER(FullAddress) = '${escapeArcgisLike(searchText)}'`,
+        `UPPER(FullAddress) LIKE '${escapeArcgisLike(searchText)} %'`,
+        `UPPER(FullAddress) LIKE '%/${escapeArcgisLike(searchText)} %'`,
+      ].join(" OR "),
+      `UPPER(FullAddress) LIKE '%${escapeArcgisLike(searchText)}%'`,
+    ]) {
+      const url = arcgisQueryUrl(GEOMAPS.addressLookup, {
+        where,
+        outFields: "OBJECTID,FullNumber,FullAddress",
+        returnGeometry: "true",
+        f: "json",
+        resultRecordCount: "10",
+        outSR: "4326",
+      });
 
-    const response = await fetch(url, { cache: "no-store", signal: options.signal });
-    if (!response.ok) {
-      return null;
-    }
+      const response = await fetch(url, { cache: "no-store", signal: options.signal });
+      if (!response.ok) {
+        return null;
+      }
 
-    const data = (await response.json()) as ArcGisQueryResponse<ArcGisPointFeature>;
-    const feature =
-      data.features?.find(
-        (item) => item.geometry && addressIncludesSuburb(item.attributes.FullAddress, suburb),
-      ) ?? data.features?.find((item) => item.geometry);
-    if (feature?.geometry) {
-      return {
-        latitude: feature.geometry.y,
-        longitude: feature.geometry.x,
-        matchedAddress: feature.attributes.FullAddress ?? null,
-      };
+      const data = (await response.json()) as ArcGisQueryResponse<ArcGisPointFeature>;
+      const match = pickBestGeocodeCandidate(
+        (data.features ?? [])
+          .filter((item) => item.geometry)
+          .map((item) => ({
+            fullNumber: item.attributes.FullNumber,
+            fullAddress: item.attributes.FullAddress,
+            latitude: item.geometry?.y ?? 0,
+            longitude: item.geometry?.x ?? 0,
+          })),
+        streetAddress,
+        suburb,
+      );
+      if (match) {
+        return {
+          latitude: match.latitude,
+          longitude: match.longitude,
+          matchedAddress: match.matchedAddress ?? null,
+        };
+      }
     }
   }
 

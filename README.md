@@ -16,6 +16,7 @@ Location Finder is a Next.js 16 app for viewing Auckland sold properties and peo
 - The suburb drawer lives in the same bottom-right stack as the nearby controls, opens from a fixed right-edge handle, and moves directly to hard-coded suburb centers at zoom level 8.
 - One Person can store multiple addresses. Each coordinate-bearing address renders its own map dot.
 - People without coordinates remain stored and editable, but do not render on the map until latitude and longitude are added or geocoded.
+- The main page can audit stored People coordinates in batches, color suspected mismatches red on the map, and bulk refresh those mismatches.
 
 ## Setup
 
@@ -74,6 +75,7 @@ The subdivision/local-board outline cache is refreshed by `cmd /c npm run sync:g
 - `Sold property` opens the Sold Property manager for viewing, adding, editing, and deleting records.
 - `Person` opens the People manager for viewing, adding, editing, and deleting records.
 - People validation requires at least one of phone or email, validates non-empty email format, checks optional purchasing power min/max ordering, and validates optional coordinate pairs per address.
+- A Person modal opened from the map includes a small GeoMaps retry button for the selected address.
 - Sold Property validation includes required address, suburb, sold date, sold price, and optional coordinates.
 
 ## CSV Import
@@ -117,6 +119,7 @@ For bulk speed, the CLI import skips geocoding during import and preserves exist
 - Keyboard arrow keys and `W`, `A`, `S`, `D` pan the map.
 - `+` zooms in and `-` zooms out.
 - Selecting a Sold Property pin or search result opens its modal and can drive the nearby People workflow.
+- `Audit People coords` checks coordinate-bearing People addresses in batches so the browser does not send one timeout-prone geocode request for every stored marker at once.
 - Checking `Same suburb` makes nearby People satisfy both the distance limit and the selected Sold Property suburb.
 - Canceling the nearby filter clears the nearby People list and does not reset the map position.
 - Changing nearby-controller inputs also keeps the current map position.

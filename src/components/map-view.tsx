@@ -1,6 +1,6 @@
 "use client";
 
-import { GEOMAPS, PERSON_COLOR, SOLD_PROPERTY_COLOR } from "@/lib/constants";
+import { GEOMAPS, PERSON_AUDIT_COLOR, PERSON_COLOR, SOLD_PROPERTY_COLOR } from "@/lib/constants";
 import type {
   BoundaryRecord,
   PersonRecord,
@@ -22,6 +22,7 @@ type AucklandMapProps = {
   soldProperties: SoldPropertyRecord[];
   boundaries: BoundaryRecord[];
   highlightedPersonIds: number[];
+  mismatchedPersonIds: number[];
   selectedSoldPropertyId?: number;
   selectedSuburbTarget?: SuburbMapTarget;
   selectedPropertyTarget?: PointMapTarget;
@@ -46,6 +47,7 @@ export function AucklandMap({
   soldProperties,
   boundaries,
   highlightedPersonIds,
+  mismatchedPersonIds,
   selectedSoldPropertyId,
   selectedSuburbTarget,
   selectedPropertyTarget,
@@ -315,12 +317,14 @@ export function AucklandMap({
     }
 
     const highlighted = new Set(highlightedPersonIds);
+    const mismatched = new Set(mismatchedPersonIds);
     peopleLayer.removeAll();
     peopleLayer.addMany(
       people
         .filter((person) => person.latitude !== null && person.longitude !== null)
         .map((person) => {
           const isHighlighted = highlighted.has(person.addressId ?? person.id);
+          const isMismatched = mismatched.has(person.addressId ?? person.id);
           return new Graphic({
             geometry: makePoint(person.longitude ?? 0, person.latitude ?? 0),
             attributes: {
@@ -331,7 +335,7 @@ export function AucklandMap({
             symbol: {
               type: "simple-marker",
               style: "circle",
-              color: PERSON_COLOR,
+              color: isMismatched ? PERSON_AUDIT_COLOR : PERSON_COLOR,
               size: isHighlighted ? 13 : 9,
               outline: {
                 color: isHighlighted ? [17, 24, 39, 1] : [255, 255, 255, 1],
@@ -341,7 +345,7 @@ export function AucklandMap({
           });
         }),
     );
-  }, [highlightedPersonIds, people]);
+  }, [highlightedPersonIds, mismatchedPersonIds, people]);
 
   return (
     <div

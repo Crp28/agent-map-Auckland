@@ -12,6 +12,7 @@
 - Council subdivision/local-board polygons are used as suburb outlines for v1 by decision.
 - GeoMaps address lookup needs normalized query variants for common contact-export forms: street suffix abbreviations, `Mt`/`Pt` suburb abbreviations, comma-separated full addresses, `Lot n /` prefixes, and `_x000D_` line-break artifacts.
 - Raw SQL `LIKE` treats `_` as a wildcard; contact rows with `_` as address/suburb must not be sent to GeoMaps because they can falsely match arbitrary addresses.
+- The GeoMaps address layer exposes only `FullNumber`, `FullAddress`, `RoadName_macron`, and `FullAddress_macron`. Broad `LIKE '%...%'` queries against `FullAddress` can produce false positives such as `1 QUEEN STREET` matching `171 QUEEN STREET`, so manual-entry geocoding needs stricter prefix/number validation before saving coordinates.
 
 ## Tooling
 - PowerShell blocks `npm.ps1`; use `cmd /c npm ...`, `npm.cmd`, or `npx.cmd`.
@@ -39,6 +40,7 @@
 - The drawer handle should remain stationary while the suburb list opens. Translating the whole panel, or letting the drawer wrapper change size in the stack, can make the map/control area appear to move even though the panel is absolutely positioned.
 - Nearby People CSV export can be generated on the client from the `nearbyPeople` state. This keeps the export aligned with the currently visible nearby list and avoids introducing a duplicate API query path.
 - The nearby People export address column should combine each flattened Person record's `streetAddress` and `suburb` as `street address, suburb`, so multi-address People still export the specific nearby address context.
+- Bulk coordinate auditing should be chunked from the client instead of sent as one large API request. The GeoMaps lookup is network-bound and safe at small batch sizes, while one giant audit call risks request timeouts and poor progress feedback.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.

@@ -110,3 +110,12 @@
 - Refined the People contact validation requirement so at least one of phone or email must be present. Phone can now be blank when email is present, email can be blank when phone is present, and malformed non-empty email still fails.
 - Updated Add Person labels and documentation to describe the phone-or-email requirement.
 - Verified the phone-or-email contact rule with `npm run test -- src/lib/validation.test.ts`, `npm run lint`, `npm run test`, and `npm run build`.
+
+## 2026-04-28
+- Started a geocode-correction slice after manual map checks found some wrongly placed People markers created through the normal Add Person flow.
+- Traced the likely root cause to the GeoMaps address lookup query strategy: the current code searches `FullAddress` with broad substring `LIKE` clauses and can accept collisions such as `1 ...` matching `171 ...` before taking the first suburb-compatible result.
+- Tightened the GeoMaps candidate matcher to require safe address-prefix and house-number agreement before accepting a coordinate, while keeping a filtered fallback query path for messier imported addresses.
+- Added `/api/people/coordinates` plus repository helpers for bounded-concurrency coordinate auditing, bulk refresh, and single-address retry.
+- Added a main-page `Audit People coords` workflow that audits coordinate-bearing People addresses in chunks, marks mismatches red, offers a bulk refresh pass, and rechecks the refreshed rows.
+- Added a small retry button to the map-opened Person modal so one selected address can rerun GeoMaps and refresh its coordinates directly.
+- Verified the geocode-correction slice with focused `geomaps` and route tests, full `npm run lint`, `npm run test`, `npm run build`, and an `agent-browser` smoke check confirming the main audit button and the modal retry button are present in the live UI.
