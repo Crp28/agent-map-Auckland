@@ -656,6 +656,7 @@ function personPayload(person: PersonRecord) {
     purchasingPowerMin: person.purchasingPowerMin,
     purchasingPowerMax: person.purchasingPowerMax,
     addresses: person.addresses.map((address) => ({
+      id: address.id > 0 ? address.id : undefined,
       streetAddress: address.streetAddress,
       suburb: address.suburb,
       latitude: address.latitude,
@@ -701,12 +702,19 @@ function PersonDetails({
 }) {
   const [retryingGeocode, setRetryingGeocode] = useState(false);
   const [geocodeStatus, setGeocodeStatus] = useState<string | null>(null);
+  const [draftAddress, setDraftAddress] = useState<{
+    streetAddress: string;
+    suburb: string;
+    latitude: string;
+    longitude: string;
+  } | null>(null);
+  const [draftAddressError, setDraftAddressError] = useState<string | null>(null);
 
   async function savePerson(next: PersonRecord) {
     const payload = await requestJson<{ person: PersonRecord }>("/api/people", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: person.id, ...personPayload(next) }),
+      body: JSON.stringify({ id: person.id, selectedAddressId: next.addressId, ...personPayload(next) }),
     });
     onChange(payload.person);
     refresh();
@@ -768,6 +776,58 @@ function PersonDetails({
     });
   }
 
+  async function saveDraftAddress() {
+    if (!draftAddress) {
+      return;
+    }
+
+    const streetAddress = draftAddress.streetAddress.trim();
+    const suburb = draftAddress.suburb.trim();
+    if (!streetAddress || !suburb) {
+      setDraftAddressError("Street address and suburb are required.");
+      return;
+    }
+
+    const latitude = draftAddress.latitude.trim() ? Number(draftAddress.latitude.trim()) : null;
+    const longitude = draftAddress.longitude.trim() ? Number(draftAddress.longitude.trim()) : null;
+    if ((latitude === null) !== (longitude === null)) {
+      setDraftAddressError("Latitude and longitude must be supplied together.");
+      return;
+    }
+    if (latitude !== null && Number.isNaN(latitude)) {
+      setDraftAddressError("Latitude must be a valid number.");
+      return;
+    }
+    if (longitude !== null && Number.isNaN(longitude)) {
+      setDraftAddressError("Longitude must be a valid number.");
+      return;
+    }
+
+    setDraftAddressError(null);
+    try {
+      await updateAddresses(
+        [
+          ...person.addresses,
+          {
+            id: 0,
+            personId: person.id,
+            identityKey: "",
+            streetAddress,
+            suburb,
+            latitude,
+            longitude,
+            createdAt: person.createdAt,
+            updatedAt: person.updatedAt,
+          },
+        ],
+        person.addressId,
+      );
+      setDraftAddress(null);
+    } catch (error) {
+      setDraftAddressError(error instanceof Error ? error.message : "Address could not be saved.");
+    }
+  }
+
   return (
     <div className="grid gap-4">
       <div className="flex justify-end gap-2">
@@ -789,7 +849,7 @@ function PersonDetails({
           className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#fecdca] px-3 py-2 text-sm font-semibold text-[#b42318] hover:bg-[#fff1f0] focus:outline-none focus:ring-2 focus:ring-[#b42318]"
         >
           <Trash2 aria-hidden="true" size={18} />
-          Delete person
+          Delete record
         </button>
       </div>
       {geocodeStatus ? <p className="text-sm text-[#475569]">{geocodeStatus}</p> : null}
@@ -819,22 +879,10 @@ function PersonDetails({
           {source === "manager" ? (
             <button
               type="button"
-              onClick={() =>
-                void updateAddresses([
-                  ...person.addresses,
-                  {
-                    id: Date.now() * -1,
-                    personId: person.id,
-                    identityKey: "",
-                    streetAddress: "",
-                    suburb: "",
-                    latitude: null,
-                    longitude: null,
-                    createdAt: person.createdAt,
-                    updatedAt: person.updatedAt,
-                  },
-                ])
-              }
+              onClick={() => {
+                setDraftAddress({ streetAddress: "", suburb: "", latitude: "", longitude: "" });
+                setDraftAddressError(null);
+              }}
               className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#cbd5e1] px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
             >
               <Plus aria-hidden="true" size={18} />
@@ -842,6 +890,77 @@ function PersonDetails({
             </button>
           ) : null}
         </div>
+        {source === "manager" && draftAddress ? (
+          <div className="rounded-md border border-dashed border-[#cbd5e1] p-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-[#111827]">New address</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setDraftAddress(null);
+                  setDraftAddressError(null);
+                }}
+                className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#cbd5e1] px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+              >
+                Cancel
+              </button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className={labelClass}>
+                Street address
+                <input
+                  className={inputClass}
+                  value={draftAddress.streetAddress}
+                  onChange={(event) =>
+                    setDraftAddress((current) => (current ? { ...current, streetAddress: event.target.value } : current))
+                  }
+                />
+              </label>
+              <label className={labelClass}>
+                Suburb
+                <input
+                  className={inputClass}
+                  value={draftAddress.suburb}
+                  onChange={(event) =>
+                    setDraftAddress((current) => (current ? { ...current, suburb: event.target.value } : current))
+                  }
+                />
+              </label>
+              <label className={labelClass}>
+                Latitude
+                <input
+                  className={inputClass}
+                  inputMode="decimal"
+                  value={draftAddress.latitude}
+                  onChange={(event) =>
+                    setDraftAddress((current) => (current ? { ...current, latitude: event.target.value } : current))
+                  }
+                />
+              </label>
+              <label className={labelClass}>
+                Longitude
+                <input
+                  className={inputClass}
+                  inputMode="decimal"
+                  value={draftAddress.longitude}
+                  onChange={(event) =>
+                    setDraftAddress((current) => (current ? { ...current, longitude: event.target.value } : current))
+                  }
+                />
+              </label>
+            </div>
+            {draftAddressError ? <p className={errorClass}>{draftAddressError}</p> : null}
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => void saveDraftAddress()}
+                className="inline-flex min-h-11 items-center gap-2 rounded-md bg-[#0056a7] px-3 py-2 text-sm font-semibold text-white hover:bg-[#004780] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+              >
+                Save address
+              </button>
+            </div>
+          </div>
+        ) : null}
         {visibleAddresses.map((address) => (
           <div key={address.id} className="rounded-md border border-[#e2e8f0] p-3">
             <div className="mb-3 flex items-center justify-between gap-3">

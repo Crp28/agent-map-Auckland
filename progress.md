@@ -121,3 +121,9 @@
 - Verified the geocode-correction slice with focused `geomaps` and route tests, full `npm run lint`, `npm run test`, `npm run build`, and an `agent-browser` smoke check confirming the main audit button and the modal retry button are present in the live UI.
 - Investigated a multi-address marker bug where clicking Michael Boulgaris's Karaka marker opened the Remuera address in the modal even though both markers were rendered at their stored coordinates.
 - Fixed the map click selection logic to prefer exact `addressId` matches before falling back to `person.id`, and added a focused unit test for the secondary-address case.
+- Started a repo-wide audit of the late multi-address retrofit to remove remaining single-address assumptions across repository reads, PATCH flows, and person-detail editing.
+- Fixed address-update persistence so existing People addresses keep their `addressId` when street/suburb changes, instead of being deleted and recreated under a new identity key.
+- Fixed person PATCH responses to preserve the currently selected `addressId`, and fixed default person reads to use the stored primary-address snapshot instead of the first joined address row.
+- Reworked the manager-side `Add address` flow to use a local draft with explicit save/cancel controls, because immediately PATCHing a blank new address row always fails validation.
+- Added duplicate-address validation plus focused repository tests covering stable address ids, selected-address preservation, and primary-address listing behavior.
+- Verified the multi-address hardening pass with focused repository/validation tests, full `npm run test`, `npm run lint`, and `npm run build`. An `agent-browser` smoke check against the running dev server remained stuck on the existing loading screen, so live UI verification for the new address-draft flow could not be completed in-browser this pass.

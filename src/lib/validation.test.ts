@@ -28,6 +28,33 @@ describe("personInputSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("rejects duplicate addresses", () => {
+    const result = personInputSchema.safeParse({
+      name: "Ana Buyer",
+      phone: "021 000 000",
+      email: "ana@example.com",
+      addresses: [
+        {
+          streetAddress: "1 Queen Street",
+          suburb: "Auckland Central",
+          latitude: "",
+          longitude: "",
+        },
+        {
+          streetAddress: "1 Queen Street",
+          suburb: "Auckland Central",
+          latitude: "",
+          longitude: "",
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.flatten().fieldErrors.addresses).toContain("Duplicate addresses are not allowed");
+    }
+  });
+
   it("rejects invalid email addresses", () => {
     const result = personInputSchema.safeParse({
       name: "Ana Buyer",

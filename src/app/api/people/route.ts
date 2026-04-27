@@ -6,6 +6,7 @@ import { z } from "zod";
 export const runtime = "nodejs";
 
 const idSchema = z.coerce.number().int().positive();
+const selectedAddressIdSchema = z.coerce.number().int().positive().nullable().optional();
 
 export async function GET() {
   const people = await listPeopleRecords();
@@ -26,14 +27,16 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   const payload = await request.json();
-  const parsed = personInputSchema.and(z.object({ id: idSchema })).safeParse(payload);
+  const parsed = personInputSchema
+    .and(z.object({ id: idSchema, selectedAddressId: selectedAddressIdSchema }))
+    .safeParse(payload);
 
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
   try {
-    const person = await updatePersonById(parsed.data.id, parsed.data);
+    const person = await updatePersonById(parsed.data.id, parsed.data, parsed.data.selectedAddressId);
     if (!person) {
       return NextResponse.json({ error: "Person not found." }, { status: 404 });
     }

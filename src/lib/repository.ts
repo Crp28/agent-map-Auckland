@@ -17,6 +17,10 @@ type JoinedPersonAddressRow = {
   email: string;
   purchasing_power_min: number | null;
   purchasing_power_max: number | null;
+  person_street_address: string;
+  person_suburb: string;
+  person_latitude: number | null;
+  person_longitude: number | null;
   last_updated_at: string;
   created_at: string;
   updated_at: string;
@@ -31,6 +35,7 @@ type JoinedPersonAddressRow = {
 };
 
 type ResolvedAddress = PersonAddressInput & {
+  id?: number;
   streetAddress: string;
   suburb: string;
   latitude: number | null;
@@ -205,7 +210,7 @@ async function updatePersonAddressCoordinates(
 
 function buildPersonRecord(
   rows: JoinedPersonAddressRow[],
-  selectedAddressId: number | null = rows[0]?.address_id ?? null,
+  selectedAddressId: number | null = null,
 ): PersonRecord {
   const first = rows[0];
   const addresses: PersonAddressRecord[] = rows
@@ -222,22 +227,28 @@ function buildPersonRecord(
       updatedAt: row.address_updated_at ?? first.updated_at,
     }));
 
+  const primaryAddress =
+    addresses.find(
+      (address) =>
+        address.streetAddress === first.person_street_address &&
+        address.suburb === first.person_suburb,
+    ) ?? addresses[0] ?? null;
   const selectedAddress =
-    addresses.find((address) => address.id === selectedAddressId) ?? addresses[0] ?? null;
+    addresses.find((address) => address.id === selectedAddressId) ?? primaryAddress;
 
   return {
     id: first.person_id,
     personKey: first.person_key,
     name: first.name,
-    addressId: selectedAddress?.id ?? null,
-    streetAddress: selectedAddress?.streetAddress ?? "",
-    suburb: selectedAddress?.suburb ?? "",
+    addressId: selectedAddress?.id ?? primaryAddress?.id ?? null,
+    streetAddress: selectedAddress?.streetAddress ?? primaryAddress?.streetAddress ?? first.person_street_address,
+    suburb: selectedAddress?.suburb ?? primaryAddress?.suburb ?? first.person_suburb,
     phone: first.phone,
     email: first.email,
     purchasingPowerMin: first.purchasing_power_min,
     purchasingPowerMax: first.purchasing_power_max,
-    latitude: selectedAddress?.latitude ?? null,
-    longitude: selectedAddress?.longitude ?? null,
+    latitude: selectedAddress?.latitude ?? primaryAddress?.latitude ?? first.person_latitude,
+    longitude: selectedAddress?.longitude ?? primaryAddress?.longitude ?? first.person_longitude,
     addresses,
     lastUpdatedAt: first.last_updated_at,
     createdAt: first.created_at,
@@ -271,9 +282,13 @@ async function listPeopleWithAddresses() {
          p.email,
          p.purchasing_power_min,
          p.purchasing_power_max,
-         p.last_updated_at,
-         p.created_at,
-         p.updated_at,
+         p.street_address AS person_street_address,
+         p.suburb AS person_suburb,
+         p.latitude AS person_latitude,
+        p.longitude AS person_longitude,
+        p.last_updated_at,
+        p.created_at,
+        p.updated_at,
          a.id AS address_id,
          a.identity_key AS address_identity_key,
          a.street_address,
@@ -385,12 +400,40 @@ async function syncPersonAddresses(
 ) {
   const db = getDb();
   const resolvedAddresses = await resolvePersonAddresses(personKey, addressesInput, timestamp, options);
+  const existingAddresses = await db.query.peopleAddresses.findMany({
+    where: eq(peopleAddresses.personId, personId),
+  });
+  const existingById = new Map(existingAddresses.map((address) => [address.id, address] as const));
+  const existingByIdentity = new Map(
+    existingAddresses.map((address) => [address.identityKey, address] as const),
+  );
+  const keptAddressIds: number[] = [];
 
   for (const address of resolvedAddresses) {
     const shouldPreserveExistingCoordinates =
       options.geocode === false && address.latitude === null && address.longitude === null;
+    const matchedById = typeof address.id === "number" ? existingById.get(address.id) : undefined;
+    const matchedByIdentity = existingByIdentity.get(address.identityKey);
+    const existingAddress = matchedById ?? matchedByIdentity;
 
-    await db
+    if (existingAddress) {
+      await db
+        .update(peopleAddresses)
+        .set({
+          personId,
+          identityKey: address.identityKey,
+          streetAddress: address.streetAddress,
+          suburb: address.suburb,
+          latitude: shouldPreserveExistingCoordinates ? sql`${peopleAddresses.latitude}` : address.latitude,
+          longitude: shouldPreserveExistingCoordinates ? sql`${peopleAddresses.longitude}` : address.longitude,
+          updatedAt: address.updatedAt,
+        })
+        .where(eq(peopleAddresses.id, existingAddress.id));
+      keptAddressIds.push(existingAddress.id);
+      continue;
+    }
+
+    const inserted = await db
       .insert(peopleAddresses)
       .values({
         personId,
@@ -402,26 +445,14 @@ async function syncPersonAddresses(
         createdAt: address.createdAt,
         updatedAt: address.updatedAt,
       })
-      .onConflictDoUpdate({
-        target: peopleAddresses.identityKey,
-        set: {
-          personId,
-          streetAddress: address.streetAddress,
-          suburb: address.suburb,
-          latitude: shouldPreserveExistingCoordinates ? sql`${peopleAddresses.latitude}` : address.latitude,
-          longitude: shouldPreserveExistingCoordinates ? sql`${peopleAddresses.longitude}` : address.longitude,
-          updatedAt: address.updatedAt,
-        },
-      });
+      .returning({ id: peopleAddresses.id });
+    keptAddressIds.push(inserted[0]?.id ?? 0);
   }
 
   if (options.replaceMissing) {
-    const keptIdentityKeys = resolvedAddresses.map((address) => address.identityKey);
-    if (keptIdentityKeys.length > 0) {
-      await db
-        .delete(peopleAddresses)
-        .where(and(eq(peopleAddresses.personId, personId), notInArray(peopleAddresses.identityKey, keptIdentityKeys)));
-    }
+    await db
+      .delete(peopleAddresses)
+      .where(and(eq(peopleAddresses.personId, personId), notInArray(peopleAddresses.id, keptAddressIds)));
   }
 
   return resolvedAddresses;
@@ -439,7 +470,10 @@ async function getPersonRecordById(id: number, selectedAddressId?: number | null
   }
 
   const selectedAddress =
-    person.addresses.find((address) => address.id === selectedAddressId) ?? person.addresses[0] ?? null;
+    person.addresses.find((address) => address.id === selectedAddressId) ??
+    person.addresses.find((address) => address.id === person.addressId) ??
+    person.addresses[0] ??
+    null;
   if (!selectedAddress) {
     return person;
   }
@@ -519,7 +553,11 @@ export async function listSoldPropertyRecords() {
   return getDb().query.soldProperties.findMany({ orderBy: desc(soldProperties.updatedAt) });
 }
 
-export async function updatePersonById(id: number, input: PersonInput) {
+export async function updatePersonById(
+  id: number,
+  input: PersonInput,
+  selectedAddressId?: number | null,
+) {
   ensureDatabase();
   const db = getDb();
   const existing = await db.query.people.findFirst({ where: eq(people.id, id) });
@@ -555,7 +593,7 @@ export async function updatePersonById(id: number, input: PersonInput) {
     replaceMissing: true,
   });
 
-  return getPersonRecordById(id);
+  return getPersonRecordById(id, selectedAddressId);
 }
 
 export async function updateSoldPropertyById(id: number, input: SoldPropertyInput) {

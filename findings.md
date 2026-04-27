@@ -42,6 +42,10 @@
 - The nearby People export address column should combine each flattened Person record's `streetAddress` and `suburb` as `street address, suburb`, so multi-address People still export the specific nearby address context.
 - Bulk coordinate auditing should be chunked from the client instead of sent as one large API request. The GeoMaps lookup is network-bound and safe at small batch sizes, while one giant audit call risks request timeouts and poor progress feedback.
 - Multi-address People markers must resolve the clicked modal record by `addressId` before falling back to `person.id`. Otherwise a secondary address marker can open the first flattened address row for the same person even though the marker itself is drawn at the correct coordinates.
+- The first multi-address retrofit still treated address identity keys as update keys, so editing a street/suburb could delete and recreate an address row instead of updating it in place. That makes `addressId` unstable and can break modal selection, marker targeting, and any address-specific retry/audit action.
+- The `people` table still stores a primary-address snapshot. Read paths that default to the first joined address row instead of that snapshot can show the wrong address in manager lists and after updates, especially when the primary address is reordered.
+- The manager-side `Add address` button cannot save a blank row directly through the PATCH API because person validation still requires street address and suburb. Multi-address editing needs a local draft row with an explicit save action rather than an immediate server write.
+- Multi-address validation should reject duplicate street/suburb pairs for the same person. Otherwise the UI can submit duplicates that later collapse through database identity-key upserts and appear to "randomly" disappear or refuse to save.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.

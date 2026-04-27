@@ -61,6 +61,7 @@ const personBaseSchema = z
 
 export const personAddressInputSchema = z
   .object({
+    id: z.coerce.number().int().positive().optional(),
     streetAddress: requiredText("Street address"),
     suburb: requiredText("Suburb"),
     latitude: optionalLatitude,
@@ -73,6 +74,19 @@ export const personAddressInputSchema = z
 
 export const personFormSchema = personBaseSchema.extend({
   addresses: z.array(personAddressInputSchema).min(1, "At least one address is required"),
+}).refine((data) => {
+  const seen = new Set<string>();
+  for (const address of data.addresses) {
+    const key = `${address.streetAddress.toLowerCase()}|${address.suburb.toLowerCase()}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+  }
+  return true;
+}, {
+  message: "Duplicate addresses are not allowed",
+  path: ["addresses"],
 });
 
 export const personInputSchema = z.preprocess((value) => {
