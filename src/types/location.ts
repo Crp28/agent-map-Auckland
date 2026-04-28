@@ -29,6 +29,16 @@ export type PersonRecord = {
   updatedAt: string;
 };
 
+export type PersonCoordinateAuditResult = {
+  personId: number;
+  addressId: number;
+  streetAddress: string;
+  suburb: string;
+  status: "ok" | "mismatch" | "unverified";
+  matchedAddress: string | null;
+  distanceKm: number | null;
+};
+
 export type SoldPropertyRecord = {
   id: number;
   streetAddress: string;

@@ -10,11 +10,17 @@ import {
 } from "@/components/record-dialogs";
 import { AUCKLAND_SUBURBS } from "@/lib/auckland-suburbs";
 import {
+  PERSON_COORDINATE_AUDIT_SESSION_KEY,
+  parseCoordinateAuditSession,
+  serializeCoordinateAuditSession,
+} from "@/lib/coordinate-audit-session";
+import {
   nearbyPeopleCsv,
   nearbyPeopleExportFilename,
 } from "@/lib/nearby-export";
 import type {
   MapData,
+  PersonCoordinateAuditResult,
   PersonRecord,
   PointMapTarget,
   SearchResult,
@@ -33,17 +39,8 @@ const emptyMapData: MapData = {
   sync: null,
 };
 
-const PERSON_COORDINATE_BATCH_SIZE = 12;
-
-type PersonCoordinateAuditResult = {
-  personId: number;
-  addressId: number;
-  streetAddress: string;
-  suburb: string;
-  status: "ok" | "mismatch" | "unverified";
-  matchedAddress: string | null;
-  distanceKm: number | null;
-};
+const PERSON_COORDINATE_BATCH_SIZE = 6;
+const PERSON_COORDINATE_BATCH_DELAY_MS = 250;
 
 async function readJsonResponse<T>(response: Response) {
   const text = await response.text();
@@ -56,6 +53,10 @@ async function readJsonResponse<T>(response: Response) {
   } catch {
     throw new Error("Server returned an invalid response.");
   }
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 export function LocationFinderApp() {
@@ -280,12 +281,24 @@ export function LocationFinderApp() {
     refresh();
   }
 
-  async function auditAddressBatch(addressIds: number[], label: string) {
-    const results: PersonCoordinateAuditResult[] = [];
+  async function auditAddressBatch(
+    addressIds: number[],
+    label: string,
+    options: {
+      allAddressIds?: number[];
+      startIndex?: number;
+      seedResults?: PersonCoordinateAuditResult[];
+    } = {},
+  ) {
+    const results: PersonCoordinateAuditResult[] = [...(options.seedResults ?? [])];
+    const startIndex = options.startIndex ?? 0;
+    const allAddressIds = options.allAddressIds;
 
     for (let index = 0; index < addressIds.length; index += PERSON_COORDINATE_BATCH_SIZE) {
       const batch = addressIds.slice(index, index + PERSON_COORDINATE_BATCH_SIZE);
-      setNotice(`${label} ${Math.min(index + batch.length, addressIds.length)}/${addressIds.length}...`);
+      const completed = startIndex + Math.min(index + batch.length, addressIds.length);
+      const total = allAddressIds?.length ?? addressIds.length;
+      setNotice(`${label} ${completed}/${total}...`);
       const response = await fetch("/api/people/coordinates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -296,6 +309,22 @@ export function LocationFinderApp() {
         throw new Error(typeof payload?.error === "string" ? payload.error : "Coordinate audit failed.");
       }
       results.push(...(payload?.results ?? []));
+
+      if (allAddressIds) {
+        window.localStorage.setItem(
+          PERSON_COORDINATE_AUDIT_SESSION_KEY,
+          serializeCoordinateAuditSession({
+            allAddressIds,
+            nextIndex: startIndex + index + batch.length,
+            results,
+            startedAt: new Date().toISOString(),
+          }),
+        );
+      }
+
+      if (index + batch.length < addressIds.length) {
+        await wait(PERSON_COORDINATE_BATCH_DELAY_MS);
+      }
     }
 
     return results;
@@ -317,6 +346,10 @@ export function LocationFinderApp() {
         throw new Error(typeof payload?.error === "string" ? payload.error : "Coordinate refresh failed.");
       }
       refreshedAddressIds.push(...(payload?.refreshedAddressIds ?? []));
+
+      if (index + batch.length < addressIds.length) {
+        await wait(PERSON_COORDINATE_BATCH_DELAY_MS);
+      }
     }
 
     return refreshedAddressIds;
@@ -346,13 +379,35 @@ export function LocationFinderApp() {
         return;
       }
 
-      const results = await auditAddressBatch(addressIds, "Auditing People coordinates");
+      const savedSession = parseCoordinateAuditSession(
+        window.localStorage.getItem(PERSON_COORDINATE_AUDIT_SESSION_KEY),
+        addressIds,
+      );
+      const startIndex = savedSession?.nextIndex ?? 0;
+      const pendingAddressIds = addressIds.slice(startIndex);
+
+      if (savedSession && pendingAddressIds.length > 0) {
+        setNotice(`Resuming People coordinate audit from ${startIndex}/${addressIds.length}...`);
+      }
+
+      const results =
+        pendingAddressIds.length === 0 && savedSession
+          ? savedSession.results
+          : await auditAddressBatch(pendingAddressIds, "Auditing People coordinates", {
+              allAddressIds: addressIds,
+              startIndex,
+              seedResults: savedSession?.results,
+            });
+
+      window.localStorage.removeItem(PERSON_COORDINATE_AUDIT_SESSION_KEY);
       const mismatches = results.filter((result) => result.status === "mismatch").map((result) => result.addressId);
       const unverifiedCount = results.filter((result) => result.status === "unverified").length;
       setMismatchedPersonAddressIds(mismatches);
 
       setNotice(
-        `Coordinate audit complete: ${mismatches.length} mismatches, ${unverifiedCount} unverified, ${results.length} checked.`,
+        unverifiedCount === results.length
+          ? `Coordinate audit complete: ${mismatches.length} mismatches, ${unverifiedCount} unverified, ${results.length} checked. GeoMaps did not verify any addresses this run.`
+          : `Coordinate audit complete: ${mismatches.length} mismatches, ${unverifiedCount} unverified, ${results.length} checked.`,
       );
 
       if (

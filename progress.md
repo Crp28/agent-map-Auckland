@@ -131,3 +131,7 @@
 - Traced the actual server-side root cause to `AbortError` exceptions from the 8-second GeoMaps timeout inside `auditPersonAddressCoordinates()`. One timed-out lookup was aborting the entire batch request, leaving the client with an empty 500 body.
 - Fixed the audit/retry geocode timeout helper to treat `AbortError` as an `unverified` lookup instead of a thrown failure, wrapped the coordinates API route in a JSON 500 response, and hardened the main app's coordinate-audit fetch code against empty/invalid JSON bodies.
 - Verified the audit fix with focused route/repository tests, direct CLI repro against address `8468`, full `npm run lint`, `npm run test`, and `npm run build`.
+- Followed up after a live run reported `0 mismatches, 539 unverified, 539 checked`, which showed the crash fix alone was not enough to make the audit useful at scale.
+- Increased audit geocode timeout to 12s, reduced audit concurrency to 2, added up to 3 timeout retries with incremental backoff and longer timeout per retry, reduced client batch size to 6, and added a short pause between audit/refresh batches.
+- Added resumable client-side audit progress tracking in local storage so a rerun resumes from the last completed batch when the address list is unchanged.
+- Added focused tests for the audit-session resume parser and the retry-on-timeout repository behavior, then verified the direct audit probe for address `8468` now returns `status: "ok"` with a matched GeoMaps address.

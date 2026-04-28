@@ -225,4 +225,47 @@ describe("multi-address repository behavior", () => {
     expect(result).toHaveLength(1);
     expect(result[0]?.status).toBe("unverified");
   });
+
+  it("retries timed out geocode audits before giving up", async () => {
+    const geocodeAddress = vi
+      .fn()
+      .mockRejectedValueOnce(new DOMException("This operation was aborted", "AbortError"))
+      .mockRejectedValueOnce(new DOMException("This operation was aborted", "AbortError"))
+      .mockResolvedValueOnce({
+        latitude: -36.847,
+        longitude: 174.763,
+        matchedAddress: "1 Queen Street Auckland Central",
+      });
+
+    vi.doMock("./geomaps", async () => {
+      const actual = await vi.importActual<typeof import("./geomaps")>("./geomaps");
+      return {
+        ...actual,
+        geocodeAddress,
+      };
+    });
+    await loadRepository();
+
+    const created = await repository.createOrUpdatePerson({
+      name: "Retry Case",
+      phone: "021 777 7777",
+      email: "retry@example.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      addresses: [
+        {
+          streetAddress: "1 Queen Street",
+          suburb: "Auckland Central",
+          latitude: -36.847,
+          longitude: 174.763,
+        },
+      ],
+    }, { geocode: false });
+
+    const result = await repository.auditPersonAddressCoordinates([created!.addresses[0]!.id]);
+
+    expect(geocodeAddress).toHaveBeenCalledTimes(3);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.status).toBe("ok");
+  });
 });

@@ -47,6 +47,8 @@
 - The manager-side `Add address` button cannot save a blank row directly through the PATCH API because person validation still requires street address and suburb. Multi-address editing needs a local draft row with an explicit save action rather than an immediate server write.
 - Multi-address validation should reject duplicate street/suburb pairs for the same person. Otherwise the UI can submit duplicates that later collapse through database identity-key upserts and appear to "randomly" disappear or refuse to save.
 - The People coordinate audit path was assuming every address geocode completes within the 8-second timeout. In practice, GeoMaps can exceed that, raising `AbortError`; without a catch, one timed-out address crashes the whole batch and the client ends up parsing an empty 500 response body.
+- For live coordinate auditing, the first resilience patch was not enough. Treating timeouts as `unverified` prevents crashes, but if the timeout remains too short or concurrency too high, whole runs can still degrade into "all unverified" and provide no useful verification signal.
+- The audit path needs both server-side and client-side pacing: longer per-address timeouts, lower concurrency, retry/backoff for timed-out addresses, smaller request batches, a short pause between batches, and resumable client progress so a rerun continues from the last completed batch instead of starting from zero.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.

@@ -32,6 +32,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 26. Complete: Fix multi-address Person marker selection so clicking a secondary address opens the correct address details, then verify with tests.
 27. Complete: Audit the late multi-address People implementation across repository, API, and detail-edit flows; fix stable address ids, primary-address selection, and manager add-address behavior; then verify with tests.
 28. Complete: Fix `Audit People coords` batch failures by handling GeoMaps timeout aborts as unverified results, guaranteeing JSON error responses, and hardening client-side response parsing.
+29. Complete: Make `Audit People coords` reliable at scale by increasing geocode timeout, lowering concurrency, retrying timed-out lookups, reducing client batch size, and resuming from the last completed batch.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.

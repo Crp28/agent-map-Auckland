@@ -6,7 +6,7 @@ import { distanceKm, matchesNearbyFilter, purchasingPowerIncludesPrice } from "@
 import { geocodeAddress } from "@/lib/geomaps";
 import { normalizeKey, normalizeText } from "@/lib/normalize";
 import type { PersonAddressInput, PersonInput, SoldPropertyInput } from "@/lib/validation";
-import type { PersonAddressRecord, PersonRecord } from "@/types/location";
+import type { PersonAddressRecord, PersonCoordinateAuditResult, PersonRecord } from "@/types/location";
 import { and, desc, eq, gte, lte, notInArray, or, sql } from "drizzle-orm";
 
 type JoinedPersonAddressRow = {
@@ -54,19 +54,16 @@ type AuditAddressRow = {
   longitude: number | null;
 };
 
-export type PersonCoordinateAuditResult = {
-  personId: number;
-  addressId: number;
-  streetAddress: string;
-  suburb: string;
-  status: "ok" | "mismatch" | "unverified";
-  matchedAddress: string | null;
-  distanceKm: number | null;
-};
-
 const PERSON_GEOCODE_AUDIT_DISTANCE_THRESHOLD_KM = 0.15;
-const PERSON_GEOCODE_TIMEOUT_MS = 8000;
-const PERSON_GEOCODE_CONCURRENCY = 4;
+const PERSON_GEOCODE_TIMEOUT_MS = 12000;
+const PERSON_GEOCODE_CONCURRENCY = 2;
+const PERSON_GEOCODE_RETRY_ATTEMPTS = 3;
+const PERSON_GEOCODE_RETRY_BACKOFF_MS = 750;
+
+type TimedGeocodeResult = {
+  result: Awaited<ReturnType<typeof geocodeAddress>>;
+  timedOut: boolean;
+};
 
 function nowIso() {
   return new Date().toISOString();
@@ -97,13 +94,16 @@ async function geocodeWithTimeout(streetAddress: string, suburb: string, timeout
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    return await geocodeAddress(streetAddress, suburb, { signal: controller.signal });
+    return {
+      result: await geocodeAddress(streetAddress, suburb, { signal: controller.signal }),
+      timedOut: false,
+    } satisfies TimedGeocodeResult;
   } catch (error) {
     if (
       (error instanceof DOMException && error.name === "AbortError") ||
       (error instanceof Error && error.name === "AbortError")
     ) {
-      return null;
+      return { result: null, timedOut: true } satisfies TimedGeocodeResult;
     }
     throw error;
   } finally {
@@ -111,9 +111,29 @@ async function geocodeWithTimeout(streetAddress: string, suburb: string, timeout
   }
 }
 
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function geocodeForPersonAudit(streetAddress: string, suburb: string) {
+  for (let attempt = 0; attempt < PERSON_GEOCODE_RETRY_ATTEMPTS; attempt += 1) {
+    const timeoutMs = PERSON_GEOCODE_TIMEOUT_MS + attempt * 4000;
+    const { result, timedOut } = await geocodeWithTimeout(streetAddress, suburb, timeoutMs);
+    if (result || !timedOut) {
+      return result;
+    }
+
+    if (attempt < PERSON_GEOCODE_RETRY_ATTEMPTS - 1) {
+      await wait(PERSON_GEOCODE_RETRY_BACKOFF_MS * (attempt + 1));
+    }
+  }
+
+  return null;
+}
+
 function classifyPersonCoordinateAudit(
   row: AuditAddressRow,
-  geocoded: Awaited<ReturnType<typeof geocodeWithTimeout>>,
+  geocoded: Awaited<ReturnType<typeof geocodeForPersonAudit>>,
 ): PersonCoordinateAuditResult {
   if (!geocoded || row.latitude === null || row.longitude === null) {
     return {
@@ -785,7 +805,7 @@ export async function retryPersonAddressGeocode(addressId: number) {
     return null;
   }
 
-  const geocoded = await geocodeWithTimeout(row.street_address, row.suburb);
+  const geocoded = await geocodeForPersonAudit(row.street_address, row.suburb);
   const audit = classifyPersonCoordinateAudit(row, geocoded);
 
   if (geocoded) {
@@ -817,7 +837,7 @@ export async function retryPersonAddressGeocode(addressId: number) {
 export async function auditPersonAddressCoordinates(addressIds: number[]) {
   const rows = getAuditAddressRows(addressIds);
   return runAddressBatch(rows, async (row) =>
-    classifyPersonCoordinateAudit(row, await geocodeWithTimeout(row.street_address, row.suburb)),
+    classifyPersonCoordinateAudit(row, await geocodeForPersonAudit(row.street_address, row.suburb)),
   );
 }
 
@@ -826,7 +846,7 @@ export async function refreshPersonAddressCoordinates(addressIds: number[]) {
   const refreshedAddressIds: number[] = [];
 
   await runAddressBatch(rows, async (row) => {
-    const geocoded = await geocodeWithTimeout(row.street_address, row.suburb);
+    const geocoded = await geocodeForPersonAudit(row.street_address, row.suburb);
     if (!geocoded) {
       return null;
     }
