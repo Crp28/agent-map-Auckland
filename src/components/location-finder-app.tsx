@@ -744,7 +744,7 @@ export function LocationFinderApp() {
           <div className="mt-3 max-h-44 overflow-auto">
             {nearbyPeople.map((person) => (
               <button
-                key={person.id}
+                key={person.addressId ?? person.id}
                 type="button"
                 onClick={() => selectPerson(person)}
                 className="block min-h-11 w-full border-b border-[#e2e8f0] px-2 py-2 text-left last:border-b-0 hover:bg-[#eef3f8]"
@@ -760,7 +760,7 @@ export function LocationFinderApp() {
         <div className="rounded-md border border-[#cbd5e1] bg-white p-3 text-xs text-[#475569] shadow-lg">
           {loading ? "Loading map data..." : `${mapData.soldProperties.length} sold properties`}
           {" | "}
-          {nearbyFilterActive ? `${visiblePeople.length} visible people` : `${mapData.people.length} people`}
+          {nearbyFilterActive ? `${visiblePeople.length} visible addresses` : `${mapData.people.length} addresses`}
           {" | "}
           {mismatchedPersonAddressIds.length} flagged
           {" | "}
