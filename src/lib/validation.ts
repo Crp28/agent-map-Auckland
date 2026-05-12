@@ -39,6 +39,7 @@ const optionalLongitude = z.preprocess(
 const personBaseSchema = z
   .object({
     name: requiredText("Name"),
+    preferredName: optionalText,
     phone: optionalText,
     email: optionalEmail,
     purchasingPowerMin: optionalInteger,
@@ -101,6 +102,7 @@ export const personInputSchema = z.preprocess((value) => {
 
   return {
     name: candidate.name,
+    preferredName: candidate.preferredName,
     phone: candidate.phone,
     email: candidate.email,
     purchasingPowerMin: candidate.purchasingPowerMin,

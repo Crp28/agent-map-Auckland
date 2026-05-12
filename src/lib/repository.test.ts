@@ -40,9 +40,55 @@ afterEach(() => {
 });
 
 describe("multi-address repository behavior", () => {
+  it("reuses the same person when the legal name changes but contact and address stay the same", async () => {
+    const created = await repository.createOrUpdatePerson({
+      name: "Russell Li",
+      preferredName: "",
+      phone: "027 364 2139",
+      email: "li.zishu@outlook.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      addresses: [
+        {
+          streetAddress: "82 Picnic Point Road",
+          suburb: "Hobsonville",
+          latitude: -36.8063,
+          longitude: 174.6641,
+        },
+      ],
+    }, { geocode: false });
+
+    const updated = await repository.createOrUpdatePerson({
+      name: "Zishu Li",
+      preferredName: "Russell Li",
+      phone: "027 364 2139",
+      email: "li.zishu@outlook.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      addresses: [
+        {
+          streetAddress: "82 Picnic Point Road",
+          suburb: "Hobsonville",
+          latitude: -36.8063,
+          longitude: 174.6641,
+        },
+      ],
+    }, { geocode: false });
+
+    expect(updated?.id).toBe(created?.id);
+    expect(updated?.name).toBe("Zishu Li");
+    expect(updated?.preferredName).toBe("Russell Li");
+
+    const listed = await repository.listPeopleRecords();
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.name).toBe("Zishu Li");
+    expect(listed[0]?.preferredName).toBe("Russell Li");
+  });
+
   it("preserves address ids when an address street or suburb is edited", async () => {
     const created = await repository.createOrUpdatePerson({
       name: "Ana Buyer",
+      preferredName: "",
       phone: "021 000 000",
       email: "ana@example.com",
       purchasingPowerMin: null,
@@ -63,6 +109,7 @@ describe("multi-address repository behavior", () => {
 
     const updated = await repository.updatePersonById(created!.id, {
       name: "Ana Buyer",
+      preferredName: "",
       phone: "021 000 000",
       email: "ana@example.com",
       purchasingPowerMin: null,
@@ -86,6 +133,7 @@ describe("multi-address repository behavior", () => {
   it("returns the requested selected address after updating a secondary address", async () => {
     const created = await repository.createOrUpdatePerson({
       name: "Michael Boulgaris",
+      preferredName: "",
       phone: "021 111 111",
       email: "michael@example.com",
       purchasingPowerMin: null,
@@ -111,6 +159,7 @@ describe("multi-address repository behavior", () => {
 
     const updated = await repository.updatePersonById(created!.id, {
       name: "Michael Boulgaris",
+      preferredName: "",
       phone: "021 111 111",
       email: "michael@example.com",
       purchasingPowerMin: null,
@@ -141,6 +190,7 @@ describe("multi-address repository behavior", () => {
   it("uses the stored primary address snapshot when listing a multi-address person", async () => {
     const created = await repository.createOrUpdatePerson({
       name: "Ana Buyer",
+      preferredName: "",
       phone: "021 000 000",
       email: "ana@example.com",
       purchasingPowerMin: null,
@@ -163,6 +213,7 @@ describe("multi-address repository behavior", () => {
 
     const remapped = await repository.updatePersonById(created!.id, {
       name: "Ana Buyer",
+      preferredName: "",
       phone: "021 000 000",
       email: "ana@example.com",
       purchasingPowerMin: null,
@@ -206,6 +257,7 @@ describe("multi-address repository behavior", () => {
 
     const created = await repository.createOrUpdatePerson({
       name: "Timeout Case",
+      preferredName: "",
       phone: "021 999 9999",
       email: "timeout@example.com",
       purchasingPowerMin: null,
@@ -248,6 +300,7 @@ describe("multi-address repository behavior", () => {
 
     const created = await repository.createOrUpdatePerson({
       name: "Retry Case",
+      preferredName: "",
       phone: "021 777 7777",
       email: "retry@example.com",
       purchasingPowerMin: null,

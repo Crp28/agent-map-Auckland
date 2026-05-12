@@ -14,6 +14,7 @@ export type PersonRecord = {
   id: number;
   personKey: string;
   name: string;
+  preferredName: string | null;
   addressId: number | null;
   streetAddress: string;
   suburb: string;

@@ -5,6 +5,7 @@ export type DbOwnerMatch = {
   personId: number;
   addressId: number;
   name: string;
+  preferredName: string | null;
   streetAddress: string;
   suburb: string;
   phone: string;
@@ -32,6 +33,7 @@ export function findOwnersByAddress(streetAddress: string, suburb?: string) {
                p.id AS person_id,
                a.id AS address_id,
                p.name,
+               p.preferred_name,
                a.street_address,
                a.suburb,
                p.phone,
@@ -49,6 +51,7 @@ export function findOwnersByAddress(streetAddress: string, suburb?: string) {
                p.id AS person_id,
                a.id AS address_id,
                p.name,
+               p.preferred_name,
                a.street_address,
                a.suburb,
                p.phone,
@@ -64,6 +67,11 @@ export function findOwnersByAddress(streetAddress: string, suburb?: string) {
       personId: Number((row as Record<string, unknown>).person_id),
       addressId: Number((row as Record<string, unknown>).address_id),
       name: String((row as Record<string, unknown>).name ?? ""),
+      preferredName:
+        (row as Record<string, unknown>).preferred_name === null ||
+        (row as Record<string, unknown>).preferred_name === undefined
+          ? null
+          : String((row as Record<string, unknown>).preferred_name),
       streetAddress: String((row as Record<string, unknown>).street_address ?? ""),
       suburb: String((row as Record<string, unknown>).suburb ?? ""),
       phone: String((row as Record<string, unknown>).phone ?? ""),

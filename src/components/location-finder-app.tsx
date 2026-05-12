@@ -18,6 +18,7 @@ import {
   nearbyPeopleCsv,
   nearbyPeopleExportFilename,
 } from "@/lib/nearby-export";
+import { displayPersonName } from "@/lib/person-display";
 import type {
   MapData,
   PersonCoordinateAuditResult,
@@ -749,7 +750,7 @@ export function LocationFinderApp() {
                 onClick={() => selectPerson(person)}
                 className="block min-h-11 w-full border-b border-[#e2e8f0] px-2 py-2 text-left last:border-b-0 hover:bg-[#eef3f8]"
               >
-                <span className="block text-sm font-semibold text-[#111827]">{person.name}</span>
+                <span className="block text-sm font-semibold text-[#111827]">{displayPersonName(person)}</span>
                 <span className="block text-xs text-[#475569]">
                   {person.suburb} - {person.distanceKm.toFixed(2)} km
                 </span>

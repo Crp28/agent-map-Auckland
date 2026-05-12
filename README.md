@@ -15,6 +15,7 @@ Location Finder is a Next.js 16 app for viewing Auckland sold properties and peo
 - Nearby export downloads `First Name,Mobile Phone,Address`, where `Address` is formatted as `street address, suburb`.
 - The suburb drawer lives in the same bottom-right stack as the nearby controls, opens from a fixed right-edge handle, and moves directly to hard-coded suburb centers at zoom level 8.
 - One Person can store multiple addresses. Each coordinate-bearing address renders its own map dot.
+- One Person can store a legal name plus an optional preferred name. The UI shows the preferred name when present.
 - People without coordinates remain stored and editable, but do not render on the map until latitude and longitude are added or geocoded.
 - The main page can audit stored People coordinates in batches, color suspected mismatches red on the map, and bulk refresh those mismatches.
 
@@ -78,6 +79,7 @@ The subdivision/local-board outline cache is refreshed by `cmd /c npm run sync:g
 - `Sold property` opens the Sold Property manager for viewing, adding, editing, and deleting records.
 - `Person` opens the People manager for viewing, adding, editing, and deleting records.
 - People validation requires at least one of phone or email, validates non-empty email format, checks optional purchasing power min/max ordering, and validates optional coordinate pairs per address.
+- People records also support an optional preferred name. Legal name remains the canonical stored name for owner-checking and imports, while the UI uses the preferred name when present.
 - A Person modal opened from the map includes a small GeoMaps retry button for the selected address.
 - Sold Property validation includes required address, suburb, sold date, sold price, and optional coordinates.
 
@@ -102,10 +104,11 @@ Import behavior:
 
 - Fully duplicate rows are skipped.
 - Rows with the same normalized `name + streetAddress + suburb` identity update the existing address record.
+- Rows with the same address and contact details also update the existing Person when the legal name has been corrected.
 - Rows for an existing person with a new address append that address to the person.
 - Invalid rows are counted in the import summary.
 
-The importer also accepts the contact-export format used by the provided contact CSV sample. Only rows with `Contact Type = Person` and valid name, address, suburb, phone, and email values are imported.
+The importer also accepts the contact-export format used by the provided contact CSV sample. Only rows with `Contact Type = Person` and valid name, address, suburb, phone, and email values are imported. When the contact export includes both `Legal Name` and `Preferred Name`, the app stores both.
 
 For bulk speed, the CLI import skips geocoding during import and preserves existing coordinates on updates. Run `cmd /c npm run geocode:people` afterward to backfill missing coordinates through Auckland Council Address MapServer.
 
@@ -132,4 +135,5 @@ For bulk speed, the CLI import skips geocoding during import and preserves exist
 - `scripts/propertysmarts/` contains standalone Playwright helpers for capturing the authenticated PropertySmarts search flow and comparing extracted owner names against the local SQLite People/address records.
 - `cmd /c npm run propertysmarts:login-capture -- --address "192 Remuera Road"` opens a headed browser, lets you log in manually, saves auth state, and writes captured XHR/fetch traffic to `scripts/propertysmarts/output/`.
 - `cmd /c npm run propertysmarts:check-owner -- --address "192 Remuera Road" --suburb "Remuera"` reuses the saved auth state, searches the property, extracts candidate owner names from the DOM and captured JSON responses, and compares them to the DB row matched by street address and suburb.
+- Owner matching checks both the Person legal name and preferred name when both are present.
 - The saved browser auth state lives under `scripts/propertysmarts/state/` and is ignored by Git.

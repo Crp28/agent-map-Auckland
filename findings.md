@@ -20,6 +20,7 @@
 - PropertySmarts is behind REINZ SSO. The public `https://www.propertysmarts.co.nz/property#` entrypoint redirects through `ssogateway.reinz.co.nz`, `sso.reinz.co.nz`, and `www.reinz.co.nz/Web/Sign-In.aspx`, so automation should start from a manually established logged-in browser session rather than trying to recreate login first.
 - Live browser inspection exposed authenticated token/session traffic such as `https://authgateway.au.cws.causeis.com/api/REINZ/token` and `https://www.reinz.co.nz/Shared_Content/SSO/smart-suite-sso.aspx`, which makes Playwright storage-state reuse the practical discovery path.
 - The initial Playwright bootstrap must tolerate a missing `scripts/propertysmarts/state/propertysmarts-auth.json` file. Loading storage state unconditionally breaks the very first login/capture run.
+- The current owner-check mismatch class is not always a scrape bug. Contact-import/manual-entry flows were collapsing `Preferred Name` into the only People `name` field, which loses the legal-name variant needed for title-owner comparison.
 
 ## Map UI
 - Closed right-side suburb navigation should render only the handle, not offscreen row buttons, so hidden rows are not keyboard or screen-reader reachable.
@@ -53,6 +54,7 @@
 - For live coordinate auditing, the first resilience patch was not enough. Treating timeouts as `unverified` prevents crashes, but if the timeout remains too short or concurrency too high, whole runs can still degrade into "all unverified" and provide no useful verification signal.
 - The audit path needs both server-side and client-side pacing: longer per-address timeouts, lower concurrency, retry/backoff for timed-out addresses, smaller request batches, a short pause between batches, and resumable client progress so a rerun continues from the last completed batch instead of starting from zero.
 - PropertySmarts owner verification should follow a two-stage approach: use Playwright to log in and discover the authenticated property search/data flow, then keep the final checker on JSON/network extraction only if a stable owner-data response exists after login. DOM extraction remains the fallback until that is proven.
+- People records need separate legal-name and preferred-name fields. The UI should display the preferred name when present, while search and owner-check flows should consider both names.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.

@@ -52,7 +52,9 @@ async function main() {
     const domOwners = await extractOwnerFromDom(page);
     const networkOwners = extractOwnerCandidatesFromCapture(entries);
     const propertySmartsOwners = [...new Set([...domOwners, ...networkOwners])];
-    const dbOwnerNames = dbOwners.map((owner) => owner.name);
+    const dbOwnerNames = dbOwners.flatMap((owner) =>
+      [owner.name, owner.preferredName ?? ""].filter(Boolean),
+    );
 
     const matchedOwner = propertySmartsOwners.find((candidate) => ownersMatch(candidate, dbOwnerNames)) ?? null;
 
@@ -72,7 +74,9 @@ async function main() {
       })),
       dbOwners: dbOwners.map((owner) => ({
         name: owner.name,
+        preferredName: owner.preferredName,
         normalized: normalizeOwnerName(owner.name),
+        normalizedPreferredName: owner.preferredName ? normalizeOwnerName(owner.preferredName) : null,
         streetAddress: owner.streetAddress,
         suburb: owner.suburb,
         personId: owner.personId,

@@ -7,6 +7,7 @@ export const people = sqliteTable(
     identityKey: text("identity_key").notNull(),
     personKey: text("person_key").notNull(),
     name: text("name").notNull(),
+    preferredName: text("preferred_name"),
     streetAddress: text("street_address").notNull(),
     suburb: text("suburb").notNull(),
     phone: text("phone").notNull(),

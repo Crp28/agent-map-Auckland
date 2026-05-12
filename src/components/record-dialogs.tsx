@@ -1,6 +1,7 @@
 "use client";
 
 import { AppDialog } from "@/components/ui/dialog";
+import { displayPersonName } from "@/lib/person-display";
 import type { PersonAddressRecord, PersonRecord, SelectedItem, SoldPropertyRecord } from "@/types/location";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
@@ -57,6 +58,7 @@ export function AddPersonDialog({
   } = useForm({
     resolver: zodResolver(personFormSchema),
     defaultValues: {
+      preferredName: "",
       purchasingPowerMin: "",
       purchasingPowerMax: "",
       addresses: [
@@ -97,9 +99,14 @@ export function AddPersonDialog({
       <form className="grid gap-4" onSubmit={handleSubmit(onSubmit)}>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className={labelClass}>
-            Name
+            Legal name
             <input className={inputClass} {...register("name")} />
             <FieldError message={errors.name?.message} />
+          </label>
+          <label className={labelClass}>
+            Preferred name (optional)
+            <input className={inputClass} {...register("preferredName")} />
+            <FieldError message={errors.preferredName?.message} />
           </label>
           <label className={labelClass}>
             Phone (required if no email)
@@ -427,18 +434,18 @@ export function RecordManagerDialog({
   }, [fetchRecords, open, title]);
 
   async function deleteRecord(record: ManagedRecord) {
-    const label = "name" in record ? record.name : record.streetAddress;
-    if (!window.confirm(`Delete ${label}? This cannot be undone.`)) {
+    const recordLabel = "name" in record ? displayPersonName(record) : record.streetAddress;
+    if (!window.confirm(`Delete ${recordLabel}? This cannot be undone.`)) {
       return;
     }
 
     const response = await fetch(`${endpoint}?id=${record.id}`, { method: "DELETE" });
     if (!response.ok) {
-      setStatus({ type: "error", message: `${label} could not be deleted.` });
+      setStatus({ type: "error", message: `${recordLabel} could not be deleted.` });
       return;
     }
 
-    setStatus({ type: "success", message: `${label} deleted.` });
+    setStatus({ type: "success", message: `${recordLabel} deleted.` });
     refresh();
     await loadRecords();
   }
@@ -465,7 +472,7 @@ export function RecordManagerDialog({
         <div className="max-h-[56dvh] overflow-auto rounded-md border border-[#e2e8f0]">
           {records.map((record) => {
             const isPerson = "name" in record;
-            const titleText = isPerson ? record.name : record.streetAddress;
+            const titleText = isPerson ? displayPersonName(record) : record.streetAddress;
             const subtitle = isPerson
               ? `${record.streetAddress}, ${record.suburb}`
               : `${record.suburb} - $${record.soldPrice.toLocaleString()}`;
@@ -525,7 +532,7 @@ export function DetailsDialog({
   const open = selected !== null;
   const title =
     selected?.type === "person"
-      ? selected.item.name
+      ? displayPersonName(selected.item)
       : selected?.type === "soldProperty"
         ? selected.item.streetAddress
         : "";
@@ -651,6 +658,7 @@ function optionalNumberFromDraft(value: string) {
 function personPayload(person: PersonRecord) {
   return {
     name: person.name,
+    preferredName: person.preferredName ?? "",
     phone: person.phone,
     email: person.email,
     purchasingPowerMin: person.purchasingPowerMin,
@@ -721,7 +729,7 @@ function PersonDetails({
   }
 
   async function deletePerson() {
-    if (!window.confirm(`Delete ${person.name}? This cannot be undone.`)) {
+    if (!window.confirm(`Delete ${displayPersonName(person)}? This cannot be undone.`)) {
       return;
     }
     await requestJson<{ deleted: boolean }>(`/api/people?id=${person.id}`, { method: "DELETE" });
@@ -854,7 +862,8 @@ function PersonDetails({
       </div>
       {geocodeStatus ? <p className="text-sm text-[#475569]">{geocodeStatus}</p> : null}
       <dl className="grid gap-3 sm:grid-cols-2">
-        <EditableDetailRow label="Name" value={person.name} onSave={(value) => savePerson({ ...person, name: value })} />
+        <EditableDetailRow label="Legal name" value={person.name} onSave={(value) => savePerson({ ...person, name: value })} />
+        <EditableDetailRow label="Preferred name" value={person.preferredName} onSave={(value) => savePerson({ ...person, preferredName: value.trim() || null })} />
         <EditableDetailRow label="Phone" value={person.phone} onSave={(value) => savePerson({ ...person, phone: value })} />
         <EditableDetailRow label="Email" value={person.email} inputType="email" onSave={(value) => savePerson({ ...person, email: value })} />
         <EditableDetailRow

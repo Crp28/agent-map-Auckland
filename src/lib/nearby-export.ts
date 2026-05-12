@@ -1,4 +1,5 @@
 import type { PersonRecord, SoldPropertyRecord } from "@/types/location";
+import { displayPersonName } from "@/lib/person-display";
 
 export function firstNameFromFullName(name: string) {
   const trimmed = name.trim();
@@ -30,7 +31,7 @@ export function nearbyPeopleCsv(people: PersonRecord[]) {
   const rows = [
     ["First Name", "Mobile Phone", "Address"],
     ...people.map((person) => [
-      firstNameFromFullName(person.name),
+      firstNameFromFullName(displayPersonName(person)),
       person.phone,
       nearbyPersonAddress(person),
     ]),

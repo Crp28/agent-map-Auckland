@@ -147,6 +147,7 @@ export function ensureDatabase() {
       identity_key TEXT NOT NULL UNIQUE,
       person_key TEXT NOT NULL UNIQUE,
       name TEXT NOT NULL,
+      preferred_name TEXT,
       street_address TEXT NOT NULL,
       suburb TEXT NOT NULL,
       phone TEXT NOT NULL,
@@ -215,6 +216,9 @@ export function ensureDatabase() {
 
   if (!hasColumn(rawDb, "people", "person_key")) {
     rawDb.exec("ALTER TABLE people ADD COLUMN person_key TEXT");
+  }
+  if (!hasColumn(rawDb, "people", "preferred_name")) {
+    rawDb.exec("ALTER TABLE people ADD COLUMN preferred_name TEXT");
   }
   rawDb.exec("CREATE UNIQUE INDEX IF NOT EXISTS people_person_key_unique ON people(person_key)");
   rawDb.exec(`

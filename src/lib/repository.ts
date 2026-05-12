@@ -4,7 +4,8 @@ import { people, peopleAddresses, soldProperties, syncMetadata } from "@/db/sche
 import { GEOMAPS_BOUNDARY_SOURCE_NAME } from "@/lib/constants";
 import { distanceKm, matchesNearbyFilter, purchasingPowerIncludesPrice } from "@/lib/distance";
 import { geocodeAddress } from "@/lib/geomaps";
-import { normalizeKey, normalizeText } from "@/lib/normalize";
+import { emptyToNull, normalizeKey, normalizeText } from "@/lib/normalize";
+import { displayPersonName } from "@/lib/person-display";
 import type { PersonAddressInput, PersonInput, SoldPropertyInput } from "@/lib/validation";
 import type { PersonAddressRecord, PersonCoordinateAuditResult, PersonRecord } from "@/types/location";
 import { and, desc, eq, gte, lte, notInArray, or, sql } from "drizzle-orm";
@@ -13,6 +14,7 @@ type JoinedPersonAddressRow = {
   person_id: number;
   person_key: string;
   name: string;
+  preferred_name: string | null;
   phone: string;
   email: string;
   purchasing_power_min: number | null;
@@ -268,6 +270,7 @@ function buildPersonRecord(
     id: first.person_id,
     personKey: first.person_key,
     name: first.name,
+    preferredName: first.preferred_name,
     addressId: selectedAddress?.id ?? primaryAddress?.id ?? null,
     streetAddress: selectedAddress?.streetAddress ?? primaryAddress?.streetAddress ?? first.person_street_address,
     suburb: selectedAddress?.suburb ?? primaryAddress?.suburb ?? first.person_suburb,
@@ -306,6 +309,7 @@ async function listPeopleWithAddresses() {
          p.id AS person_id,
          p.person_key,
          p.name,
+         p.preferred_name,
          p.phone,
          p.email,
          p.purchasing_power_min,
@@ -372,6 +376,31 @@ async function resolvePersonAddresses(
   return resolved;
 }
 
+async function findExistingPersonByContactAndAddress(input: {
+  email: string;
+  phone: string;
+  streetAddress: string;
+  suburb: string;
+}) {
+  const db = getDb();
+  const conditions = [
+    eq(people.streetAddress, input.streetAddress),
+    eq(people.suburb, input.suburb),
+  ];
+
+  if (input.email) {
+    conditions.push(eq(people.email, input.email));
+  }
+
+  if (input.phone) {
+    conditions.push(eq(people.phone, input.phone));
+  }
+
+  return db.query.people.findFirst({
+    where: and(...conditions),
+  });
+}
+
 async function upsertPersonCore(
   input: PersonInput,
   primaryAddress: ResolvedAddress,
@@ -379,17 +408,56 @@ async function upsertPersonCore(
 ) {
   const db = getDb();
   const personKey = normalizeKey(input.name, input.email, input.phone);
+  const normalizedName = normalizeText(input.name);
+  const normalizedPreferredName = emptyToNull(input.preferredName)
+    ? normalizeText(input.preferredName)
+    : null;
+  const normalizedPhone = normalizeText(input.phone);
+  const normalizedEmail = input.email.trim().toLowerCase();
+  const existingPerson =
+    (await db.query.people.findFirst({ where: eq(people.personKey, personKey) })) ??
+    (await findExistingPersonByContactAndAddress({
+      email: normalizedEmail,
+      phone: normalizedPhone,
+      streetAddress: primaryAddress.streetAddress,
+      suburb: primaryAddress.suburb,
+    }));
+
+  if (existingPerson) {
+    await db
+      .update(people)
+      .set({
+        identityKey: personKey,
+        personKey,
+        name: normalizedName,
+        preferredName: normalizedPreferredName,
+        streetAddress: primaryAddress.streetAddress,
+        suburb: primaryAddress.suburb,
+        phone: normalizedPhone,
+        email: normalizedEmail,
+        purchasingPowerMin: input.purchasingPowerMin,
+        purchasingPowerMax: input.purchasingPowerMax,
+        latitude: primaryAddress.latitude,
+        longitude: primaryAddress.longitude,
+        lastUpdatedAt: timestamp,
+        updatedAt: timestamp,
+      })
+      .where(eq(people.id, existingPerson.id));
+
+    return db.query.people.findFirst({ where: eq(people.id, existingPerson.id) });
+  }
 
   await db
     .insert(people)
     .values({
       identityKey: personKey,
       personKey,
-      name: normalizeText(input.name),
+      name: normalizedName,
+      preferredName: normalizedPreferredName,
       streetAddress: primaryAddress.streetAddress,
       suburb: primaryAddress.suburb,
-      phone: normalizeText(input.phone),
-      email: input.email.trim().toLowerCase(),
+      phone: normalizedPhone,
+      email: normalizedEmail,
       purchasingPowerMin: input.purchasingPowerMin,
       purchasingPowerMax: input.purchasingPowerMax,
       latitude: primaryAddress.latitude,
@@ -402,11 +470,12 @@ async function upsertPersonCore(
       target: people.personKey,
       set: {
         identityKey: personKey,
-        name: normalizeText(input.name),
+        name: normalizedName,
+        preferredName: normalizedPreferredName,
         streetAddress: primaryAddress.streetAddress,
         suburb: primaryAddress.suburb,
-        phone: normalizeText(input.phone),
-        email: input.email.trim().toLowerCase(),
+        phone: normalizedPhone,
+        email: normalizedEmail,
         purchasingPowerMin: input.purchasingPowerMin,
         purchasingPowerMax: input.purchasingPowerMax,
         latitude: primaryAddress.latitude,
@@ -597,6 +666,8 @@ export async function updatePersonById(
   const personKey = normalizeKey(input.name, input.email, input.phone);
   const resolvedAddresses = await resolvePersonAddresses(personKey, input.addresses, timestamp);
   const primaryAddress = resolvedAddresses[0];
+  const normalizedPhone = normalizeText(input.phone);
+  const normalizedEmail = input.email.trim().toLowerCase();
 
   await db
     .update(people)
@@ -604,10 +675,13 @@ export async function updatePersonById(
       identityKey: personKey,
       personKey,
       name: normalizeText(input.name),
+      preferredName: emptyToNull(input.preferredName)
+        ? normalizeText(input.preferredName)
+        : null,
       streetAddress: primaryAddress.streetAddress,
       suburb: primaryAddress.suburb,
-      phone: normalizeText(input.phone),
-      email: input.email.trim().toLowerCase(),
+      phone: normalizedPhone,
+      email: normalizedEmail,
       purchasingPowerMin: input.purchasingPowerMin,
       purchasingPowerMax: input.purchasingPowerMax,
       latitude: primaryAddress.latitude,
@@ -736,6 +810,7 @@ export async function searchRecords(query: string) {
     .filter(
       (item) =>
         item.name.toLowerCase().includes(normalizedQuery) ||
+        item.preferredName?.toLowerCase().includes(normalizedQuery) ||
         item.streetAddress.toLowerCase().includes(normalizedQuery) ||
         item.suburb.toLowerCase().includes(normalizedQuery) ||
         item.email.toLowerCase().includes(normalizedQuery),
@@ -746,7 +821,7 @@ export async function searchRecords(query: string) {
     ...personMatches.map((item) => ({
       type: "person" as const,
       id: item.addressId ?? item.id,
-      title: item.name,
+      title: displayPersonName(item),
       subtitle: `${item.streetAddress}, ${item.suburb}`,
       item,
     })),
@@ -871,6 +946,7 @@ export function getRawPeopleByIdentity(identityKey: string) {
          p.id AS person_id,
          p.person_key,
          p.name,
+         p.preferred_name,
          p.phone,
          p.email,
          p.purchasing_power_min,
@@ -891,4 +967,59 @@ export function getRawPeopleByIdentity(identityKey: string) {
        WHERE a.identity_key = ?`,
     )
     .get(identityKey);
+}
+
+export function getRawPersonByContactAndAddress(input: {
+  streetAddress: string;
+  suburb: string;
+  email: string;
+  phone: string;
+}) {
+  ensureDatabase();
+  const normalizedStreetAddress = normalizeText(input.streetAddress);
+  const normalizedSuburb = normalizeText(input.suburb);
+  const normalizedEmail = input.email.trim().toLowerCase();
+  const normalizedPhone = normalizeText(input.phone);
+  const conditions = ["a.street_address = ?", "a.suburb = ?"];
+  const values: string[] = [normalizedStreetAddress, normalizedSuburb];
+
+  if (normalizedEmail) {
+    conditions.push("p.email = ?");
+    values.push(normalizedEmail);
+  }
+
+  if (normalizedPhone) {
+    conditions.push("p.phone = ?");
+    values.push(normalizedPhone);
+  }
+
+  return getRawDb()
+    .prepare(
+      `SELECT
+         p.id AS person_id,
+         p.person_key,
+         p.name,
+         p.preferred_name,
+         p.phone,
+         p.email,
+         p.purchasing_power_min,
+         p.purchasing_power_max,
+         p.last_updated_at,
+         p.created_at,
+         p.updated_at,
+         a.id AS address_id,
+         a.identity_key AS address_identity_key,
+         a.street_address,
+         a.suburb,
+         a.latitude,
+         a.longitude,
+         a.created_at AS address_created_at,
+         a.updated_at AS address_updated_at
+       FROM people_addresses a
+       JOIN people p ON p.id = a.person_id
+       WHERE ${conditions.join(" AND ")}
+       ORDER BY p.id ASC
+       LIMIT 1`,
+    )
+    .get(...values);
 }

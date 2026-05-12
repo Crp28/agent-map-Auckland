@@ -59,6 +59,7 @@
 - 2026-05-12: Added standalone `scripts/propertysmarts/` Playwright helpers for saving PropertySmarts auth state, capturing authenticated search traffic, extracting owner candidates from the DOM/network payloads, and comparing them against local SQLite People/address rows by street address and suburb.
 - 2026-05-12: Installed `playwright`, added dedicated npm scripts for browser install/login-capture/owner-check flows, added focused owner-normalization tests, and updated `README.md` with the new automation commands.
 - 2026-05-12: Fixed the first-run PropertySmarts bootstrap path so `propertysmarts:login-capture` no longer tries to load a missing auth-state file before one has been saved. Also added a clearer `propertysmarts:check-owner` error when the saved auth state is missing.
+- 2026-05-12: Added optional `preferred_name` support to People records, updated the multi-address repository/UI/import flows to preserve legal name plus preferred name, and taught the PropertySmarts owner checker to compare against both names.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
@@ -81,6 +82,7 @@
 - Manual People creation requires at least one contact method: phone or email. Blank contact fields are stored as empty strings for compatibility with the existing non-null database columns.
 - Person geocoding now prefers safe address-prefix and number matches over broad substring hits. If a manual address cannot be matched confidently, the app leaves it unresolved instead of accepting a likely-wrong coordinate.
 - PropertySmarts owner verification is implemented as standalone tooling under `scripts/propertysmarts/`, not as part of the deployed Next.js app runtime. It depends on a manually established authenticated browser session that is saved to Playwright storage state.
+- People now carry a canonical legal `name` plus an optional `preferred_name`. The app UI displays the preferred name when present, but imports and owner checking preserve access to the legal name.
 
 ## Notes
 - Use `cmd /c npm ...`, `npm.cmd`, or `npx.cmd` in PowerShell because this machine blocks `npm.ps1`.

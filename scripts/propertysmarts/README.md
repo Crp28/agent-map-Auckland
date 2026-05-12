@@ -35,5 +35,5 @@ Options:
 ## Current assumptions
 
 - DB owner data is taken from `people_addresses` joined to `people`, matching `street_address` and optional `suburb`.
-- Owner matching is deterministic normalized string comparison, not fuzzy matching.
+- Owner matching is deterministic normalized string comparison, not fuzzy matching. When a Person has both a legal name and a preferred name, the checker compares PropertySmarts output against both.
 - Search selector coverage is best-effort and may need refinement after the first live capture against the authenticated PropertySmarts app.

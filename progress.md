@@ -143,3 +143,4 @@
 - Added focused unit coverage for the owner normalization/matching helper.
 - Updated `README.md` and `DOCUMENTATION.md` so the new scripts and usage expectations are recoverable from repo state.
 - Fixed the first-run auth bootstrap so `propertysmarts:login-capture` can start before any saved Playwright auth state exists, and made `propertysmarts:check-owner` fail with an explicit setup message when auth has not been captured yet.
+- Added optional preferred-name support for People, preserved both legal and preferred names through contact import and multi-address record management, and updated the PropertySmarts owner checker to compare against both.

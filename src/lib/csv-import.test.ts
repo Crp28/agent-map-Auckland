@@ -1,10 +1,18 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { importPeopleCsv } from "./csv-import";
+import { createOrUpdatePerson, getRawPeopleByIdentity, getRawPersonByContactAndAddress } from "@/lib/repository";
 
 vi.mock("@/lib/repository", () => ({
   createOrUpdatePerson: vi.fn(async () => undefined),
   getRawPeopleByIdentity: vi.fn(() => undefined),
+  getRawPersonByContactAndAddress: vi.fn(() => undefined),
 }));
+
+beforeEach(() => {
+  vi.mocked(createOrUpdatePerson).mockClear();
+  vi.mocked(getRawPeopleByIdentity).mockClear();
+  vi.mocked(getRawPersonByContactAndAddress).mockClear();
+});
 
 describe("importPeopleCsv", () => {
   it("normalizes contact-export person rows", async () => {
@@ -21,6 +29,13 @@ describe("importPeopleCsv", () => {
       duplicates: 0,
       failed: 0,
     });
+    expect(vi.mocked(createOrUpdatePerson)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Ana Buyer",
+        preferredName: "Ana",
+      }),
+      { geocode: undefined },
+    );
   });
 
   it("rejects non-person contact-export rows", async () => {

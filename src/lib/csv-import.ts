@@ -1,5 +1,5 @@
 import { parse } from "csv-parse/sync";
-import { createOrUpdatePerson, getRawPeopleByIdentity } from "@/lib/repository";
+import { createOrUpdatePerson, getRawPeopleByIdentity, getRawPersonByContactAndAddress } from "@/lib/repository";
 import { normalizeKey } from "@/lib/normalize";
 import { personInputSchema } from "@/lib/validation";
 
@@ -25,11 +25,10 @@ function hasColumns(row: CsvRow | undefined, columns: string[]) {
 }
 
 function fullName(row: CsvRow) {
-  const preferredName = row["Preferred Name"]?.trim();
   const legalName = row["Legal Name"]?.trim();
   const firstName = row["First Name"]?.trim();
   const lastName = row["Last Name"]?.trim();
-  return preferredName || [firstName, lastName].filter(Boolean).join(" ") || legalName || "";
+  return legalName || [firstName, lastName].filter(Boolean).join(" ") || row["Preferred Name"]?.trim() || "";
 }
 
 function normalizeCsvRow(row: CsvRow) {
@@ -44,6 +43,7 @@ function normalizeCsvRow(row: CsvRow) {
     return {
       normalized: {
         name: fullName(row),
+        preferredName: row["Preferred Name"]?.trim() || "",
         streetAddress: row.Address?.trim() || row["Postal Address"]?.trim() || "",
         suburb: row.Suburb?.trim() || row["Postal Suburb"]?.trim() || "",
         phone: row.Mobile?.trim() || row.Phone?.trim() || row["Work Phone"]?.trim() || "",
@@ -66,6 +66,7 @@ function normalizeCsvRow(row: CsvRow) {
 function comparableInput(row: CsvRow) {
   return {
     name: row.name?.trim() ?? "",
+    preferredName: row.preferredName?.trim() || null,
     phone: row.phone?.trim() ?? "",
     email: row.email?.trim().toLowerCase() ?? "",
     streetAddress: row.streetAddress?.trim() ?? "",
@@ -80,6 +81,7 @@ function comparableInput(row: CsvRow) {
 function comparableExisting(row: Record<string, unknown>) {
   return {
     name: String(row.name ?? ""),
+    preferredName: row.preferred_name === null || row.preferred_name === undefined ? null : String(row.preferred_name),
     phone: String(row.phone ?? ""),
     email: String(row.email ?? ""),
     streetAddress: String(row.street_address ?? ""),
@@ -151,7 +153,14 @@ export async function importPeopleCsv(
     const personKey = normalizeKey(parsed.data.name, parsed.data.email, parsed.data.phone);
     const primaryAddress = parsed.data.addresses[0];
     const identityKey = normalizeKey(personKey, primaryAddress.streetAddress, primaryAddress.suburb);
-    const existing = getRawPeopleByIdentity(identityKey) as Record<string, unknown> | undefined;
+    const existing =
+      (getRawPeopleByIdentity(identityKey) as Record<string, unknown> | undefined) ??
+      (getRawPersonByContactAndAddress({
+        streetAddress: primaryAddress.streetAddress,
+        suburb: primaryAddress.suburb,
+        email: parsed.data.email,
+        phone: parsed.data.phone,
+      }) as Record<string, unknown> | undefined);
     const before = existing ? JSON.stringify(comparableExisting(existing)) : null;
     const comparable = JSON.stringify(comparableInput(normalized));
 
