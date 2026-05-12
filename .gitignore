@@ -40,3 +40,5 @@ Thumbs.db
 # Local agent/browser artifacts
 .agent-screenshots/
 .codex-logs/
+scripts/propertysmarts/state/
+scripts/propertysmarts/output/

@@ -56,6 +56,8 @@
 - 2026-04-22: Updated People create/update validation so email can be blank while non-empty email values still must be valid email addresses.
 - 2026-04-22: Refined People create/update validation so at least one of phone or email is required; phone may be blank when email is present.
 - 2026-04-28: Tightened GeoMaps address matching to reject unsafe substring collisions such as `1 ...` vs `171 ...`, added a chunked People-coordinate audit/refresh workflow on the main page, and added a single-address GeoMaps retry button to the map-opened Person modal.
+- 2026-05-12: Added standalone `scripts/propertysmarts/` Playwright helpers for saving PropertySmarts auth state, capturing authenticated search traffic, extracting owner candidates from the DOM/network payloads, and comparing them against local SQLite People/address rows by street address and suburb.
+- 2026-05-12: Installed `playwright`, added dedicated npm scripts for browser install/login-capture/owner-check flows, added focused owner-normalization tests, and updated `README.md` with the new automation commands.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
@@ -77,6 +79,7 @@
 - Older local databases must add `people.person_key` before creating the unique index introduced by the multi-address migration.
 - Manual People creation requires at least one contact method: phone or email. Blank contact fields are stored as empty strings for compatibility with the existing non-null database columns.
 - Person geocoding now prefers safe address-prefix and number matches over broad substring hits. If a manual address cannot be matched confidently, the app leaves it unresolved instead of accepting a likely-wrong coordinate.
+- PropertySmarts owner verification is implemented as standalone tooling under `scripts/propertysmarts/`, not as part of the deployed Next.js app runtime. It depends on a manually established authenticated browser session that is saved to Playwright storage state.
 
 ## Notes
 - Use `cmd /c npm ...`, `npm.cmd`, or `npx.cmd` in PowerShell because this machine blocks `npm.ps1`.

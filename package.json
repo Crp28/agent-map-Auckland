@@ -12,7 +12,10 @@
     "db:push": "drizzle-kit push",
     "sync:geomaps": "tsx scripts/sync-geomaps.ts",
     "import:people": "tsx scripts/import-people-csv.ts",
-    "geocode:people": "tsx scripts/geocode-people.ts"
+    "geocode:people": "tsx scripts/geocode-people.ts",
+    "propertysmarts:install-browser": "playwright install chromium",
+    "propertysmarts:login-capture": "tsx scripts/propertysmarts/login-and-capture.ts",
+    "propertysmarts:check-owner": "tsx scripts/propertysmarts/check-owner.ts"
   },
   "dependencies": {
     "@arcgis/core": "5.0.16",
@@ -44,6 +47,7 @@
     "eslint": "^9.39.2",
     "eslint-config-next": "16.2.3",
     "jsdom": "^27.3.0",
+    "playwright": "^1.60.0",
     "tailwindcss": "^4.1.18",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",

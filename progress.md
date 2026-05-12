@@ -135,3 +135,10 @@
 - Increased audit geocode timeout to 12s, reduced audit concurrency to 2, added up to 3 timeout retries with incremental backoff and longer timeout per retry, reduced client batch size to 6, and added a short pause between audit/refresh batches.
 - Added resumable client-side audit progress tracking in local storage so a rerun resumes from the last completed batch when the address list is unchanged.
 - Added focused tests for the audit-session resume parser and the retry-on-timeout repository behavior, then verified the direct audit probe for address `8468` now returns `status: "ok"` with a matched GeoMaps address.
+
+## 2026-05-12
+- Started a standalone PropertySmarts automation slice so owner verification can be developed without coupling it to the main app runtime.
+- Installed `playwright` and added npm scripts for browser install, login/capture, and single-address owner checks.
+- Added `scripts/propertysmarts/` helpers for auth-state reuse, network capture, owner extraction, DB lookup, and normalized owner matching.
+- Added focused unit coverage for the owner normalization/matching helper.
+- Updated `README.md` and `DOCUMENTATION.md` so the new scripts and usage expectations are recoverable from repo state.

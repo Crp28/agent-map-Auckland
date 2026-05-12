@@ -49,6 +49,9 @@ cmd /c npm run db:push
 cmd /c npm run sync:geomaps
 cmd /c npm run import:people -- path\to\people.csv
 cmd /c npm run geocode:people
+cmd /c npm run propertysmarts:install-browser
+cmd /c npm run propertysmarts:login-capture -- --address "192 Remuera Road"
+cmd /c npm run propertysmarts:check-owner -- --address "192 Remuera Road" --suburb "Remuera"
 ```
 
 ## Data Model
@@ -123,3 +126,10 @@ For bulk speed, the CLI import skips geocoding during import and preserves exist
 - Checking `Same suburb` makes nearby People satisfy both the distance limit and the selected Sold Property suburb.
 - Canceling the nearby filter clears the nearby People list and does not reset the map position.
 - Changing nearby-controller inputs also keeps the current map position.
+
+## PropertySmarts Helper Scripts
+
+- `scripts/propertysmarts/` contains standalone Playwright helpers for capturing the authenticated PropertySmarts search flow and comparing extracted owner names against the local SQLite People/address records.
+- `cmd /c npm run propertysmarts:login-capture -- --address "192 Remuera Road"` opens a headed browser, lets you log in manually, saves auth state, and writes captured XHR/fetch traffic to `scripts/propertysmarts/output/`.
+- `cmd /c npm run propertysmarts:check-owner -- --address "192 Remuera Road" --suburb "Remuera"` reuses the saved auth state, searches the property, extracts candidate owner names from the DOM and captured JSON responses, and compares them to the DB row matched by street address and suburb.
+- The saved browser auth state lives under `scripts/propertysmarts/state/` and is ignored by Git.
