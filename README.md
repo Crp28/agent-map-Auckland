@@ -127,7 +127,7 @@ For bulk speed, the CLI import skips geocoding during import and preserves exist
 - `+` zooms in and `-` zooms out.
 - Selecting a Sold Property pin or search result opens its modal and can drive the nearby People workflow.
 - `Audit People coords` checks coordinate-bearing People addresses in batches so the browser does not send one timeout-prone geocode request for every stored marker at once.
-- `Audit People owners` checks all stored People addresses against PropertySmarts in resumable batches. It is local-only admin tooling, depends on a saved Playwright auth state, and leaves mismatch flags in session state only.
+- `Audit ownership` checks all stored People addresses against PropertySmarts in resumable batches. It is local-only admin tooling, depends on a saved Playwright auth state, and leaves mismatch flags in session state only.
 - Checking `Same suburb` makes nearby People satisfy both the distance limit and the selected Sold Property suburb.
 - Canceling the nearby filter clears the nearby People list and does not reset the map position.
 - Changing nearby-controller inputs also keeps the current map position.

@@ -649,6 +649,18 @@ export function LocationFinderApp() {
     refresh();
   }
 
+  function startOwnerAudit() {
+    if (coordinateAuditRunning || ownerAuditRunning) {
+      return;
+    }
+
+    setNotice("Starting ownership audit...");
+    void auditAllPeopleOwners().catch((error) => {
+      setOwnerAuditRunning(false);
+      setNotice(error instanceof Error ? error.message : "Owner audit failed.");
+    });
+  }
+
   function selectSuburb(region: SuburbRegion) {
     const targetKey = suburbTargetKeyRef.current + 1;
     suburbTargetKeyRef.current = targetKey;
@@ -827,12 +839,12 @@ export function LocationFinderApp() {
           </button>
           <button
             type="button"
-            onClick={() => void auditAllPeopleOwners()}
+            onClick={startOwnerAudit}
             disabled={coordinateAuditRunning || ownerAuditRunning}
             className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#cbd5e1] bg-white px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7] disabled:cursor-wait disabled:opacity-60"
           >
             <RefreshCw aria-hidden="true" size={18} className={ownerAuditRunning ? "animate-spin" : ""} />
-            Audit People owners
+            Audit ownership
           </button>
           {ownerMismatchedPersonAddressIds.length > 0 ? (
             <button
