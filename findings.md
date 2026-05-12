@@ -69,6 +69,7 @@
 - Owner mismatch deletion needs to operate on `people_addresses` rows, not whole People rows. If the deleted address was the stored primary-address snapshot, the repository must promote a remaining address into the top-level `people.street_address/suburb/latitude/longitude` fields.
 - The bottom-right aside wrapper is a full-height absolute layer. If that wrapper itself accepts pointer events, its transparent area can block clicks on the top action row even while the suburb drawer is visually collapsed. The wrapper must be `pointer-events-none`, with only the visible child panels set back to `pointer-events-auto`.
 - PropertySmarts / REINZ SSO is not reliably restored by Playwright `storageState` alone. A persistent Chromium user-data directory is required so fresh automation runs reuse the real browser profile state instead of starting a clean logged-out session every time.
+- PropertySmarts owner-audit `not_found` results can be inflated by older imported address text that does not match PropertySmarts formatting exactly, for example `Rd` vs `Road`. The resolver needs to expand common street suffix abbreviations and retry one normalized variant before treating the address as missing.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.

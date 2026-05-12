@@ -38,12 +38,58 @@ type PropertySearchReference = {
 
 let activeSession: PropertySmartsSession | null = null;
 
+const PROPERTYSMARTS_TOKEN_EXPANSIONS: Array<[RegExp, string]> = [
+  [/\bRd\b\.?/gi, "Road"],
+  [/\bSt\b\.?/gi, "Street"],
+  [/\bAve\b\.?/gi, "Avenue"],
+  [/\bDr\b\.?/gi, "Drive"],
+  [/\bPl\b\.?/gi, "Place"],
+  [/\bCt\b\.?/gi, "Court"],
+  [/\bCl\b\.?/gi, "Close"],
+  [/\bLn\b\.?/gi, "Lane"],
+  [/\bCres\b\.?/gi, "Crescent"],
+  [/\bTce\b\.?/gi, "Terrace"],
+  [/\bPde\b\.?/gi, "Parade"],
+  [/\bHwy\b\.?/gi, "Highway"],
+  [/\bMt\b\.?/gi, "Mount"],
+  [/\bPt\b\.?/gi, "Point"],
+];
+
 function normalizeText(value: string) {
   return value
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+export function expandStreetSuffixAbbreviations(value: string) {
+  let expanded = value;
+  for (const [pattern, replacement] of PROPERTYSMARTS_TOKEN_EXPANSIONS) {
+    expanded = expanded.replace(pattern, replacement);
+  }
+
+  return expanded.replace(/\s+/g, " ").trim();
+}
+
+function normalizeAddressForMatch(value: string) {
+  return normalizeText(expandStreetSuffixAbbreviations(value));
+}
+
+export function buildAddressSearchVariants(streetAddress: string) {
+  const variants: string[] = [];
+  const push = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed || variants.includes(trimmed)) {
+      return;
+    }
+    variants.push(trimmed);
+  };
+
+  push(streetAddress);
+  push(expandStreetSuffixAbbreviations(streetAddress));
+
+  return variants;
 }
 
 function escapeRegExp(value: string) {
@@ -62,9 +108,9 @@ function streetTokens(value: string) {
     .filter((token) => !["auckland", "new", "zealand"].includes(token));
 }
 
-function scoreAddressCandidate(candidateName: string, streetAddress: string, suburb: string) {
-  const candidate = normalizeText(candidateName);
-  const targetStreet = normalizeText(streetAddress);
+export function scoreAddressCandidate(candidateName: string, streetAddress: string, suburb: string) {
+  const candidate = normalizeAddressForMatch(candidateName);
+  const targetStreet = normalizeAddressForMatch(streetAddress);
   const targetSuburb = normalizeText(suburb);
   const houseNumber = extractHouseNumber(streetAddress);
 
@@ -225,7 +271,7 @@ async function showSearch(page: Page, streetAddress: string, suburb: string) {
   await page.waitForTimeout(150);
 }
 
-async function resolvePropertyReference(
+async function resolvePropertyReferenceForStreet(
   page: Page,
   streetAddress: string,
   suburb: string,
@@ -289,6 +335,22 @@ async function resolvePropertyReference(
     ...reference,
     owners: ownersFromSearch,
   } satisfies PropertySearchReference;
+}
+
+async function resolvePropertyReference(
+  page: Page,
+  streetAddress: string,
+  suburb: string,
+) {
+  const variants = buildAddressSearchVariants(streetAddress);
+  for (const variant of variants) {
+    const reference = await resolvePropertyReferenceForStreet(page, variant, suburb);
+    if (reference) {
+      return reference;
+    }
+  }
+
+  return null;
 }
 
 async function fetchPropertyOwners(page: Page, reference: PropertySearchReference) {

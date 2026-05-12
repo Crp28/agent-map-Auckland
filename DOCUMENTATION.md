@@ -62,6 +62,7 @@
 - 2026-05-12: Added optional `preferred_name` support to People records, updated the multi-address repository/UI/import flows to preserve legal name plus preferred name, and taught the PropertySmarts owner checker to compare against both names.
 - 2026-05-12: Added a local-only `Audit ownership` action to the main app. It uses a visible Playwright PropertySmarts session behind `/api/people/owners`, checks all People address rows in resumable batches, marks owner mismatches red in the current UI session, and offers deletion of mismatched address rows after the run.
 - 2026-05-12: Switched PropertySmarts session reuse from fresh contexts loaded only from `storageState` to a persistent Chromium profile under `scripts/propertysmarts/state/profile/`. The login-capture and owner-audit flows still export `propertysmarts-auth.json` as a backup, but the live session now comes from the profile because REINZ SSO was not reliably restoring from `storageState` alone.
+- 2026-05-12: Hardened PropertySmarts owner-audit address resolution for imported legacy address text. The resolver now expands common street suffix abbreviations such as `Rd`, `St`, and `Ave` and retries one normalized variant before returning `not_found`.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
