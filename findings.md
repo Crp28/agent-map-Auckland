@@ -19,6 +19,7 @@
 - `agent-browser` is available as `agent-browser 0.25.4`. On this Windows shell, individual commands were more reliable than the first attempted quoted `batch` invocation.
 - PropertySmarts is behind REINZ SSO. The public `https://www.propertysmarts.co.nz/property#` entrypoint redirects through `ssogateway.reinz.co.nz`, `sso.reinz.co.nz`, and `www.reinz.co.nz/Web/Sign-In.aspx`, so automation should start from a manually established logged-in browser session rather than trying to recreate login first.
 - Live browser inspection exposed authenticated token/session traffic such as `https://authgateway.au.cws.causeis.com/api/REINZ/token` and `https://www.reinz.co.nz/Shared_Content/SSO/smart-suite-sso.aspx`, which makes Playwright storage-state reuse the practical discovery path.
+- The initial Playwright bootstrap must tolerate a missing `scripts/propertysmarts/state/propertysmarts-auth.json` file. Loading storage state unconditionally breaks the very first login/capture run.
 
 ## Map UI
 - Closed right-side suburb navigation should render only the handle, not offscreen row buttons, so hidden rows are not keyboard or screen-reader reachable.

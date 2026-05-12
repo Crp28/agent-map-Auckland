@@ -142,3 +142,4 @@
 - Added `scripts/propertysmarts/` helpers for auth-state reuse, network capture, owner extraction, DB lookup, and normalized owner matching.
 - Added focused unit coverage for the owner normalization/matching helper.
 - Updated `README.md` and `DOCUMENTATION.md` so the new scripts and usage expectations are recoverable from repo state.
+- Fixed the first-run auth bootstrap so `propertysmarts:login-capture` can start before any saved Playwright auth state exists, and made `propertysmarts:check-owner` fail with an explicit setup message when auth has not been captured yet.

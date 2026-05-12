@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+
 import { getArgValue, getFlag } from "./lib/args";
 import { findOwnersByAddress } from "./lib/db";
 import { PROPERTYSMARTS_STATE_PATH } from "./lib/constants";
@@ -30,6 +32,13 @@ async function main() {
       propertySmartsOwners: [],
     }, null, 2));
     return;
+  }
+
+  if (!existsSync(PROPERTYSMARTS_STATE_PATH)) {
+    throw new Error(
+      `No saved PropertySmarts auth state found at ${PROPERTYSMARTS_STATE_PATH}. Run "cmd /c npm run propertysmarts:login-capture -- --address \\"${address}\\""` +
+        " first and complete the manual login in the Playwright browser.",
+    );
   }
 
   const { browser, context, page } = await launchPropertySmartsContext({

@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
@@ -33,9 +33,14 @@ export async function launchPropertySmartsContext(options?: {
   storageStatePath?: string;
 }) {
   const browser = await chromium.launch({ headless: options?.headless ?? false });
-  const context = await browser.newContext({
-    storageState: options?.storageStatePath ?? PROPERTYSMARTS_STATE_PATH,
-  });
+  const storageStatePath = options?.storageStatePath ?? PROPERTYSMARTS_STATE_PATH;
+  const context = await browser.newContext(
+    existsSync(storageStatePath)
+      ? {
+          storageState: storageStatePath,
+        }
+      : undefined,
+  );
   const page = await context.newPage();
   return { browser, context, page };
 }

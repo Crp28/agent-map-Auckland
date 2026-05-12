@@ -58,6 +58,7 @@
 - 2026-04-28: Tightened GeoMaps address matching to reject unsafe substring collisions such as `1 ...` vs `171 ...`, added a chunked People-coordinate audit/refresh workflow on the main page, and added a single-address GeoMaps retry button to the map-opened Person modal.
 - 2026-05-12: Added standalone `scripts/propertysmarts/` Playwright helpers for saving PropertySmarts auth state, capturing authenticated search traffic, extracting owner candidates from the DOM/network payloads, and comparing them against local SQLite People/address rows by street address and suburb.
 - 2026-05-12: Installed `playwright`, added dedicated npm scripts for browser install/login-capture/owner-check flows, added focused owner-normalization tests, and updated `README.md` with the new automation commands.
+- 2026-05-12: Fixed the first-run PropertySmarts bootstrap path so `propertysmarts:login-capture` no longer tries to load a missing auth-state file before one has been saved. Also added a clearer `propertysmarts:check-owner` error when the saved auth state is missing.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
