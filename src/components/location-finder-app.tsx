@@ -863,7 +863,7 @@ export function LocationFinderApp() {
 
       </section>
 
-      <aside className="absolute bottom-3 left-3 right-3 top-56 z-20 flex min-h-0 flex-col justify-end gap-3 md:left-auto md:w-[380px]">
+      <aside className="pointer-events-none absolute bottom-3 left-3 right-3 top-56 z-20 flex min-h-0 flex-col justify-end gap-3 md:left-auto md:w-[380px]">
         <div
           className="pointer-events-none relative min-h-0 w-full flex-1 overflow-visible"
         >
@@ -930,7 +930,7 @@ export function LocationFinderApp() {
           </section>
         </div>
 
-        <div className="shrink-0 rounded-md border border-[#cbd5e1] bg-white p-3 shadow-lg">
+        <div className="pointer-events-auto shrink-0 rounded-md border border-[#cbd5e1] bg-white p-3 shadow-lg">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-[#111827]">Nearby people</p>
@@ -1005,7 +1005,7 @@ export function LocationFinderApp() {
             ))}
           </div>
         </div>
-        <div className="rounded-md border border-[#cbd5e1] bg-white p-3 text-xs text-[#475569] shadow-lg">
+        <div className="pointer-events-auto rounded-md border border-[#cbd5e1] bg-white p-3 text-xs text-[#475569] shadow-lg">
           {loading ? "Loading map data..." : `${mapData.soldProperties.length} sold properties`}
           {" | "}
           {nearbyFilterActive ? `${visiblePeople.length} visible addresses` : `${mapData.people.length} addresses`}
