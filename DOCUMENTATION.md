@@ -60,6 +60,7 @@
 - 2026-05-12: Installed `playwright`, added dedicated npm scripts for browser install/login-capture/owner-check flows, added focused owner-normalization tests, and updated `README.md` with the new automation commands.
 - 2026-05-12: Fixed the first-run PropertySmarts bootstrap path so `propertysmarts:login-capture` no longer tries to load a missing auth-state file before one has been saved. Also added a clearer `propertysmarts:check-owner` error when the saved auth state is missing.
 - 2026-05-12: Added optional `preferred_name` support to People records, updated the multi-address repository/UI/import flows to preserve legal name plus preferred name, and taught the PropertySmarts owner checker to compare against both names.
+- 2026-05-12: Added a local-only `Audit People owners` action to the main app. It uses a visible Playwright PropertySmarts session behind `/api/people/owners`, checks all People address rows in resumable batches, marks owner mismatches red in the current UI session, and offers deletion of mismatched address rows after the run.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
@@ -83,6 +84,7 @@
 - Person geocoding now prefers safe address-prefix and number matches over broad substring hits. If a manual address cannot be matched confidently, the app leaves it unresolved instead of accepting a likely-wrong coordinate.
 - PropertySmarts owner verification is implemented as standalone tooling under `scripts/propertysmarts/`, not as part of the deployed Next.js app runtime. It depends on a manually established authenticated browser session that is saved to Playwright storage state.
 - People now carry a canonical legal `name` plus an optional `preferred_name`. The app UI displays the preferred name when present, but imports and owner checking preserve access to the legal name.
+- The main-app PropertySmarts owner audit is explicitly local-only admin tooling. It persists only resumable batch progress in local storage; mismatch results themselves remain session-only and are cleared from the UI when the page state resets.
 
 ## Notes
 - Use `cmd /c npm ...`, `npm.cmd`, or `npx.cmd` in PowerShell because this machine blocks `npm.ps1`.

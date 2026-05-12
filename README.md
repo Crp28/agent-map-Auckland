@@ -18,6 +18,7 @@ Location Finder is a Next.js 16 app for viewing Auckland sold properties and peo
 - One Person can store a legal name plus an optional preferred name. The UI shows the preferred name when present.
 - People without coordinates remain stored and editable, but do not render on the map until latitude and longitude are added or geocoded.
 - The main page can audit stored People coordinates in batches, color suspected mismatches red on the map, and bulk refresh those mismatches.
+- The main page can also audit stored People owners through a local PropertySmarts Playwright session, resume from the last completed batch, mark owner mismatches red, and delete mismatched address rows after review.
 
 ## Setup
 
@@ -126,6 +127,7 @@ For bulk speed, the CLI import skips geocoding during import and preserves exist
 - `+` zooms in and `-` zooms out.
 - Selecting a Sold Property pin or search result opens its modal and can drive the nearby People workflow.
 - `Audit People coords` checks coordinate-bearing People addresses in batches so the browser does not send one timeout-prone geocode request for every stored marker at once.
+- `Audit People owners` checks all stored People addresses against PropertySmarts in resumable batches. It is local-only admin tooling, depends on a saved Playwright auth state, and leaves mismatch flags in session state only.
 - Checking `Same suburb` makes nearby People satisfy both the distance limit and the selected Sold Property suburb.
 - Canceling the nearby filter clears the nearby People list and does not reset the map position.
 - Changing nearby-controller inputs also keeps the current map position.
@@ -137,3 +139,4 @@ For bulk speed, the CLI import skips geocoding during import and preserves exist
 - `cmd /c npm run propertysmarts:check-owner -- --address "192 Remuera Road" --suburb "Remuera"` reuses the saved auth state, searches the property, extracts candidate owner names from the DOM and captured JSON responses, and compares them to the DB row matched by street address and suburb.
 - Owner matching checks both the Person legal name and preferred name when both are present.
 - The saved browser auth state lives under `scripts/propertysmarts/state/` and is ignored by Git.
+- The in-app owner audit uses the same saved auth state, but runs through `/api/people/owners` in small batches so the browser can resume from the last completed batch instead of restarting from the beginning after interruptions.

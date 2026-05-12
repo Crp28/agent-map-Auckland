@@ -321,4 +321,78 @@ describe("multi-address repository behavior", () => {
     expect(result).toHaveLength(1);
     expect(result[0]?.status).toBe("ok");
   });
+
+  it("deletes one mismatched address row without deleting the whole person", async () => {
+    const created = await repository.createOrUpdatePerson({
+      name: "Multi Address",
+      preferredName: "",
+      phone: "021 333 3333",
+      email: "multi@example.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      addresses: [
+        {
+          streetAddress: "1 Queen Street",
+          suburb: "Auckland Central",
+          latitude: -36.847,
+          longitude: 174.763,
+        },
+        {
+          streetAddress: "2 High Street",
+          suburb: "Auckland Central",
+          latitude: -36.848,
+          longitude: 174.764,
+        },
+      ],
+    }, { geocode: false });
+
+    const secondAddressId = created?.addresses[1]?.id;
+    expect(secondAddressId).toBeTypeOf("number");
+
+    const deleted = await repository.deletePersonAddressRows([secondAddressId!]);
+    expect(deleted.deletedAddressIds).toEqual([secondAddressId]);
+    expect(deleted.deletedPersonIds).toEqual([]);
+
+    const listed = await repository.listPeopleRecords();
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.addresses).toHaveLength(1);
+    expect(listed[0]?.addresses[0]?.streetAddress).toBe("1 Queen Street");
+  });
+
+  it("promotes a remaining address when the primary address row is deleted", async () => {
+    const created = await repository.createOrUpdatePerson({
+      name: "Primary Swap",
+      preferredName: "",
+      phone: "021 444 4444",
+      email: "swap@example.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      addresses: [
+        {
+          streetAddress: "1 Queen Street",
+          suburb: "Auckland Central",
+          latitude: -36.847,
+          longitude: 174.763,
+        },
+        {
+          streetAddress: "2 High Street",
+          suburb: "Auckland Central",
+          latitude: -36.848,
+          longitude: 174.764,
+        },
+      ],
+    }, { geocode: false });
+
+    const primaryAddressId = created?.addresses[0]?.id;
+    expect(primaryAddressId).toBeTypeOf("number");
+
+    const deleted = await repository.deletePersonAddressRows([primaryAddressId!]);
+    expect(deleted.deletedAddressIds).toEqual([primaryAddressId]);
+
+    const listed = await repository.listPeopleRecords();
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.streetAddress).toBe("2 High Street");
+    expect(listed[0]?.suburb).toBe("Auckland Central");
+    expect(listed[0]?.addresses).toHaveLength(1);
+  });
 });

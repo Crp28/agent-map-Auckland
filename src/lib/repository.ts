@@ -8,7 +8,7 @@ import { emptyToNull, normalizeKey, normalizeText } from "@/lib/normalize";
 import { displayPersonName } from "@/lib/person-display";
 import type { PersonAddressInput, PersonInput, SoldPropertyInput } from "@/lib/validation";
 import type { PersonAddressRecord, PersonCoordinateAuditResult, PersonRecord } from "@/types/location";
-import { and, desc, eq, gte, lte, notInArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, notInArray, or, sql } from "drizzle-orm";
 
 type JoinedPersonAddressRow = {
   person_id: number;
@@ -54,6 +54,15 @@ type AuditAddressRow = {
   suburb: string;
   latitude: number | null;
   longitude: number | null;
+};
+
+type OwnerAuditAddressRow = {
+  person_id: number;
+  address_id: number;
+  name: string;
+  preferred_name: string | null;
+  street_address: string;
+  suburb: string;
 };
 
 const PERSON_GEOCODE_AUDIT_DISTANCE_THRESHOLD_KM = 0.15;
@@ -186,6 +195,30 @@ function getAuditAddressRows(addressIds: number[]) {
        ORDER BY a.id ASC`,
     )
     .all(...addressIds) as AuditAddressRow[];
+}
+
+export function getOwnerAuditAddressRows(addressIds: number[]) {
+  ensureDatabase();
+  if (addressIds.length === 0) {
+    return [] as OwnerAuditAddressRow[];
+  }
+
+  const placeholders = addressIds.map(() => "?").join(", ");
+  return getRawDb()
+    .prepare(
+      `SELECT
+         p.id AS person_id,
+         p.name,
+         p.preferred_name,
+         a.id AS address_id,
+         a.street_address,
+         a.suburb
+       FROM people_addresses a
+       JOIN people p ON p.id = a.person_id
+       WHERE a.id IN (${placeholders})
+       ORDER BY a.id ASC`,
+    )
+    .all(...addressIds) as OwnerAuditAddressRow[];
 }
 
 async function runAddressBatch<T>(
@@ -736,6 +769,84 @@ export async function deletePersonById(id: number) {
 
   await db.delete(people).where(eq(people.id, id));
   return true;
+}
+
+export async function deletePersonAddressRows(addressIds: number[]) {
+  ensureDatabase();
+  if (addressIds.length === 0) {
+    return {
+      deletedAddressIds: [] as number[],
+      deletedPersonIds: [] as number[],
+    };
+  }
+
+  const db = getDb();
+  const existingAddresses = await db.query.peopleAddresses.findMany({
+    where: inArray(peopleAddresses.id, addressIds),
+  });
+
+  if (existingAddresses.length === 0) {
+    return {
+      deletedAddressIds: [] as number[],
+      deletedPersonIds: [] as number[],
+    };
+  }
+
+  const deletedAddressIds = existingAddresses.map((address) => address.id);
+  const affectedPersonIds = [...new Set(existingAddresses.map((address) => address.personId))];
+  const deletedPersonIds: number[] = [];
+  const timestamp = nowIso();
+
+  await db.delete(peopleAddresses).where(inArray(peopleAddresses.id, deletedAddressIds));
+
+  for (const personId of affectedPersonIds) {
+    const person = await db.query.people.findFirst({ where: eq(people.id, personId) });
+    if (!person) {
+      continue;
+    }
+
+    const remainingAddresses = await db.query.peopleAddresses.findMany({
+      where: eq(peopleAddresses.personId, personId),
+      orderBy: (table, { asc }) => [asc(table.id)],
+    });
+
+    if (remainingAddresses.length === 0) {
+      await db.delete(people).where(eq(people.id, personId));
+      deletedPersonIds.push(personId);
+      continue;
+    }
+
+    const primaryAddressStillExists = remainingAddresses.find(
+      (address) =>
+        address.streetAddress === person.streetAddress &&
+        address.suburb === person.suburb,
+    );
+    if (primaryAddressStillExists) {
+      continue;
+    }
+
+    const nextPrimary = remainingAddresses[0];
+    if (!nextPrimary) {
+      continue;
+    }
+
+    await db
+      .update(people)
+      .set({
+        streetAddress: nextPrimary.streetAddress,
+        suburb: nextPrimary.suburb,
+        latitude: nextPrimary.latitude,
+        longitude: nextPrimary.longitude,
+        lastUpdatedAt: timestamp,
+        updatedAt: timestamp,
+      })
+      .where(eq(people.id, personId));
+  }
+
+  return {
+    deletedAddressIds,
+    deletedPersonIds,
+  };
 }
 
 export async function deleteSoldPropertyById(id: number) {

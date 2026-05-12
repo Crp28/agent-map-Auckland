@@ -35,6 +35,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 29. Complete: Make `Audit People coords` reliable at scale by increasing geocode timeout, lowering concurrency, retrying timed-out lookups, reducing client batch size, and resuming from the last completed batch.
 30. Complete: Scaffold standalone Playwright-based PropertySmarts owner-check tooling with saved auth state, capture helpers, DB comparison, focused tests, and documentation updates.
 31. Complete: Add People preferred-name support across schema, import, UI, and PropertySmarts owner matching, while preserving legal-name storage.
+32. Complete: Implement a local-only PropertySmarts owner-audit button in the main app, reuse saved Playwright auth with resumable batch progress, highlight owner mismatches, support deleting mismatched address rows, and update docs/tests.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.

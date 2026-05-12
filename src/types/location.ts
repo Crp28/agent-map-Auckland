@@ -40,6 +40,16 @@ export type PersonCoordinateAuditResult = {
   distanceKm: number | null;
 };
 
+export type PersonOwnerAuditResult = {
+  personId: number;
+  addressId: number;
+  streetAddress: string;
+  suburb: string;
+  status: "match" | "mismatch" | "not_found" | "unverified" | "auth_expired";
+  propertySmartsOwners: string[];
+  matchedOwner: string | null;
+};
+
 export type SoldPropertyRecord = {
   id: number;
   streetAddress: string;

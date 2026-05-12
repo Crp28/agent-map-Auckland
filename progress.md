@@ -144,3 +144,14 @@
 - Updated `README.md` and `DOCUMENTATION.md` so the new scripts and usage expectations are recoverable from repo state.
 - Fixed the first-run auth bootstrap so `propertysmarts:login-capture` can start before any saved Playwright auth state exists, and made `propertysmarts:check-owner` fail with an explicit setup message when auth has not been captured yet.
 - Added optional preferred-name support for People, preserved both legal and preferred names through contact import and multi-address record management, and updated the PropertySmarts owner checker to compare against both.
+- Started the next planning slice for a main-app PropertySmarts owner-audit button. The focus is to confirm execution model, batch shape, auth/session handling, and which Playwright interactions can be automated safely before implementation.
+- Confirmed the target shape for the next slice: local-only same-machine execution, session-only mismatch state, resumable batch progress, and a post-audit option to delete all mismatched records.
+- Ran the first PropertySmarts owner-audit feasibility experiments:
+  - confirmed saved auth state alone lands on the public page unless the `Login` link is clicked first
+  - identified the authenticated search input as `#search_text`
+  - confirmed the search flow works when the code waits for `#suggest_dropdown a.selected` before pressing `Enter`
+  - captured the address-to-property request chain through `/search/find_closest`, `/search/search_address`, `/property/search`, `/property/item_info`, and `/property/get_info`
+- Based on that trace, the implementation should still bootstrap through Playwright, but after login it can use the authenticated internal endpoints for owner checks instead of relying on fragile UI scraping for every address.
+- Implemented the main-page `Audit People owners` workflow. It batches all stored People addresses through a local `/api/people/owners` route, reuses one visible Playwright PropertySmarts session per audit run, resumes from the last completed batch through local storage, and keeps mismatch results session-only in the UI.
+- Added owner-mismatch highlighting to the existing red-marker path, plus a `Delete owner mismatches` action that removes mismatched `people_addresses` rows and only removes the parent Person when that was the final remaining address.
+- Added shared owner-name matching utilities, a new owner-audit session helper, address-row deletion coverage in the repository tests, and API-route tests for the new owner-audit endpoint.

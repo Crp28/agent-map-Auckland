@@ -55,6 +55,18 @@
 - The audit path needs both server-side and client-side pacing: longer per-address timeouts, lower concurrency, retry/backoff for timed-out addresses, smaller request batches, a short pause between batches, and resumable client progress so a rerun continues from the last completed batch instead of starting from zero.
 - PropertySmarts owner verification should follow a two-stage approach: use Playwright to log in and discover the authenticated property search/data flow, then keep the final checker on JSON/network extraction only if a stable owner-data response exists after login. DOM extraction remains the fallback until that is proven.
 - People records need separate legal-name and preferred-name fields. The UI should display the preferred name when present, while search and owner-check flows should consider both names.
+- A main-app button that drives PropertySmarts Playwright checks is not just a UI change. It depends on local desktop execution, a reusable saved auth state, stable search selectors, and chunked server-side batching so the Next API layer does not time out while launching/using the browser.
+- User confirmed this PropertySmarts owner audit is local-only on the same machine as the Next app, mismatch results should remain session-only, progress should resume from the last completed batch to avoid redundant work, and the UI should offer deletion of all mismatched records after the run.
+- PropertySmarts auth-state reuse needs one initial click on the public `Login` link (`#ReinzSSO`) before the saved session completes the SSO hop into `/property`.
+- The real property-search input in the authenticated app is `#search_text`. For automation, the important detail is timing: wait for `#suggest_dropdown a.selected` to appear before pressing `Enter`; pressing `Enter` too early only triggers the autocomplete request and never opens the subject property.
+- The successful request chain for `82 Picnic Point Road` was:
+  - `POST /search/find_closest` with `type=Address&search=82 Picnic Point Road`
+  - `POST /search/search_address` with the returned `roadId`
+  - `POST /property/search` with `Id=<address id>&Type=0`
+  - then `GET /property/item_info` and `POST /property/get_info`
+- Once the subject property is resolved, owner names are available in machine-friendly responses such as `property/item_info`, `property/get_info`, and `map/parcel_labels`. That means the eventual batch audit does not need brittle DOM scraping after the search bootstrap.
+- The main-app owner audit can reuse one visible Playwright browser session across API batches instead of relaunching a new browser window per batch. That keeps the local-only workflow tractable while still letting the client resume from the last completed batch after interruptions.
+- Owner mismatch deletion needs to operate on `people_addresses` rows, not whole People rows. If the deleted address was the stored primary-address snapshot, the repository must promote a remaining address into the top-level `people.street_address/suburb/latitude/longitude` fields.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.

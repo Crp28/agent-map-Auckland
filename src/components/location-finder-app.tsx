@@ -15,6 +15,11 @@ import {
   serializeCoordinateAuditSession,
 } from "@/lib/coordinate-audit-session";
 import {
+  PERSON_OWNER_AUDIT_SESSION_KEY,
+  parseOwnerAuditSession,
+  serializeOwnerAuditSession,
+} from "@/lib/owner-audit-session";
+import {
   nearbyPeopleCsv,
   nearbyPeopleExportFilename,
 } from "@/lib/nearby-export";
@@ -22,6 +27,7 @@ import { displayPersonName } from "@/lib/person-display";
 import type {
   MapData,
   PersonCoordinateAuditResult,
+  PersonOwnerAuditResult,
   PersonRecord,
   PointMapTarget,
   SearchResult,
@@ -30,7 +36,7 @@ import type {
   SuburbMapTarget,
   SuburbRegion,
 } from "@/types/location";
-import { ChevronLeft, ChevronRight, Database, FileUp, LocateFixed, Plus, RefreshCw, Search, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, Database, FileUp, LocateFixed, Plus, RefreshCw, Search, Trash2, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const emptyMapData: MapData = {
@@ -42,6 +48,8 @@ const emptyMapData: MapData = {
 
 const PERSON_COORDINATE_BATCH_SIZE = 6;
 const PERSON_COORDINATE_BATCH_DELAY_MS = 250;
+const PERSON_OWNER_BATCH_SIZE = 4;
+const PERSON_OWNER_BATCH_DELAY_MS = 500;
 
 async function readJsonResponse<T>(response: Response) {
   const text = await response.text();
@@ -76,6 +84,8 @@ export function LocationFinderApp() {
   const [sameSuburb, setSameSuburb] = useState(true);
   const [mismatchedPersonAddressIds, setMismatchedPersonAddressIds] = useState<number[]>([]);
   const [coordinateAuditRunning, setCoordinateAuditRunning] = useState(false);
+  const [ownerMismatchedPersonAddressIds, setOwnerMismatchedPersonAddressIds] = useState<number[]>([]);
+  const [ownerAuditRunning, setOwnerAuditRunning] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
@@ -97,6 +107,18 @@ export function LocationFinderApp() {
 
   const applyAuditResult = useCallback((result: PersonCoordinateAuditResult) => {
     setMismatchedPersonAddressIds((current) => {
+      const next = new Set(current);
+      if (result.status === "mismatch") {
+        next.add(result.addressId);
+      } else {
+        next.delete(result.addressId);
+      }
+      return [...next];
+    });
+  }, []);
+
+  const applyOwnerAuditResult = useCallback((result: PersonOwnerAuditResult) => {
+    setOwnerMismatchedPersonAddressIds((current) => {
       const next = new Set(current);
       if (result.status === "mismatch") {
         next.add(result.addressId);
@@ -223,6 +245,10 @@ export function LocationFinderApp() {
   const highlightedPersonIds = useMemo(
     () => (nearbyFilterActive ? nearbyPeople.map((person) => person.addressId ?? person.id) : []),
     [nearbyFilterActive, nearbyPeople],
+  );
+  const flaggedPersonAddressIds = useMemo(
+    () => [...new Set([...mismatchedPersonAddressIds, ...ownerMismatchedPersonAddressIds])],
+    [mismatchedPersonAddressIds, ownerMismatchedPersonAddressIds],
   );
   const suburbRegions = useMemo<SuburbRegion[]>(
     () => {
@@ -356,6 +382,77 @@ export function LocationFinderApp() {
     return refreshedAddressIds;
   }
 
+  async function finishOwnerAuditSession() {
+    try {
+      await fetch("/api/people/owners", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "finish" }),
+      });
+    } catch {
+      // Ignore cleanup failures; the next audit run can reopen the session.
+    }
+  }
+
+  async function auditOwnerAddressBatch(
+    addressIds: number[],
+    label: string,
+    options: {
+      allAddressIds?: number[];
+      startIndex?: number;
+      seedResults?: PersonOwnerAuditResult[];
+    } = {},
+  ) {
+    const results: PersonOwnerAuditResult[] = [...(options.seedResults ?? [])];
+    const startIndex = options.startIndex ?? 0;
+    const allAddressIds = options.allAddressIds;
+
+    for (let index = 0; index < addressIds.length; index += PERSON_OWNER_BATCH_SIZE) {
+      const batch = addressIds.slice(index, index + PERSON_OWNER_BATCH_SIZE);
+      const completed = startIndex + Math.min(index + batch.length, addressIds.length);
+      const total = allAddressIds?.length ?? addressIds.length;
+      setNotice(`${label} ${completed}/${total}...`);
+      const response = await fetch("/api/people/owners", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "audit", addressIds: batch }),
+      });
+      const payload = await readJsonResponse<{ error?: string; results?: PersonOwnerAuditResult[] }>(response);
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === "string" ? payload.error : "Owner audit failed.");
+      }
+
+      const batchResults = payload?.results ?? [];
+      const authExpired = batchResults.some((result) => result.status === "auth_expired");
+      results.push(...batchResults);
+      for (const result of batchResults) {
+        applyOwnerAuditResult(result);
+      }
+
+      if (allAddressIds && !authExpired) {
+        window.localStorage.setItem(
+          PERSON_OWNER_AUDIT_SESSION_KEY,
+          serializeOwnerAuditSession({
+            allAddressIds,
+            nextIndex: startIndex + index + batch.length,
+            results,
+            startedAt: new Date().toISOString(),
+          }),
+        );
+      }
+
+      if (authExpired) {
+        break;
+      }
+
+      if (index + batch.length < addressIds.length) {
+        await wait(PERSON_OWNER_BATCH_DELAY_MS);
+      }
+    }
+
+    return results;
+  }
+
   async function auditAllPeopleCoordinates() {
     setCoordinateAuditRunning(true);
     setMismatchedPersonAddressIds([]);
@@ -436,6 +533,122 @@ export function LocationFinderApp() {
     }
   }
 
+  async function auditAllPeopleOwners() {
+    setOwnerAuditRunning(true);
+    setOwnerMismatchedPersonAddressIds([]);
+
+    try {
+      setNotice("Loading people for owner audit...");
+      const response = await fetch("/api/people");
+      const payload = await readJsonResponse<{ error?: string; people?: PersonRecord[] }>(response);
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === "string" ? payload.error : "People could not be loaded.");
+      }
+
+      const people = payload?.people ?? [];
+      const addressIds = people.flatMap((person) => person.addresses.map((address) => address.id));
+      if (addressIds.length === 0) {
+        setNotice("No People addresses are available to audit.");
+        return;
+      }
+
+      const savedSession = parseOwnerAuditSession(
+        window.localStorage.getItem(PERSON_OWNER_AUDIT_SESSION_KEY),
+        addressIds,
+      );
+      const startIndex = savedSession?.nextIndex ?? 0;
+      const pendingAddressIds = addressIds.slice(startIndex);
+
+      if (savedSession && pendingAddressIds.length > 0) {
+        setNotice(`Resuming People owner audit from ${startIndex}/${addressIds.length}...`);
+        for (const result of savedSession.results) {
+          applyOwnerAuditResult(result);
+        }
+      }
+
+      const results =
+        pendingAddressIds.length === 0 && savedSession
+          ? savedSession.results
+          : await auditOwnerAddressBatch(pendingAddressIds, "Auditing People owners", {
+              allAddressIds: addressIds,
+              startIndex,
+              seedResults: savedSession?.results,
+            });
+
+      const mismatchIds = results
+        .filter((result) => result.status === "mismatch")
+        .map((result) => result.addressId);
+      const matchCount = results.filter((result) => result.status === "match").length;
+      const notFoundCount = results.filter((result) => result.status === "not_found").length;
+      const unverifiedCount = results.filter((result) => result.status === "unverified").length;
+      const authExpiredCount = results.filter((result) => result.status === "auth_expired").length;
+      setOwnerMismatchedPersonAddressIds(mismatchIds);
+
+      if (authExpiredCount > 0) {
+        setNotice(
+          `Owner audit paused: PropertySmarts session needs login. ${matchCount} matched, ${mismatchIds.length} mismatched, ${notFoundCount} not found, ${unverifiedCount} unverified.`,
+        );
+        return;
+      }
+
+      window.localStorage.removeItem(PERSON_OWNER_AUDIT_SESSION_KEY);
+      setNotice(
+        `Owner audit complete: ${matchCount} matched, ${mismatchIds.length} mismatched, ${notFoundCount} not found, ${unverifiedCount} unverified.`,
+      );
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Owner audit failed.");
+    } finally {
+      await finishOwnerAuditSession();
+      setOwnerAuditRunning(false);
+    }
+  }
+
+  async function deleteOwnerMismatches() {
+    if (ownerMismatchedPersonAddressIds.length === 0) {
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Delete ${ownerMismatchedPersonAddressIds.length} mismatched People address records? This removes address rows, not whole people unless the address is their only one.`,
+      )
+    ) {
+      return;
+    }
+
+    const response = await fetch("/api/people/owners", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "delete",
+        addressIds: ownerMismatchedPersonAddressIds,
+      }),
+    });
+    const payload = await readJsonResponse<{
+      error?: string;
+      deletedAddressIds?: number[];
+      deletedPersonIds?: number[];
+    }>(response);
+    if (!response.ok) {
+      throw new Error(typeof payload?.error === "string" ? payload.error : "Mismatched addresses could not be deleted.");
+    }
+
+    const deletedAddressIds = new Set(payload?.deletedAddressIds ?? []);
+    window.localStorage.removeItem(PERSON_OWNER_AUDIT_SESSION_KEY);
+    setOwnerMismatchedPersonAddressIds([]);
+    setMismatchedPersonAddressIds((current) => current.filter((addressId) => !deletedAddressIds.has(addressId)));
+    setNearbyPeople((current) => current.filter((person) => !deletedAddressIds.has(person.addressId ?? person.id)));
+    setSelected((current) =>
+      current?.type === "person" && current.item.addressId !== null && deletedAddressIds.has(current.item.addressId)
+        ? null
+        : current,
+    );
+    setNotice(
+      `Deleted ${payload?.deletedAddressIds?.length ?? 0} mismatched address rows. ${payload?.deletedPersonIds?.length ?? 0} People lost their only address and were removed.`,
+    );
+    refresh();
+  }
+
   function selectSuburb(region: SuburbRegion) {
     const targetKey = suburbTargetKeyRef.current + 1;
     suburbTargetKeyRef.current = targetKey;
@@ -493,7 +706,7 @@ export function LocationFinderApp() {
         soldProperties={mapData.soldProperties}
         boundaries={mapData.boundaries}
         highlightedPersonIds={highlightedPersonIds}
-        mismatchedPersonIds={mismatchedPersonAddressIds}
+        mismatchedPersonIds={flaggedPersonAddressIds}
         selectedSoldPropertyId={selectedSoldPropertyId}
         selectedSuburbTarget={selectedSuburbTarget}
         selectedPropertyTarget={selectedPropertyTarget}
@@ -606,12 +819,34 @@ export function LocationFinderApp() {
           <button
             type="button"
             onClick={() => void auditAllPeopleCoordinates()}
-            disabled={coordinateAuditRunning}
+            disabled={coordinateAuditRunning || ownerAuditRunning}
             className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#cbd5e1] bg-white px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7] disabled:cursor-wait disabled:opacity-60"
           >
             <RefreshCw aria-hidden="true" size={18} className={coordinateAuditRunning ? "animate-spin" : ""} />
             Audit People coords
           </button>
+          <button
+            type="button"
+            onClick={() => void auditAllPeopleOwners()}
+            disabled={coordinateAuditRunning || ownerAuditRunning}
+            className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#cbd5e1] bg-white px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7] disabled:cursor-wait disabled:opacity-60"
+          >
+            <RefreshCw aria-hidden="true" size={18} className={ownerAuditRunning ? "animate-spin" : ""} />
+            Audit People owners
+          </button>
+          {ownerMismatchedPersonAddressIds.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => void deleteOwnerMismatches().catch((error) => {
+                setNotice(error instanceof Error ? error.message : "Mismatched addresses could not be deleted.");
+              })}
+              disabled={coordinateAuditRunning || ownerAuditRunning}
+              className="inline-flex min-h-11 items-center gap-2 rounded-md bg-[#991b1b] px-3 py-2 text-sm font-semibold text-white hover:bg-[#7f1d1d] focus:outline-none focus:ring-2 focus:ring-[#991b1b] disabled:cursor-wait disabled:opacity-60"
+            >
+              <Trash2 aria-hidden="true" size={18} />
+              Delete owner mismatches
+            </button>
+          ) : null}
         </div>
 
       </section>
@@ -763,7 +998,11 @@ export function LocationFinderApp() {
           {" | "}
           {nearbyFilterActive ? `${visiblePeople.length} visible addresses` : `${mapData.people.length} addresses`}
           {" | "}
-          {mismatchedPersonAddressIds.length} flagged
+          {flaggedPersonAddressIds.length} flagged
+          {" | "}
+          {mismatchedPersonAddressIds.length} coord mismatches
+          {" | "}
+          {ownerMismatchedPersonAddressIds.length} owner mismatches
           {" | "}
           Last GeoMaps sync:{" "}
           {mapData.sync?.lastSuccessfulSyncAt
