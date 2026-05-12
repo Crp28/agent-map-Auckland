@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 
 import { getArgValue, getFlag } from "./lib/args";
 import { findOwnersByAddress } from "./lib/db";
-import { PROPERTYSMARTS_STATE_PATH } from "./lib/constants";
+import { PROPERTYSMARTS_PROFILE_DIR } from "./lib/constants";
 import { normalizeOwnerName, ownersMatch } from "./lib/normalize-owner";
 import {
   captureSearchFlow,
@@ -34,16 +34,15 @@ async function main() {
     return;
   }
 
-  if (!existsSync(PROPERTYSMARTS_STATE_PATH)) {
+  if (!existsSync(PROPERTYSMARTS_PROFILE_DIR)) {
     throw new Error(
-      `No saved PropertySmarts auth state found at ${PROPERTYSMARTS_STATE_PATH}. Run "cmd /c npm run propertysmarts:login-capture -- --address \\"${address}\\""` +
+      `No saved PropertySmarts Playwright profile found at ${PROPERTYSMARTS_PROFILE_DIR}. Run "cmd /c npm run propertysmarts:login-capture -- --address \\"${address}\\""` +
         " first and complete the manual login in the Playwright browser.",
     );
   }
 
-  const { browser, context, page } = await launchPropertySmartsContext({
+  const { context, page } = await launchPropertySmartsContext({
     headless,
-    storageStatePath: PROPERTYSMARTS_STATE_PATH,
   });
 
   try {
@@ -85,7 +84,6 @@ async function main() {
     }, null, 2));
   } finally {
     await context.close();
-    await browser.close();
   }
 }
 

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
@@ -9,6 +9,7 @@ import {
   PROPERTYSMARTS_OUTPUT_DIR,
   PROPERTYSMARTS_OWNER_LABEL_PATTERNS,
   PROPERTYSMARTS_OWNER_SELECTORS,
+  PROPERTYSMARTS_PROFILE_DIR,
   PROPERTYSMARTS_RESULT_SELECTORS,
   PROPERTYSMARTS_SEARCH_INPUT_SELECTORS,
   PROPERTYSMARTS_SEARCH_SUBMIT_SELECTORS,
@@ -30,19 +31,13 @@ export type CapturedRequest = {
 
 export async function launchPropertySmartsContext(options?: {
   headless?: boolean;
-  storageStatePath?: string;
 }) {
-  const browser = await chromium.launch({ headless: options?.headless ?? false });
-  const storageStatePath = options?.storageStatePath ?? PROPERTYSMARTS_STATE_PATH;
-  const context = await browser.newContext(
-    existsSync(storageStatePath)
-      ? {
-          storageState: storageStatePath,
-        }
-      : undefined,
-  );
-  const page = await context.newPage();
-  return { browser, context, page };
+  mkdirSync(PROPERTYSMARTS_PROFILE_DIR, { recursive: true });
+  const context = await chromium.launchPersistentContext(PROPERTYSMARTS_PROFILE_DIR, {
+    headless: options?.headless ?? false,
+  });
+  const page = context.pages()[0] ?? (await context.newPage());
+  return { context, page };
 }
 
 export async function openPropertySmarts(page: Page) {
@@ -61,7 +56,7 @@ export async function prompt(question: string) {
 export async function waitForManualLoginAndSave(context: BrowserContext, page: Page) {
   await openPropertySmarts(page);
   await prompt(
-    `Log into PropertySmarts in the opened browser. When you can see the authenticated PropertySmarts app, press Enter here to save auth state to ${PROPERTYSMARTS_STATE_PATH}.`,
+    `Log into PropertySmarts in the opened browser. When you can see the authenticated PropertySmarts app, press Enter here to save the reusable profile under ${PROPERTYSMARTS_PROFILE_DIR}.`,
   );
   mkdirSync(path.dirname(PROPERTYSMARTS_STATE_PATH), { recursive: true });
   await context.storageState({ path: PROPERTYSMARTS_STATE_PATH });

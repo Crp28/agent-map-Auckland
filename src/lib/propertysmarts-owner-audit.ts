@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
+import { chromium, type BrowserContext, type Page } from "playwright";
 
 import { ownersMatch } from "@/lib/owner-name-match";
 import { getOwnerAuditAddressRows } from "@/lib/repository";
@@ -10,17 +10,16 @@ const PROPERTYSMARTS_PUBLIC_URL = "https://www.propertysmarts.co.nz/property#";
 const PROPERTYSMARTS_APP_URL_PATTERN = /https:\/\/www\.propertysmarts\.co\.nz\/property/i;
 const PROPERTYSMARTS_LOGIN_SELECTOR = "#ReinzSSO";
 const PROPERTYSMARTS_SEARCH_INPUT_SELECTOR = "#search_text";
-const PROPERTYSMARTS_STATE_PATH = path.join(
+const PROPERTYSMARTS_PROFILE_DIR = path.join(
   process.cwd(),
   "scripts",
   "propertysmarts",
   "state",
-  "propertysmarts-auth.json",
+  "profile",
 );
 const PROPERTYSMARTS_BOOTSTRAP_TIMEOUT_MS = 20_000;
 
 type PropertySmartsSession = {
-  browser: Browser;
   context: BrowserContext;
   page: Page;
 };
@@ -184,15 +183,16 @@ async function pageRequest(
 }
 
 async function createSession() {
-  if (!existsSync(PROPERTYSMARTS_STATE_PATH)) {
+  if (!existsSync(PROPERTYSMARTS_PROFILE_DIR)) {
     throw new Error(
-      `No saved PropertySmarts auth state found at ${PROPERTYSMARTS_STATE_PATH}. Run "cmd /c npm run propertysmarts:login-capture -- --address \\"82 Picnic Point Road\\"" first.`,
+      `No saved PropertySmarts Playwright profile found at ${PROPERTYSMARTS_PROFILE_DIR}. Run "cmd /c npm run propertysmarts:login-capture -- --address \\"82 Picnic Point Road\\"" first.`,
     );
   }
 
-  const browser = await chromium.launch({ headless: false });
-  const context = await browser.newContext({ storageState: PROPERTYSMARTS_STATE_PATH });
-  const page = await context.newPage();
+  const context = await chromium.launchPersistentContext(PROPERTYSMARTS_PROFILE_DIR, {
+    headless: false,
+  });
+  const page = context.pages()[0] ?? (await context.newPage());
   await page.goto(PROPERTYSMARTS_PUBLIC_URL, { waitUntil: "domcontentloaded" });
 
   const loginLink = page.locator(PROPERTYSMARTS_LOGIN_SELECTOR).first();
@@ -207,7 +207,7 @@ async function createSession() {
     timeout: PROPERTYSMARTS_BOOTSTRAP_TIMEOUT_MS,
   });
 
-  return { browser, context, page } satisfies PropertySmartsSession;
+  return { context, page } satisfies PropertySmartsSession;
 }
 
 async function getSession() {
@@ -397,10 +397,6 @@ export async function closePropertySmartsOwnerAuditSession() {
   try {
     await activeSession.context.close();
   } finally {
-    try {
-      await activeSession.browser.close();
-    } finally {
-      activeSession = null;
-    }
+    activeSession = null;
   }
 }

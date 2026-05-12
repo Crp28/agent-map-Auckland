@@ -8,6 +8,13 @@ export const PROPERTYSMARTS_STATE_PATH = path.join(
   "state",
   "propertysmarts-auth.json",
 );
+export const PROPERTYSMARTS_PROFILE_DIR = path.join(
+  process.cwd(),
+  "scripts",
+  "propertysmarts",
+  "state",
+  "profile",
+);
 export const PROPERTYSMARTS_OUTPUT_DIR = path.join(
   process.cwd(),
   "scripts",

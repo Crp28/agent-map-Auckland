@@ -41,4 +41,5 @@ Thumbs.db
 .agent-screenshots/
 .codex-logs/
 scripts/propertysmarts/state/
+scripts/propertysmarts/state/profile/
 scripts/propertysmarts/output/

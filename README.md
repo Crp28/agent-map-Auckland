@@ -135,8 +135,8 @@ For bulk speed, the CLI import skips geocoding during import and preserves exist
 ## PropertySmarts Helper Scripts
 
 - `scripts/propertysmarts/` contains standalone Playwright helpers for capturing the authenticated PropertySmarts search flow and comparing extracted owner names against the local SQLite People/address records.
-- `cmd /c npm run propertysmarts:login-capture -- --address "192 Remuera Road"` opens a headed browser, lets you log in manually, saves auth state, and writes captured XHR/fetch traffic to `scripts/propertysmarts/output/`.
-- `cmd /c npm run propertysmarts:check-owner -- --address "192 Remuera Road" --suburb "Remuera"` reuses the saved auth state, searches the property, extracts candidate owner names from the DOM and captured JSON responses, and compares them to the DB row matched by street address and suburb.
+- `cmd /c npm run propertysmarts:login-capture -- --address "192 Remuera Road"` opens a headed browser, lets you log in manually, saves a reusable Playwright Chromium profile under `scripts/propertysmarts/state/profile/`, exports a storage-state snapshot, and writes captured XHR/fetch traffic to `scripts/propertysmarts/output/`.
+- `cmd /c npm run propertysmarts:check-owner -- --address "192 Remuera Road" --suburb "Remuera"` reuses the saved Playwright profile, searches the property, extracts candidate owner names from the DOM and captured JSON responses, and compares them to the DB row matched by street address and suburb.
 - Owner matching checks both the Person legal name and preferred name when both are present.
-- The saved browser auth state lives under `scripts/propertysmarts/state/` and is ignored by Git.
+- The saved Playwright profile and storage-state export both live under `scripts/propertysmarts/state/` and are ignored by Git.
 - The in-app owner audit uses the same saved auth state, but runs through `/api/people/owners` in small batches so the browser can resume from the last completed batch instead of restarting from the beginning after interruptions.

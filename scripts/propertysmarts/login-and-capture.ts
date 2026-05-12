@@ -1,5 +1,4 @@
 import { getArgValue, getFlag } from "./lib/args";
-import { PROPERTYSMARTS_STATE_PATH } from "./lib/constants";
 import {
   captureSearchFlow,
   extractOwnerCandidatesFromCapture,
@@ -15,9 +14,8 @@ async function main() {
   const skipLogin = getFlag("--skip-login");
   const headless = getFlag("--headless");
 
-  const { browser, context, page } = await launchPropertySmartsContext({
+  const { context, page } = await launchPropertySmartsContext({
     headless,
-    storageStatePath: PROPERTYSMARTS_STATE_PATH,
   });
 
   try {
@@ -41,7 +39,6 @@ async function main() {
     }, null, 2));
   } finally {
     await context.close();
-    await browser.close();
   }
 }
 
