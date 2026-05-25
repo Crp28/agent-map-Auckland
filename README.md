@@ -15,7 +15,7 @@ Location Finder is a Next.js 16 app for viewing Auckland sold properties and peo
 - Nearby export downloads `First Name,Mobile Phone,Address`, where `Address` is formatted as `street address, suburb`.
 - The suburb drawer lives in the same bottom-right stack as the nearby controls, opens from a fixed right-edge handle, and moves directly to hard-coded suburb centers at zoom level 8.
 - One Person can store multiple addresses. Each coordinate-bearing address renders its own map dot.
-- One Person can store a legal name plus an optional preferred name. The UI shows the preferred name when present.
+- One Person can store a legal name plus an optional preferred first name. The UI shows that preferred first name combined with the legal surname/rest-of-name when present.
 - People without coordinates remain stored and editable, but do not render on the map until latitude and longitude are added or geocoded.
 - The main page can audit stored People coordinates in batches, color suspected mismatches red on the map, and bulk refresh those mismatches.
 - The main page can also audit stored People owners through a local PropertySmarts Playwright session, resume from the last completed batch, mark owner mismatches red, and delete mismatched address rows after review.
@@ -80,7 +80,7 @@ The subdivision/local-board outline cache is refreshed by `cmd /c npm run sync:g
 - `Sold property` opens the Sold Property manager for viewing, adding, editing, and deleting records.
 - `Person` opens the People manager for viewing, adding, editing, and deleting records.
 - People validation requires at least one of phone or email, validates non-empty email format, checks optional purchasing power min/max ordering, and validates optional coordinate pairs per address.
-- People records also support an optional preferred name. Legal name remains the canonical stored name for owner-checking and imports, while the UI uses the preferred name when present.
+- People records also support an optional preferred first name. Legal name remains the canonical stored name for owner-checking and imports, while the UI derives the displayed full name by replacing only the legal first name.
 - A Person modal opened from the map includes a small GeoMaps retry button for the selected address.
 - Sold Property validation includes required address, suburb, sold date, sold price, and optional coordinates.
 
@@ -137,6 +137,6 @@ For bulk speed, the CLI import skips geocoding during import and preserves exist
 - `scripts/propertysmarts/` contains standalone Playwright helpers for capturing the authenticated PropertySmarts search flow and comparing extracted owner names against the local SQLite People/address records.
 - `cmd /c npm run propertysmarts:login-capture -- --address "192 Remuera Road"` opens a headed browser, lets you log in manually, saves a reusable Playwright Chromium profile under `scripts/propertysmarts/state/profile/`, exports a storage-state snapshot, and writes captured XHR/fetch traffic to `scripts/propertysmarts/output/`.
 - `cmd /c npm run propertysmarts:check-owner -- --address "192 Remuera Road" --suburb "Remuera"` reuses the saved Playwright profile, searches the property, extracts candidate owner names from the DOM and captured JSON responses, and compares them to the DB row matched by street address and suburb.
-- Owner matching checks both the Person legal name and preferred name when both are present.
+- Owner matching checks both the Person legal full name and the preferred-first-name display variant when a preferred first name is present.
 - The saved Playwright profile and storage-state export both live under `scripts/propertysmarts/state/` and are ignored by Git.
 - The in-app owner audit uses the same saved auth state, but runs through `/api/people/owners` in small batches so the browser can resume from the last completed batch instead of restarting from the beginning after interruptions.

@@ -104,7 +104,7 @@ export function AddPersonDialog({
             <FieldError message={errors.name?.message} />
           </label>
           <label className={labelClass}>
-            Preferred name (optional)
+            Preferred first name (optional)
             <input className={inputClass} {...register("preferredName")} />
             <FieldError message={errors.preferredName?.message} />
           </label>
@@ -863,7 +863,7 @@ function PersonDetails({
       {geocodeStatus ? <p className="text-sm text-[#475569]">{geocodeStatus}</p> : null}
       <dl className="grid gap-3 sm:grid-cols-2">
         <EditableDetailRow label="Legal name" value={person.name} onSave={(value) => savePerson({ ...person, name: value })} />
-        <EditableDetailRow label="Preferred name" value={person.preferredName} onSave={(value) => savePerson({ ...person, preferredName: value.trim() || null })} />
+        <EditableDetailRow label="Preferred first name" value={person.preferredName} onSave={(value) => savePerson({ ...person, preferredName: value.trim() || null })} />
         <EditableDetailRow label="Phone" value={person.phone} onSave={(value) => savePerson({ ...person, phone: value })} />
         <EditableDetailRow label="Email" value={person.email} inputType="email" onSave={(value) => savePerson({ ...person, email: value })} />
         <EditableDetailRow

@@ -60,7 +60,7 @@ describe("multi-address repository behavior", () => {
 
     const updated = await repository.createOrUpdatePerson({
       name: "Zishu Li",
-      preferredName: "Russell Li",
+      preferredName: "Russell",
       phone: "027 364 2139",
       email: "li.zishu@outlook.com",
       purchasingPowerMin: null,
@@ -77,12 +77,12 @@ describe("multi-address repository behavior", () => {
 
     expect(updated?.id).toBe(created?.id);
     expect(updated?.name).toBe("Zishu Li");
-    expect(updated?.preferredName).toBe("Russell Li");
+    expect(updated?.preferredName).toBe("Russell");
 
     const listed = await repository.listPeopleRecords();
     expect(listed).toHaveLength(1);
     expect(listed[0]?.name).toBe("Zishu Li");
-    expect(listed[0]?.preferredName).toBe("Russell Li");
+    expect(listed[0]?.preferredName).toBe("Russell");
   });
 
   it("preserves address ids when an address street or suburb is edited", async () => {

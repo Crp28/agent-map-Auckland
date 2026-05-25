@@ -1,6 +1,7 @@
 import { parse } from "csv-parse/sync";
 import { createOrUpdatePerson, getRawPeopleByIdentity, getRawPersonByContactAndAddress } from "@/lib/repository";
 import { normalizeKey } from "@/lib/normalize";
+import { normalizePreferredFirstName } from "@/lib/person-name";
 import { personInputSchema } from "@/lib/validation";
 
 type CsvRow = Record<string, string | undefined>;
@@ -43,7 +44,7 @@ function normalizeCsvRow(row: CsvRow) {
     return {
       normalized: {
         name: fullName(row),
-        preferredName: row["Preferred Name"]?.trim() || "",
+        preferredName: normalizePreferredFirstName(row["Preferred Name"]?.trim()) ?? "",
         streetAddress: row.Address?.trim() || row["Postal Address"]?.trim() || "",
         suburb: row.Suburb?.trim() || row["Postal Suburb"]?.trim() || "",
         phone: row.Mobile?.trim() || row.Phone?.trim() || row["Work Phone"]?.trim() || "",
@@ -66,7 +67,7 @@ function normalizeCsvRow(row: CsvRow) {
 function comparableInput(row: CsvRow) {
   return {
     name: row.name?.trim() ?? "",
-    preferredName: row.preferredName?.trim() || null,
+    preferredName: normalizePreferredFirstName(row.preferredName?.trim()) ?? null,
     phone: row.phone?.trim() ?? "",
     email: row.email?.trim().toLowerCase() ?? "",
     streetAddress: row.streetAddress?.trim() ?? "",

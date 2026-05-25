@@ -38,6 +38,23 @@ describe("importPeopleCsv", () => {
     );
   });
 
+  it("stores only the preferred first name from contact-export rows", async () => {
+    const csv = [
+      '"Contact Type","First Name","Last Name","Preferred Name","Legal Name",Email,Mobile,Phone,"Work Phone",Address,Suburb,"Postal Address","Postal Suburb"',
+      'Person,Zishu,Li,"Russell Li","Zishu Li",li@example.com,"021 000 000",,,"82 Picnic Point Road","Hobsonville",,',
+    ].join("\n");
+
+    await importPeopleCsv(csv);
+
+    expect(vi.mocked(createOrUpdatePerson)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Zishu Li",
+        preferredName: "Russell",
+      }),
+      { geocode: undefined },
+    );
+  });
+
   it("rejects non-person contact-export rows", async () => {
     const csv = [
       '"Contact Type","First Name","Last Name","Preferred Name","Legal Name",Email,Mobile,Phone,"Work Phone",Address,Suburb,"Postal Address","Postal Suburb"',

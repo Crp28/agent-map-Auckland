@@ -143,7 +143,7 @@
 - Added focused unit coverage for the owner normalization/matching helper.
 - Updated `README.md` and `DOCUMENTATION.md` so the new scripts and usage expectations are recoverable from repo state.
 - Fixed the first-run auth bootstrap so `propertysmarts:login-capture` can start before any saved Playwright auth state exists, and made `propertysmarts:check-owner` fail with an explicit setup message when auth has not been captured yet.
-- Added optional preferred-name support for People, preserved both legal and preferred names through contact import and multi-address record management, and updated the PropertySmarts owner checker to compare against both.
+- Added optional preferred-name support for People, preserved both legal and preferred names through contact import and multi-address record management, and updated the PropertySmarts owner checker to compare against both. Later work narrowed the preferred-name field to preferred first name only.
 - Started the next planning slice for a main-app PropertySmarts owner-audit button. The focus is to confirm execution model, batch shape, auth/session handling, and which Playwright interactions can be automated safely before implementation.
 - Confirmed the target shape for the next slice: local-only same-machine execution, session-only mismatch state, resumable batch progress, and a post-audit option to delete all mismatched records.
 - Ran the first PropertySmarts owner-audit feasibility experiments:
@@ -158,3 +158,4 @@
 - Fixed a follow-up UI bug where the collapsed bottom-right aside wrapper still intercepted clicks on the top action buttons. The aside root now ignores pointer events and only its visible child panels remain interactive, so `Audit ownership` is clickable again.
 - Switched the PropertySmarts login-capture, standalone owner-check, and in-app owner-audit helpers to reuse a persistent Playwright Chromium profile instead of launching fresh contexts from `storageState` only. This should stop PropertySmarts from forgetting the logged-in REINZ SSO session between runs.
 - Reduced false `not_found` results in the PropertySmarts owner audit by expanding common street suffix abbreviations such as `Rd -> Road` and retrying one normalized search variant before classifying an address as not found. Added focused unit coverage for the abbreviation and scoring path.
+- Updated preferred-name semantics across imports, saves, UI display, search, and owner matching so `preferredName` is always stored as a preferred first name only. The visible full name and preferred owner-match variant are now derived from the legal surname/rest-of-name instead of treating `preferredName` itself as a full alternate name.

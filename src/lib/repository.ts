@@ -6,6 +6,7 @@ import { distanceKm, matchesNearbyFilter, purchasingPowerIncludesPrice } from "@
 import { geocodeAddress } from "@/lib/geomaps";
 import { emptyToNull, normalizeKey, normalizeText } from "@/lib/normalize";
 import { displayPersonName } from "@/lib/person-display";
+import { normalizePreferredFirstName } from "@/lib/person-name";
 import type { PersonAddressInput, PersonInput, SoldPropertyInput } from "@/lib/validation";
 import type { PersonAddressRecord, PersonCoordinateAuditResult, PersonRecord } from "@/types/location";
 import { and, desc, eq, gte, inArray, lte, notInArray, or, sql } from "drizzle-orm";
@@ -442,9 +443,7 @@ async function upsertPersonCore(
   const db = getDb();
   const personKey = normalizeKey(input.name, input.email, input.phone);
   const normalizedName = normalizeText(input.name);
-  const normalizedPreferredName = emptyToNull(input.preferredName)
-    ? normalizeText(input.preferredName)
-    : null;
+  const normalizedPreferredName = normalizePreferredFirstName(input.preferredName);
   const normalizedPhone = normalizeText(input.phone);
   const normalizedEmail = input.email.trim().toLowerCase();
   const existingPerson =
@@ -709,7 +708,7 @@ export async function updatePersonById(
       personKey,
       name: normalizeText(input.name),
       preferredName: emptyToNull(input.preferredName)
-        ? normalizeText(input.preferredName)
+        ? normalizePreferredFirstName(input.preferredName)
         : null,
       streetAddress: primaryAddress.streetAddress,
       suburb: primaryAddress.suburb,
@@ -922,6 +921,7 @@ export async function searchRecords(query: string) {
       (item) =>
         item.name.toLowerCase().includes(normalizedQuery) ||
         item.preferredName?.toLowerCase().includes(normalizedQuery) ||
+        displayPersonName(item).toLowerCase().includes(normalizedQuery) ||
         item.streetAddress.toLowerCase().includes(normalizedQuery) ||
         item.suburb.toLowerCase().includes(normalizedQuery) ||
         item.email.toLowerCase().includes(normalizedQuery),

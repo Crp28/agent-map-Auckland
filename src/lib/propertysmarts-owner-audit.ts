@@ -3,6 +3,7 @@ import path from "node:path";
 import { chromium, type BrowserContext, type Page } from "playwright";
 
 import { ownersMatch } from "@/lib/owner-name-match";
+import { personOwnerNames } from "@/lib/person-name";
 import { getOwnerAuditAddressRows } from "@/lib/repository";
 import type { PersonOwnerAuditResult } from "@/types/location";
 
@@ -422,7 +423,10 @@ export async function auditPersonAddressOwners(addressIds: number[]) {
         continue;
       }
 
-      const dbOwnerNames = [row.name, row.preferred_name ?? ""].filter(Boolean);
+      const dbOwnerNames = personOwnerNames({
+        name: row.name,
+        preferredName: row.preferred_name,
+      });
       const matchedOwner =
         propertySmartsOwners.find((candidate) => ownersMatch(candidate, dbOwnerNames)) ?? null;
       results.push(

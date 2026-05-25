@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { getArgValue, getFlag } from "./lib/args";
 import { findOwnersByAddress } from "./lib/db";
 import { PROPERTYSMARTS_PROFILE_DIR } from "./lib/constants";
+import { personOwnerNames, preferredDisplayName } from "../../src/lib/person-name";
 import { normalizeOwnerName, ownersMatch } from "./lib/normalize-owner";
 import {
   captureSearchFlow,
@@ -52,7 +53,10 @@ async function main() {
     const networkOwners = extractOwnerCandidatesFromCapture(entries);
     const propertySmartsOwners = [...new Set([...domOwners, ...networkOwners])];
     const dbOwnerNames = dbOwners.flatMap((owner) =>
-      [owner.name, owner.preferredName ?? ""].filter(Boolean),
+      personOwnerNames({
+        name: owner.name,
+        preferredName: owner.preferredName,
+      }),
     );
 
     const matchedOwner = propertySmartsOwners.find((candidate) => ownersMatch(candidate, dbOwnerNames)) ?? null;
@@ -75,7 +79,9 @@ async function main() {
         name: owner.name,
         preferredName: owner.preferredName,
         normalized: normalizeOwnerName(owner.name),
-        normalizedPreferredName: owner.preferredName ? normalizeOwnerName(owner.preferredName) : null,
+        preferredDisplayName: owner.preferredName ? preferredDisplayName(owner.name, owner.preferredName) : null,
+        normalizedPreferredDisplayName:
+          owner.preferredName ? normalizeOwnerName(preferredDisplayName(owner.name, owner.preferredName)) : null,
         streetAddress: owner.streetAddress,
         suburb: owner.suburb,
         personId: owner.personId,
