@@ -1,6 +1,7 @@
 export const SOLD_PROPERTY_COLOR = "#0056A7";
 export const PERSON_COLOR = "#F8C00B";
 export const PERSON_AUDIT_COLOR = "#D92D20";
+export const PERSON_INCOMPLETE_NAME_COLOR = "#F79009";
 
 export const GEOMAPS = {
   greyCanvasBasemap:

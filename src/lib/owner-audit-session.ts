@@ -24,6 +24,7 @@ function isResult(value: unknown): value is PersonOwnerAuditResult {
     candidate.propertySmartsOwners.every((item) => typeof item === "string") &&
     (candidate.matchedOwner === null || typeof candidate.matchedOwner === "string") &&
     (candidate.status === "match" ||
+      candidate.status === "incomplete_name_match" ||
       candidate.status === "mismatch" ||
       candidate.status === "not_found" ||
       candidate.status === "unverified" ||

@@ -45,7 +45,7 @@ export type PersonOwnerAuditResult = {
   addressId: number;
   streetAddress: string;
   suburb: string;
-  status: "match" | "mismatch" | "not_found" | "unverified" | "auth_expired";
+  status: "match" | "incomplete_name_match" | "mismatch" | "not_found" | "unverified" | "auth_expired";
   propertySmartsOwners: string[];
   matchedOwner: string | null;
 };

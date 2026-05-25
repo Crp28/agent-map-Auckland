@@ -85,6 +85,7 @@ export function LocationFinderApp() {
   const [mismatchedPersonAddressIds, setMismatchedPersonAddressIds] = useState<number[]>([]);
   const [coordinateAuditRunning, setCoordinateAuditRunning] = useState(false);
   const [ownerMismatchedPersonAddressIds, setOwnerMismatchedPersonAddressIds] = useState<number[]>([]);
+  const [ownerIncompleteNameAddressIds, setOwnerIncompleteNameAddressIds] = useState<number[]>([]);
   const [ownerAuditRunning, setOwnerAuditRunning] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -121,6 +122,16 @@ export function LocationFinderApp() {
     setOwnerMismatchedPersonAddressIds((current) => {
       const next = new Set(current);
       if (result.status === "mismatch") {
+        next.add(result.addressId);
+      } else {
+        next.delete(result.addressId);
+      }
+      return [...next];
+    });
+
+    setOwnerIncompleteNameAddressIds((current) => {
+      const next = new Set(current);
+      if (result.status === "incomplete_name_match") {
         next.add(result.addressId);
       } else {
         next.delete(result.addressId);
@@ -247,8 +258,14 @@ export function LocationFinderApp() {
     [nearbyFilterActive, nearbyPeople],
   );
   const flaggedPersonAddressIds = useMemo(
-    () => [...new Set([...mismatchedPersonAddressIds, ...ownerMismatchedPersonAddressIds])],
-    [mismatchedPersonAddressIds, ownerMismatchedPersonAddressIds],
+    () => [
+      ...new Set([
+        ...mismatchedPersonAddressIds,
+        ...ownerMismatchedPersonAddressIds,
+        ...ownerIncompleteNameAddressIds,
+      ]),
+    ],
+    [mismatchedPersonAddressIds, ownerIncompleteNameAddressIds, ownerMismatchedPersonAddressIds],
   );
   const suburbRegions = useMemo<SuburbRegion[]>(
     () => {
@@ -536,6 +553,7 @@ export function LocationFinderApp() {
   async function auditAllPeopleOwners() {
     setOwnerAuditRunning(true);
     setOwnerMismatchedPersonAddressIds([]);
+    setOwnerIncompleteNameAddressIds([]);
 
     try {
       setNotice("Loading people for owner audit...");
@@ -578,22 +596,27 @@ export function LocationFinderApp() {
       const mismatchIds = results
         .filter((result) => result.status === "mismatch")
         .map((result) => result.addressId);
+      const incompleteNameIds = results
+        .filter((result) => result.status === "incomplete_name_match")
+        .map((result) => result.addressId);
       const matchCount = results.filter((result) => result.status === "match").length;
+      const incompleteNameCount = incompleteNameIds.length;
       const notFoundCount = results.filter((result) => result.status === "not_found").length;
       const unverifiedCount = results.filter((result) => result.status === "unverified").length;
       const authExpiredCount = results.filter((result) => result.status === "auth_expired").length;
       setOwnerMismatchedPersonAddressIds(mismatchIds);
+      setOwnerIncompleteNameAddressIds(incompleteNameIds);
 
       if (authExpiredCount > 0) {
         setNotice(
-          `Owner audit paused: PropertySmarts session needs login. ${matchCount} matched, ${mismatchIds.length} mismatched, ${notFoundCount} not found, ${unverifiedCount} unverified.`,
+          `Owner audit paused: PropertySmarts session needs login. ${matchCount} matched, ${incompleteNameCount} incomplete names, ${mismatchIds.length} mismatched, ${notFoundCount} not found, ${unverifiedCount} unverified.`,
         );
         return;
       }
 
       window.localStorage.removeItem(PERSON_OWNER_AUDIT_SESSION_KEY);
       setNotice(
-        `Owner audit complete: ${matchCount} matched, ${mismatchIds.length} mismatched, ${notFoundCount} not found, ${unverifiedCount} unverified.`,
+        `Owner audit complete: ${matchCount} matched, ${incompleteNameCount} incomplete names, ${mismatchIds.length} mismatched, ${notFoundCount} not found, ${unverifiedCount} unverified.`,
       );
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Owner audit failed.");
@@ -636,6 +659,7 @@ export function LocationFinderApp() {
     const deletedAddressIds = new Set(payload?.deletedAddressIds ?? []);
     window.localStorage.removeItem(PERSON_OWNER_AUDIT_SESSION_KEY);
     setOwnerMismatchedPersonAddressIds([]);
+    setOwnerIncompleteNameAddressIds((current) => current.filter((addressId) => !deletedAddressIds.has(addressId)));
     setMismatchedPersonAddressIds((current) => current.filter((addressId) => !deletedAddressIds.has(addressId)));
     setNearbyPeople((current) => current.filter((person) => !deletedAddressIds.has(person.addressId ?? person.id)));
     setSelected((current) =>
@@ -718,7 +742,8 @@ export function LocationFinderApp() {
         soldProperties={mapData.soldProperties}
         boundaries={mapData.boundaries}
         highlightedPersonIds={highlightedPersonIds}
-        mismatchedPersonIds={flaggedPersonAddressIds}
+        mismatchedPersonIds={[...new Set([...mismatchedPersonAddressIds, ...ownerMismatchedPersonAddressIds])]}
+        incompleteNamePersonIds={ownerIncompleteNameAddressIds}
         selectedSoldPropertyId={selectedSoldPropertyId}
         selectedSuburbTarget={selectedSuburbTarget}
         selectedPropertyTarget={selectedPropertyTarget}
@@ -1015,6 +1040,8 @@ export function LocationFinderApp() {
           {mismatchedPersonAddressIds.length} coord mismatches
           {" | "}
           {ownerMismatchedPersonAddressIds.length} owner mismatches
+          {" | "}
+          {ownerIncompleteNameAddressIds.length} incomplete names
           {" | "}
           Last GeoMaps sync:{" "}
           {mapData.sync?.lastSuccessfulSyncAt

@@ -37,6 +37,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 31. Complete: Add People preferred-name support across schema, import, UI, and PropertySmarts owner matching, while preserving legal-name storage.
 32. Complete: Implement a local-only PropertySmarts owner-audit button in the main app, reuse saved Playwright auth with resumable batch progress, highlight owner mismatches, support deleting mismatched address rows, and update docs/tests.
 33. Complete: Redefine `preferredName` as a preferred first name only, normalize imports/saves accordingly, derive displayed full names from the legal surname/rest-of-name, and update owner matching/docs/tests.
+34. Complete: Add a strict owner-audit incomplete-name match state for first+last-only stored legal names that match PropertySmarts owners with extra middle names, render those pins in a separate color, and update docs/tests.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.

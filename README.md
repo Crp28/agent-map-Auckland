@@ -18,7 +18,7 @@ Location Finder is a Next.js 16 app for viewing Auckland sold properties and peo
 - One Person can store a legal name plus an optional preferred first name. The UI shows that preferred first name combined with the legal surname/rest-of-name when present.
 - People without coordinates remain stored and editable, but do not render on the map until latitude and longitude are added or geocoded.
 - The main page can audit stored People coordinates in batches, color suspected mismatches red on the map, and bulk refresh those mismatches.
-- The main page can also audit stored People owners through a local PropertySmarts Playwright session, resume from the last completed batch, mark owner mismatches red, and delete mismatched address rows after review.
+- The main page can also audit stored People owners through a local PropertySmarts Playwright session, resume from the last completed batch, mark owner mismatches red, and mark strict first+last-only stored names in orange when PropertySmarts shows matching middle names that the system does not currently store.
 
 ## Setup
 
@@ -127,7 +127,7 @@ For bulk speed, the CLI import skips geocoding during import and preserves exist
 - `+` zooms in and `-` zooms out.
 - Selecting a Sold Property pin or search result opens its modal and can drive the nearby People workflow.
 - `Audit People coords` checks coordinate-bearing People addresses in batches so the browser does not send one timeout-prone geocode request for every stored marker at once.
-- `Audit ownership` checks all stored People addresses against PropertySmarts in resumable batches. It is local-only admin tooling, depends on a saved Playwright auth state, and leaves mismatch flags in session state only.
+- `Audit ownership` checks all stored People addresses against PropertySmarts in resumable batches. It is local-only admin tooling, depends on a saved Playwright auth state, and leaves mismatch flags in session state only. Exact mismatches render red; strict first+last-only stored names that otherwise match PropertySmarts render orange.
 - Checking `Same suburb` makes nearby People satisfy both the distance limit and the selected Sold Property suburb.
 - Canceling the nearby filter clears the nearby People list and does not reset the map position.
 - Changing nearby-controller inputs also keeps the current map position.

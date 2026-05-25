@@ -1,4 +1,5 @@
 export {
+  isStrictFirstLastSubsetMatch,
   normalizeOwnerName,
   ownerNameVariants,
   ownersMatch,

@@ -4,7 +4,7 @@ import { getArgValue, getFlag } from "./lib/args";
 import { findOwnersByAddress } from "./lib/db";
 import { PROPERTYSMARTS_PROFILE_DIR } from "./lib/constants";
 import { personOwnerNames, preferredDisplayName } from "../../src/lib/person-name";
-import { normalizeOwnerName, ownersMatch } from "./lib/normalize-owner";
+import { isStrictFirstLastSubsetMatch, normalizeOwnerName, ownersMatch } from "./lib/normalize-owner";
 import {
   captureSearchFlow,
   extractOwnerCandidatesFromCapture,
@@ -60,6 +60,12 @@ async function main() {
     );
 
     const matchedOwner = propertySmartsOwners.find((candidate) => ownersMatch(candidate, dbOwnerNames)) ?? null;
+    const incompleteNameMatchedOwner =
+      matchedOwner
+        ? null
+        : propertySmartsOwners.find((candidate) =>
+            dbOwners.some((owner) => isStrictFirstLastSubsetMatch(candidate, owner.name)),
+          ) ?? null;
 
     console.log(JSON.stringify({
       address,
@@ -69,8 +75,10 @@ async function main() {
           ? "OWNER_NOT_FOUND"
           : matchedOwner
             ? "MATCH"
+            : incompleteNameMatchedOwner
+              ? "INCOMPLETE_NAME_MATCH"
             : "MISMATCH",
-      matchedOwner,
+      matchedOwner: matchedOwner ?? incompleteNameMatchedOwner,
       propertySmartsOwners: propertySmartsOwners.map((owner) => ({
         raw: owner,
         normalized: normalizeOwnerName(owner),

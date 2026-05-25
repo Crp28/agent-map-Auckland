@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { chromium, type BrowserContext, type Page } from "playwright";
 
-import { ownersMatch } from "@/lib/owner-name-match";
+import { isStrictFirstLastSubsetMatch, ownersMatch } from "@/lib/owner-name-match";
 import { personOwnerNames } from "@/lib/person-name";
 import { getOwnerAuditAddressRows } from "@/lib/repository";
 import type { PersonOwnerAuditResult } from "@/types/location";
@@ -429,12 +429,22 @@ export async function auditPersonAddressOwners(addressIds: number[]) {
       });
       const matchedOwner =
         propertySmartsOwners.find((candidate) => ownersMatch(candidate, dbOwnerNames)) ?? null;
+      const incompleteNameMatchedOwner =
+        matchedOwner
+          ? null
+          : propertySmartsOwners.find((candidate) =>
+              isStrictFirstLastSubsetMatch(candidate, row.name),
+            ) ?? null;
       results.push(
         buildResult(
           row,
-          matchedOwner ? "match" : "mismatch",
+          matchedOwner
+            ? "match"
+            : incompleteNameMatchedOwner
+              ? "incomplete_name_match"
+              : "mismatch",
           propertySmartsOwners,
-          matchedOwner,
+          matchedOwner ?? incompleteNameMatchedOwner,
         ),
       );
     } catch (error) {

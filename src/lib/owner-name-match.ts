@@ -7,6 +7,13 @@ export function normalizeOwnerName(value: string) {
     .trim();
 }
 
+function ownerTokens(value: string) {
+  return normalizeOwnerName(value)
+    .split(" ")
+    .map((token) => token.trim())
+    .filter(Boolean);
+}
+
 function variantsFromSingleOwner(value: string) {
   const variants = new Set<string>();
   const raw = value.trim();
@@ -41,4 +48,28 @@ export function ownersMatch(propertySmartsOwner: string, dbOwnerNames: string[])
   const dbVariants = dbOwnerNames.flatMap((name) => ownerNameVariants(name));
 
   return dbVariants.some((variant) => propertyVariants.has(variant));
+}
+
+export function isStrictFirstLastSubsetMatch(propertySmartsOwner: string, dbLegalName: string) {
+  const propertyVariants = ownerNameVariants(propertySmartsOwner);
+  const legalVariants = ownerNameVariants(dbLegalName);
+
+  return legalVariants.some((legalVariant) => {
+    const legalTokens = ownerTokens(legalVariant);
+    if (legalTokens.length !== 2) {
+      return false;
+    }
+
+    return propertyVariants.some((propertyVariant) => {
+      const propertyTokens = ownerTokens(propertyVariant);
+      if (propertyTokens.length <= 2) {
+        return false;
+      }
+
+      return (
+        legalTokens[0] === propertyTokens[0] &&
+        legalTokens[legalTokens.length - 1] === propertyTokens[propertyTokens.length - 1]
+      );
+    });
+  });
 }

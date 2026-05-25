@@ -1,6 +1,12 @@
 "use client";
 
-import { GEOMAPS, PERSON_AUDIT_COLOR, PERSON_COLOR, SOLD_PROPERTY_COLOR } from "@/lib/constants";
+import {
+  GEOMAPS,
+  PERSON_AUDIT_COLOR,
+  PERSON_COLOR,
+  PERSON_INCOMPLETE_NAME_COLOR,
+  SOLD_PROPERTY_COLOR,
+} from "@/lib/constants";
 import { resolveSelectedPerson } from "@/lib/person-selection";
 import type {
   BoundaryRecord,
@@ -24,6 +30,7 @@ type AucklandMapProps = {
   boundaries: BoundaryRecord[];
   highlightedPersonIds: number[];
   mismatchedPersonIds: number[];
+  incompleteNamePersonIds: number[];
   selectedSoldPropertyId?: number;
   selectedSuburbTarget?: SuburbMapTarget;
   selectedPropertyTarget?: PointMapTarget;
@@ -49,6 +56,7 @@ export function AucklandMap({
   boundaries,
   highlightedPersonIds,
   mismatchedPersonIds,
+  incompleteNamePersonIds,
   selectedSoldPropertyId,
   selectedSuburbTarget,
   selectedPropertyTarget,
@@ -319,6 +327,7 @@ export function AucklandMap({
 
     const highlighted = new Set(highlightedPersonIds);
     const mismatched = new Set(mismatchedPersonIds);
+    const incompleteName = new Set(incompleteNamePersonIds);
     peopleLayer.removeAll();
     peopleLayer.addMany(
       people
@@ -326,6 +335,7 @@ export function AucklandMap({
         .map((person) => {
           const isHighlighted = highlighted.has(person.addressId ?? person.id);
           const isMismatched = mismatched.has(person.addressId ?? person.id);
+          const isIncompleteName = incompleteName.has(person.addressId ?? person.id);
           return new Graphic({
             geometry: makePoint(person.longitude ?? 0, person.latitude ?? 0),
             attributes: {
@@ -336,7 +346,11 @@ export function AucklandMap({
             symbol: {
               type: "simple-marker",
               style: "circle",
-              color: isMismatched ? PERSON_AUDIT_COLOR : PERSON_COLOR,
+              color: isMismatched
+                ? PERSON_AUDIT_COLOR
+                : isIncompleteName
+                  ? PERSON_INCOMPLETE_NAME_COLOR
+                  : PERSON_COLOR,
               size: isHighlighted ? 13 : 9,
               outline: {
                 color: isHighlighted ? [17, 24, 39, 1] : [255, 255, 255, 1],
@@ -346,7 +360,7 @@ export function AucklandMap({
           });
         }),
     );
-  }, [highlightedPersonIds, mismatchedPersonIds, people]);
+  }, [highlightedPersonIds, incompleteNamePersonIds, mismatchedPersonIds, people]);
 
   return (
     <div

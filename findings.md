@@ -70,6 +70,7 @@
 - The bottom-right aside wrapper is a full-height absolute layer. If that wrapper itself accepts pointer events, its transparent area can block clicks on the top action row even while the suburb drawer is visually collapsed. The wrapper must be `pointer-events-none`, with only the visible child panels set back to `pointer-events-auto`.
 - PropertySmarts / REINZ SSO is not reliably restored by Playwright `storageState` alone. A persistent Chromium user-data directory is required so fresh automation runs reuse the real browser profile state instead of starting a clean logged-out session every time.
 - PropertySmarts owner-audit `not_found` results can be inflated by older imported address text that does not match PropertySmarts formatting exactly, for example `Rd` vs `Road`. The resolver needs to expand common street suffix abbreviations and retry one normalized variant before treating the address as missing.
+- Ownership auditing needs a result between exact match and mismatch: when the stored legal name is strictly first+last and PropertySmarts shows the same first and last names plus extra middle names, that should be treated as an incomplete stored name, not a mismatch. The algorithm should stay strict and only trigger on two-token stored legal names with matching first and last tokens.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.
