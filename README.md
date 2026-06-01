@@ -16,6 +16,7 @@ Location Finder is a Next.js 16 app for viewing Auckland sold properties and peo
 - The suburb drawer lives in the same bottom-right stack as the nearby controls, opens from a fixed right-edge handle, and moves directly to hard-coded suburb centers at zoom level 8.
 - One Person can store multiple addresses. Each coordinate-bearing address renders its own map dot.
 - One Person can store a legal name plus an optional preferred first name. The UI shows that preferred first name combined with the legal surname/rest-of-name when present.
+- One Person can also store multiple person-level notes. Each note has a type and plain-text content, and notes render in a compact dark-grey section at the bottom of the Person modal.
 - People without coordinates remain stored and editable, but do not render on the map until latitude and longitude are added or geocoded.
 - The main page can audit stored People coordinates in batches, color suspected mismatches red on the map, and bulk refresh those mismatches.
 - The main page can also audit stored People owners through a local PropertySmarts Playwright session, resume from the last completed batch, mark owner mismatches red, and mark strict first+last-only stored names in orange when PropertySmarts shows matching middle names that the system does not currently store.
@@ -81,6 +82,7 @@ The subdivision/local-board outline cache is refreshed by `cmd /c npm run sync:g
 - `Person` opens the People manager for viewing, adding, editing, and deleting records.
 - People validation requires at least one of phone or email, validates non-empty email format, checks optional purchasing power min/max ordering, and validates optional coordinate pairs per address.
 - People records also support an optional preferred first name. Legal name remains the canonical stored name for owner-checking and imports, while the UI derives the displayed full name by replacing only the legal first name.
+- People records also support multiple person-level notes with the current types `General Note`, `Inspection`, and `Living`.
 - A Person modal opened from the map includes a small GeoMaps retry button for the selected address.
 - Sold Property validation includes required address, suburb, sold date, sold price, and optional coordinates.
 
@@ -128,6 +130,7 @@ For bulk speed, the CLI import skips geocoding during import and preserves exist
 - Selecting a Sold Property pin or search result opens its modal and can drive the nearby People workflow.
 - `Audit People coords` checks coordinate-bearing People addresses in batches so the browser does not send one timeout-prone geocode request for every stored marker at once.
 - `Audit ownership` checks all stored People addresses against PropertySmarts in resumable batches. It is local-only admin tooling, depends on a saved Playwright auth state, and leaves mismatch flags in session state only. Exact mismatches render red; strict first+last-only stored names that otherwise match PropertySmarts render orange.
+- Person notes are stored on the Person, not on individual addresses, so every address view of that Person shows the same note set.
 - Checking `Same suburb` makes nearby People satisfy both the distance limit and the selected Sold Property suburb.
 - Canceling the nearby filter clears the nearby People list and does not reset the map position.
 - Changing nearby-controller inputs also keeps the current map position.

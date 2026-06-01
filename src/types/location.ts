@@ -1,3 +1,6 @@
+export const PERSON_NOTE_TYPES = ["General Note", "Inspection", "Living"] as const;
+export type PersonNoteType = (typeof PERSON_NOTE_TYPES)[number];
+
 export type PersonAddressRecord = {
   id: number;
   personId: number;
@@ -6,6 +9,15 @@ export type PersonAddressRecord = {
   suburb: string;
   latitude: number | null;
   longitude: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PersonNoteRecord = {
+  id: number;
+  personId: number;
+  type: PersonNoteType;
+  content: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -25,6 +37,7 @@ export type PersonRecord = {
   latitude: number | null;
   longitude: number | null;
   addresses: PersonAddressRecord[];
+  notes: PersonNoteRecord[];
   lastUpdatedAt: string;
   createdAt: string;
   updatedAt: string;

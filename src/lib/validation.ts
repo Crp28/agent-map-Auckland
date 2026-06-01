@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { toOptionalInteger, toOptionalNumber } from "./normalize";
+import { PERSON_NOTE_TYPES } from "@/types/location";
 
 const requiredText = (field: string) => z.string().trim().min(1, `${field} is required`);
 const optionalText = z.preprocess(
@@ -73,8 +74,15 @@ export const personAddressInputSchema = z
     path: ["latitude"],
   });
 
+export const personNoteInputSchema = z.object({
+  id: z.coerce.number().int().positive().optional(),
+  type: z.enum(PERSON_NOTE_TYPES),
+  content: requiredText("Note"),
+});
+
 export const personFormSchema = personBaseSchema.extend({
   addresses: z.array(personAddressInputSchema).min(1, "At least one address is required"),
+  notes: z.array(personNoteInputSchema).default([]),
 }).refine((data) => {
   const seen = new Set<string>();
   for (const address of data.addresses) {
@@ -107,6 +115,7 @@ export const personInputSchema = z.preprocess((value) => {
     email: candidate.email,
     purchasingPowerMin: candidate.purchasingPowerMin,
     purchasingPowerMax: candidate.purchasingPowerMax,
+    notes: candidate.notes,
     addresses: [
       {
         streetAddress: candidate.streetAddress,
@@ -164,5 +173,6 @@ export const nearbySchema = z.object({
 });
 
 export type PersonAddressInput = z.output<typeof personAddressInputSchema>;
+export type PersonNoteInput = z.output<typeof personNoteInputSchema>;
 export type PersonInput = z.output<typeof personInputSchema>;
 export type SoldPropertyInput = z.infer<typeof soldPropertyInputSchema>;

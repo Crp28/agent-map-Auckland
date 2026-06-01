@@ -40,6 +40,61 @@ afterEach(() => {
 });
 
 describe("multi-address repository behavior", () => {
+  it("stores and updates person-level notes independently from addresses", async () => {
+    const created = await repository.createOrUpdatePerson({
+      name: "Ana Buyer",
+      preferredName: "",
+      phone: "021 000 000",
+      email: "ana@example.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [
+        { type: "General Note", content: "First note" },
+        { type: "Inspection", content: "Viewed on Sunday" },
+      ],
+      addresses: [
+        {
+          streetAddress: "1 Queen Street",
+          suburb: "Auckland Central",
+          latitude: -36.847,
+          longitude: 174.763,
+        },
+      ],
+    }, { geocode: false });
+
+    expect(created?.notes).toHaveLength(2);
+    expect(created?.notes[0]?.type).toBe("General Note");
+
+    const updated = await repository.updatePersonById(created!.id, {
+      name: "Ana Buyer",
+      preferredName: "",
+      phone: "021 000 000",
+      email: "ana@example.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [
+        {
+          id: created!.notes[0]!.id,
+          type: "Living",
+          content: "Now owner occupied",
+        },
+      ],
+      addresses: [
+        {
+          id: created!.addresses[0]!.id,
+          streetAddress: "1 Queen Street",
+          suburb: "Auckland Central",
+          latitude: -36.847,
+          longitude: 174.763,
+        },
+      ],
+    });
+
+    expect(updated?.notes).toHaveLength(1);
+    expect(updated?.notes[0]?.type).toBe("Living");
+    expect(updated?.notes[0]?.content).toBe("Now owner occupied");
+  }, 15000);
+
   it("reuses the same person when the legal name changes but contact and address stay the same", async () => {
     const created = await repository.createOrUpdatePerson({
       name: "Russell Li",
@@ -48,6 +103,7 @@ describe("multi-address repository behavior", () => {
       email: "li.zishu@outlook.com",
       purchasingPowerMin: null,
       purchasingPowerMax: null,
+      notes: [],
       addresses: [
         {
           streetAddress: "82 Picnic Point Road",
@@ -65,6 +121,7 @@ describe("multi-address repository behavior", () => {
       email: "li.zishu@outlook.com",
       purchasingPowerMin: null,
       purchasingPowerMax: null,
+      notes: [],
       addresses: [
         {
           streetAddress: "82 Picnic Point Road",
@@ -93,6 +150,7 @@ describe("multi-address repository behavior", () => {
       email: "ana@example.com",
       purchasingPowerMin: null,
       purchasingPowerMax: null,
+      notes: [],
       addresses: [
         {
           streetAddress: "1 Queen Street",
@@ -114,6 +172,7 @@ describe("multi-address repository behavior", () => {
       email: "ana@example.com",
       purchasingPowerMin: null,
       purchasingPowerMax: null,
+      notes: [],
       addresses: [
         {
           id: originalAddressId,
@@ -138,6 +197,7 @@ describe("multi-address repository behavior", () => {
       email: "michael@example.com",
       purchasingPowerMin: null,
       purchasingPowerMax: null,
+      notes: [],
       addresses: [
         {
           streetAddress: "192 Remuera Road",
@@ -164,6 +224,7 @@ describe("multi-address repository behavior", () => {
       email: "michael@example.com",
       purchasingPowerMin: null,
       purchasingPowerMax: null,
+      notes: [],
       addresses: [
         {
           id: created!.addresses[0]!.id,
@@ -195,6 +256,7 @@ describe("multi-address repository behavior", () => {
       email: "ana@example.com",
       purchasingPowerMin: null,
       purchasingPowerMax: null,
+      notes: [],
       addresses: [
         {
           streetAddress: "1 Queen Street",
@@ -218,6 +280,7 @@ describe("multi-address repository behavior", () => {
       email: "ana@example.com",
       purchasingPowerMin: null,
       purchasingPowerMax: null,
+      notes: [],
       addresses: [
         {
           id: created!.addresses[1]!.id,
@@ -262,6 +325,7 @@ describe("multi-address repository behavior", () => {
       email: "timeout@example.com",
       purchasingPowerMin: null,
       purchasingPowerMax: null,
+      notes: [],
       addresses: [
         {
           streetAddress: "1 Queen Street",
@@ -305,6 +369,7 @@ describe("multi-address repository behavior", () => {
       email: "retry@example.com",
       purchasingPowerMin: null,
       purchasingPowerMax: null,
+      notes: [],
       addresses: [
         {
           streetAddress: "1 Queen Street",
@@ -330,6 +395,7 @@ describe("multi-address repository behavior", () => {
       email: "multi@example.com",
       purchasingPowerMin: null,
       purchasingPowerMax: null,
+      notes: [],
       addresses: [
         {
           streetAddress: "1 Queen Street",
@@ -367,6 +433,7 @@ describe("multi-address repository behavior", () => {
       email: "swap@example.com",
       purchasingPowerMin: null,
       purchasingPowerMax: null,
+      notes: [],
       addresses: [
         {
           streetAddress: "1 Queen Street",

@@ -71,6 +71,7 @@
 - PropertySmarts / REINZ SSO is not reliably restored by Playwright `storageState` alone. A persistent Chromium user-data directory is required so fresh automation runs reuse the real browser profile state instead of starting a clean logged-out session every time.
 - PropertySmarts owner-audit `not_found` results can be inflated by older imported address text that does not match PropertySmarts formatting exactly, for example `Rd` vs `Road`. The resolver needs to expand common street suffix abbreviations and retry one normalized variant before treating the address as missing.
 - Ownership auditing needs a result between exact match and mismatch: when the stored legal name is strictly first+last and PropertySmarts shows the same first and last names plus extra middle names, that should be treated as an incomplete stored name, not a mismatch. The algorithm should stay strict and only trigger on two-token stored legal names with matching first and last tokens.
+- Person notes belong on the logical Person row, not on flattened address records. If notes are joined directly into the address flattening query they can multiply rows through address-note cartesian products, so the safer repository shape is separate note loading keyed by `person_id`.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.

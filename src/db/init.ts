@@ -178,6 +178,18 @@ export function ensureDatabase() {
     CREATE INDEX IF NOT EXISTS people_addresses_person_id_idx ON people_addresses(person_id);
     CREATE INDEX IF NOT EXISTS people_addresses_suburb_idx ON people_addresses(suburb);
 
+    CREATE TABLE IF NOT EXISTS people_notes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      person_id INTEGER NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS people_notes_person_id_idx ON people_notes(person_id);
+    CREATE INDEX IF NOT EXISTS people_notes_type_idx ON people_notes(type);
+
     CREATE TABLE IF NOT EXISTS sold_properties (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       identity_key TEXT NOT NULL UNIQUE,
@@ -236,6 +248,18 @@ export function ensureDatabase() {
   `);
   rawDb.exec("CREATE INDEX IF NOT EXISTS people_addresses_person_id_idx ON people_addresses(person_id)");
   rawDb.exec("CREATE INDEX IF NOT EXISTS people_addresses_suburb_idx ON people_addresses(suburb)");
+  rawDb.exec(`
+    CREATE TABLE IF NOT EXISTS people_notes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      person_id INTEGER NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+  rawDb.exec("CREATE INDEX IF NOT EXISTS people_notes_person_id_idx ON people_notes(person_id)");
+  rawDb.exec("CREATE INDEX IF NOT EXISTS people_notes_type_idx ON people_notes(type)");
   migratePeopleToMultiAddress(rawDb);
 
   initialized = true;

@@ -47,6 +47,22 @@ export const peopleAddresses = sqliteTable(
   ],
 );
 
+export const peopleNotes = sqliteTable(
+  "people_notes",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    personId: integer("person_id").notNull().references(() => people.id, { onDelete: "cascade" }),
+    type: text("type").notNull(),
+    content: text("content").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("people_notes_person_id_idx").on(table.personId),
+    index("people_notes_type_idx").on(table.type),
+  ],
+);
+
 export const soldProperties = sqliteTable(
   "sold_properties",
   {
@@ -95,6 +111,8 @@ export type Person = typeof people.$inferSelect;
 export type NewPerson = typeof people.$inferInsert;
 export type PersonAddress = typeof peopleAddresses.$inferSelect;
 export type NewPersonAddress = typeof peopleAddresses.$inferInsert;
+export type PersonNote = typeof peopleNotes.$inferSelect;
+export type NewPersonNote = typeof peopleNotes.$inferInsert;
 export type SoldProperty = typeof soldProperties.$inferSelect;
 export type NewSoldProperty = typeof soldProperties.$inferInsert;
 export type CouncilAreaBoundary = typeof councilAreaBoundaries.$inferSelect;

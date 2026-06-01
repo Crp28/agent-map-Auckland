@@ -2,7 +2,14 @@
 
 import { AppDialog } from "@/components/ui/dialog";
 import { displayPersonName } from "@/lib/person-display";
-import type { PersonAddressRecord, PersonRecord, SelectedItem, SoldPropertyRecord } from "@/types/location";
+import {
+  PERSON_NOTE_TYPES,
+  type PersonAddressRecord,
+  type PersonNoteRecord,
+  type PersonRecord,
+  type SelectedItem,
+  type SoldPropertyRecord,
+} from "@/types/location";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
 import type { FormEvent } from "react";
@@ -55,12 +62,16 @@ export function AddPersonDialog({
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
-  } = useForm({
+  } = useForm<z.input<typeof personFormSchema>, unknown, z.output<typeof personFormSchema>>({
     resolver: zodResolver(personFormSchema),
     defaultValues: {
+      name: "",
       preferredName: "",
+      phone: "",
+      email: "",
       purchasingPowerMin: "",
       purchasingPowerMax: "",
+      notes: [],
       addresses: [
         {
           streetAddress: "",
@@ -74,6 +85,14 @@ export function AddPersonDialog({
   const { fields, append, remove } = useFieldArray({
     control,
     name: "addresses",
+  });
+  const {
+    fields: noteFields,
+    append: appendNote,
+    remove: removeNote,
+  } = useFieldArray({
+    control,
+    name: "notes",
   });
 
   async function onSubmit(values: z.output<typeof personInputSchema>) {
@@ -190,6 +209,64 @@ export function AddPersonDialog({
               ))}
             </div>
             <FieldError message={errors.addresses?.message as string | undefined} />
+          </div>
+          <div className="sm:col-span-2">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <p className={labelClass}>Notes</p>
+              <button
+                type="button"
+                onClick={() =>
+                  appendNote({
+                    type: "General Note",
+                    content: "",
+                  })
+                }
+                className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#cbd5e1] px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+              >
+                <Plus aria-hidden="true" size={18} />
+                Add note
+              </button>
+            </div>
+            <div className="grid gap-3">
+              {noteFields.map((field, index) => (
+                <div key={field.id} className="rounded-md border border-[#d0d5dd] bg-[#f8fafc] p-3">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <p className="text-xs font-semibold uppercase text-[#475467]">Note {index + 1}</p>
+                    <button
+                      type="button"
+                      onClick={() => removeNote(index)}
+                      className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#fecdca] px-3 py-2 text-sm font-semibold text-[#b42318] hover:bg-[#fff1f0] focus:outline-none focus:ring-2 focus:ring-[#b42318]"
+                    >
+                      <Trash2 aria-hidden="true" size={18} />
+                      Remove
+                    </button>
+                  </div>
+                  <div className="grid gap-3">
+                    <label className={labelClass}>
+                      Type
+                      <select className={inputClass} {...register(`notes.${index}.type`)}>
+                        {PERSON_NOTE_TYPES.map((type) => (
+                          <option key={type} value={type}>
+                            {type}
+                          </option>
+                        ))}
+                      </select>
+                      <FieldError message={errors.notes?.[index]?.type?.message} />
+                    </label>
+                    <label className={labelClass}>
+                      Note
+                      <textarea
+                        rows={3}
+                        className={`${inputClass} min-h-24 py-3`}
+                        {...register(`notes.${index}.content`)}
+                      />
+                      <FieldError message={errors.notes?.[index]?.content?.message} />
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <FieldError message={errors.notes?.message as string | undefined} />
           </div>
         </div>
         {status ? (
@@ -655,6 +732,14 @@ function optionalNumberFromDraft(value: string) {
   return trimmed ? Number(trimmed) : null;
 }
 
+function notePayload(note: PersonNoteRecord) {
+  return {
+    id: note.id > 0 ? note.id : undefined,
+    type: note.type,
+    content: note.content,
+  };
+}
+
 function personPayload(person: PersonRecord) {
   return {
     name: person.name,
@@ -663,6 +748,7 @@ function personPayload(person: PersonRecord) {
     email: person.email,
     purchasingPowerMin: person.purchasingPowerMin,
     purchasingPowerMax: person.purchasingPowerMax,
+    notes: person.notes.map(notePayload),
     addresses: person.addresses.map((address) => ({
       id: address.id > 0 ? address.id : undefined,
       streetAddress: address.streetAddress,
@@ -693,6 +779,146 @@ async function requestJson<T>(url: string, init: RequestInit) {
   return payload as T;
 }
 
+function EditablePersonNote({
+  note,
+  onSave,
+  onDelete,
+}: {
+  note: PersonNoteRecord;
+  onSave: (nextNote: PersonNoteRecord) => Promise<void>;
+  onDelete: () => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draftType, setDraftType] = useState(note.type);
+  const [draftContent, setDraftContent] = useState(note.content);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDraftType(note.type);
+    setDraftContent(note.content);
+  }, [note.content, note.type]);
+
+  async function save() {
+    const content = draftContent.trim();
+    if (!content) {
+      setError("Note is required.");
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      await onSave({
+        ...note,
+        type: draftType,
+        content,
+      });
+      setEditing(false);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Note could not be saved.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function remove() {
+    setSaving(true);
+    setError(null);
+    try {
+      await onDelete();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Note could not be removed.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="rounded-md border border-[#d0d5dd] bg-[#f5f5f7] p-3">
+      {editing ? (
+        <div className="grid gap-3">
+          <label className={labelClass}>
+            Type
+            <select
+              className={inputClass}
+              value={draftType}
+              disabled={saving}
+              onChange={(event) => setDraftType(event.target.value as PersonNoteRecord["type"])}
+            >
+              {PERSON_NOTE_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={labelClass}>
+            Note
+            <textarea
+              rows={3}
+              className={`${inputClass} min-h-24 py-3`}
+              value={draftContent}
+              disabled={saving}
+              onChange={(event) => setDraftContent(event.target.value)}
+            />
+          </label>
+          {error ? <p className={errorClass}>{error}</p> : null}
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setDraftType(note.type);
+                setDraftContent(note.content);
+                setError(null);
+                setEditing(false);
+              }}
+              className="inline-flex min-h-11 items-center rounded-md border border-[#cbd5e1] px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void save()}
+              className="inline-flex min-h-11 items-center rounded-md bg-[#0056a7] px-3 py-2 text-sm font-semibold text-white hover:bg-[#004780] focus:outline-none focus:ring-2 focus:ring-[#0056a7] disabled:opacity-60"
+            >
+              Save note
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#344054]">{note.type}</p>
+              <p className="mt-1 whitespace-pre-wrap break-words text-sm text-[#1f2937]">{note.content}</p>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="inline-flex min-h-11 items-center rounded-md border border-[#cbd5e1] px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void remove()}
+                className="inline-flex min-h-11 items-center rounded-md border border-[#fecdca] px-3 py-2 text-sm font-semibold text-[#b42318] hover:bg-[#fff1f0] focus:outline-none focus:ring-2 focus:ring-[#b42318] disabled:opacity-60"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+          {error ? <p className={errorClass}>{error}</p> : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PersonDetails({
   person,
   source,
@@ -717,6 +943,11 @@ function PersonDetails({
     longitude: string;
   } | null>(null);
   const [draftAddressError, setDraftAddressError] = useState<string | null>(null);
+  const [draftNote, setDraftNote] = useState<{
+    type: PersonNoteRecord["type"];
+    content: string;
+  } | null>(null);
+  const [draftNoteError, setDraftNoteError] = useState<string | null>(null);
 
   async function savePerson(next: PersonRecord) {
     const payload = await requestJson<{ person: PersonRecord }>("/api/people", {
@@ -784,6 +1015,13 @@ function PersonDetails({
     });
   }
 
+  function updateNotes(nextNotes: PersonNoteRecord[]) {
+    return savePerson({
+      ...person,
+      notes: nextNotes,
+    });
+  }
+
   async function saveDraftAddress() {
     if (!draftAddress) {
       return;
@@ -833,6 +1071,36 @@ function PersonDetails({
       setDraftAddress(null);
     } catch (error) {
       setDraftAddressError(error instanceof Error ? error.message : "Address could not be saved.");
+    }
+  }
+
+  async function saveDraftNote() {
+    if (!draftNote) {
+      return;
+    }
+
+    const content = draftNote.content.trim();
+    if (!content) {
+      setDraftNoteError("Note is required.");
+      return;
+    }
+
+    setDraftNoteError(null);
+    try {
+      await updateNotes([
+        ...person.notes,
+        {
+          id: 0,
+          personId: person.id,
+          type: draftNote.type,
+          content,
+          createdAt: person.createdAt,
+          updatedAt: person.updatedAt,
+        },
+      ]);
+      setDraftNote(null);
+    } catch (error) {
+      setDraftNoteError(error instanceof Error ? error.message : "Note could not be saved.");
     }
   }
 
@@ -1042,6 +1310,98 @@ function PersonDetails({
             </dl>
           </div>
         ))}
+      </div>
+      <div className="grid gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-[#111827]">Notes ({person.notes.length})</p>
+          <button
+            type="button"
+            onClick={() => {
+              setDraftNote({ type: "General Note", content: "" });
+              setDraftNoteError(null);
+            }}
+            className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#cbd5e1] px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+          >
+            <Plus aria-hidden="true" size={18} />
+            Add note
+          </button>
+        </div>
+        {draftNote ? (
+          <div className="rounded-md border border-dashed border-[#d0d5dd] bg-[#f5f5f7] p-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold uppercase text-[#475467]">New note</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setDraftNote(null);
+                  setDraftNoteError(null);
+                }}
+                className="inline-flex min-h-11 items-center rounded-md border border-[#cbd5e1] px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+              >
+                Cancel
+              </button>
+            </div>
+            <div className="grid gap-3">
+              <label className={labelClass}>
+                Type
+                <select
+                  className={inputClass}
+                  value={draftNote.type}
+                  onChange={(event) =>
+                    setDraftNote((current) =>
+                      current ? { ...current, type: event.target.value as PersonNoteRecord["type"] } : current,
+                    )
+                  }
+                >
+                  {PERSON_NOTE_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={labelClass}>
+                Note
+                <textarea
+                  rows={3}
+                  className={`${inputClass} min-h-24 py-3`}
+                  value={draftNote.content}
+                  onChange={(event) =>
+                    setDraftNote((current) =>
+                      current ? { ...current, content: event.target.value } : current,
+                    )
+                  }
+                />
+              </label>
+            </div>
+            {draftNoteError ? <p className={errorClass}>{draftNoteError}</p> : null}
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => void saveDraftNote()}
+                className="inline-flex min-h-11 items-center rounded-md bg-[#0056a7] px-3 py-2 text-sm font-semibold text-white hover:bg-[#004780] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+              >
+                Save note
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {person.notes.length > 0 ? (
+          <div className="grid gap-3">
+            {person.notes.map((note) => (
+              <EditablePersonNote
+                key={note.id}
+                note={note}
+                onSave={(nextNote) =>
+                  updateNotes(person.notes.map((item) => (item.id === note.id ? nextNote : item)))
+                }
+                onDelete={() => updateNotes(person.notes.filter((item) => item.id !== note.id))}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-[#4b5563]">No notes saved.</p>
+        )}
       </div>
     </div>
   );

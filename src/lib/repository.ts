@@ -1,6 +1,6 @@
 import { getDb, getRawDb } from "@/db/client";
 import { ensureDatabase } from "@/db/init";
-import { people, peopleAddresses, soldProperties, syncMetadata } from "@/db/schema";
+import { people, peopleAddresses, peopleNotes, soldProperties, syncMetadata } from "@/db/schema";
 import { GEOMAPS_BOUNDARY_SOURCE_NAME } from "@/lib/constants";
 import { distanceKm, matchesNearbyFilter, purchasingPowerIncludesPrice } from "@/lib/distance";
 import { geocodeAddress } from "@/lib/geomaps";
@@ -8,7 +8,12 @@ import { emptyToNull, normalizeKey, normalizeText } from "@/lib/normalize";
 import { displayPersonName } from "@/lib/person-display";
 import { normalizePreferredFirstName } from "@/lib/person-name";
 import type { PersonAddressInput, PersonInput, SoldPropertyInput } from "@/lib/validation";
-import type { PersonAddressRecord, PersonCoordinateAuditResult, PersonRecord } from "@/types/location";
+import type {
+  PersonAddressRecord,
+  PersonCoordinateAuditResult,
+  PersonNoteRecord,
+  PersonRecord,
+} from "@/types/location";
 import { and, desc, eq, gte, inArray, lte, notInArray, or, sql } from "drizzle-orm";
 
 type JoinedPersonAddressRow = {
@@ -64,6 +69,15 @@ type OwnerAuditAddressRow = {
   preferred_name: string | null;
   street_address: string;
   suburb: string;
+};
+
+type PersonNoteRow = {
+  id: number;
+  person_id: number;
+  type: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
 };
 
 const PERSON_GEOCODE_AUDIT_DISTANCE_THRESHOLD_KM = 0.15;
@@ -274,6 +288,7 @@ async function updatePersonAddressCoordinates(
 
 function buildPersonRecord(
   rows: JoinedPersonAddressRow[],
+  notes: PersonNoteRecord[],
   selectedAddressId: number | null = null,
 ): PersonRecord {
   const first = rows[0];
@@ -315,6 +330,7 @@ function buildPersonRecord(
     latitude: selectedAddress?.latitude ?? primaryAddress?.latitude ?? first.person_latitude,
     longitude: selectedAddress?.longitude ?? primaryAddress?.longitude ?? first.person_longitude,
     addresses,
+    notes,
     lastUpdatedAt: first.last_updated_at,
     createdAt: first.created_at,
     updatedAt: first.updated_at,
@@ -379,7 +395,34 @@ async function listPeopleWithAddresses() {
     }
   }
 
-  return [...grouped.values()].map((group) => buildPersonRecord(group));
+  const noteRows = getRawDb()
+    .prepare(
+      `SELECT id, person_id, type, content, created_at, updated_at
+       FROM people_notes
+       ORDER BY id ASC`,
+    )
+    .all() as PersonNoteRow[];
+  const notesByPerson = new Map<number, PersonNoteRecord[]>();
+  for (const row of noteRows) {
+    const existing = notesByPerson.get(row.person_id);
+    const note = {
+      id: row.id,
+      personId: row.person_id,
+      type: row.type as PersonNoteRecord["type"],
+      content: row.content,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    } satisfies PersonNoteRecord;
+    if (existing) {
+      existing.push(note);
+    } else {
+      notesByPerson.set(row.person_id, [note]);
+    }
+  }
+
+  return [...grouped.values()].map((group) =>
+    buildPersonRecord(group, notesByPerson.get(group[0]!.person_id) ?? []),
+  );
 }
 
 async function resolvePersonAddresses(
@@ -408,6 +451,16 @@ async function resolvePersonAddresses(
   }
 
   return resolved;
+}
+
+function resolvePersonNotes(notesInput: PersonInput["notes"], timestamp: string) {
+  return notesInput.map((note) => ({
+    ...note,
+    type: note.type,
+    content: normalizeText(note.content),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  }));
 }
 
 async function findExistingPersonByContactAndAddress(input: {
@@ -587,6 +640,61 @@ async function syncPersonAddresses(
   return resolvedAddresses;
 }
 
+async function syncPersonNotes(
+  personId: number,
+  notesInput: PersonInput["notes"],
+  timestamp: string,
+  options: { replaceMissing?: boolean } = {},
+) {
+  const db = getDb();
+  const resolvedNotes = resolvePersonNotes(notesInput, timestamp);
+  const existingNotes = await db.query.peopleNotes.findMany({
+    where: eq(peopleNotes.personId, personId),
+    orderBy: (table, { asc }) => [asc(table.id)],
+  });
+  const existingById = new Map(existingNotes.map((note) => [note.id, note] as const));
+  const keptNoteIds: number[] = [];
+
+  for (const note of resolvedNotes) {
+    const existingNote = typeof note.id === "number" ? existingById.get(note.id) : undefined;
+
+    if (existingNote) {
+      await db
+        .update(peopleNotes)
+        .set({
+          type: note.type,
+          content: note.content,
+          updatedAt: note.updatedAt,
+        })
+        .where(eq(peopleNotes.id, existingNote.id));
+      keptNoteIds.push(existingNote.id);
+      continue;
+    }
+
+    const inserted = await db
+      .insert(peopleNotes)
+      .values({
+        personId,
+        type: note.type,
+        content: note.content,
+        createdAt: note.createdAt,
+        updatedAt: note.updatedAt,
+      })
+      .returning({ id: peopleNotes.id });
+    keptNoteIds.push(inserted[0]?.id ?? 0);
+  }
+
+  if (options.replaceMissing) {
+    if (keptNoteIds.length === 0) {
+      await db.delete(peopleNotes).where(eq(peopleNotes.personId, personId));
+    } else {
+      await db
+        .delete(peopleNotes)
+        .where(and(eq(peopleNotes.personId, personId), notInArray(peopleNotes.id, keptNoteIds)));
+    }
+  }
+}
+
 async function getPersonRecordById(id: number, selectedAddressId?: number | null) {
   const peopleRecords = await listPeopleWithAddresses();
   const person = peopleRecords.find((item) => item.id === id) ?? null;
@@ -633,6 +741,7 @@ export async function createOrUpdatePerson(
   }
 
   await syncPersonAddresses(person.id, personKey, input.addresses, timestamp, options);
+  await syncPersonNotes(person.id, input.notes, timestamp, { replaceMissing: true });
   return getPersonRecordById(person.id);
 }
 
@@ -724,6 +833,9 @@ export async function updatePersonById(
     .where(eq(people.id, id));
 
   await syncPersonAddresses(id, personKey, input.addresses, timestamp, {
+    replaceMissing: true,
+  });
+  await syncPersonNotes(id, input.notes, timestamp, {
     replaceMissing: true,
   });
 

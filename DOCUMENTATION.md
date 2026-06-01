@@ -65,6 +65,7 @@
 - 2026-05-12: Switched PropertySmarts session reuse from fresh contexts loaded only from `storageState` to a persistent Chromium profile under `scripts/propertysmarts/state/profile/`. The login-capture and owner-audit flows still export `propertysmarts-auth.json` as a backup, but the live session now comes from the profile because REINZ SSO was not reliably restoring from `storageState` alone.
 - 2026-05-12: Hardened PropertySmarts owner-audit address resolution for imported legacy address text. The resolver now expands common street suffix abbreviations such as `Rd`, `St`, and `Ave` and retries one normalized variant before returning `not_found`.
 - 2026-05-26: Added a distinct owner-audit result for incomplete stored legal names. When the stored legal name is strictly `FirstName LastName` and PropertySmarts shows the same first and last names with extra middle names, the audit now treats that as a match with an orange pin instead of a red mismatch.
+- 2026-06-02: Added person-level notes through a new `people_notes` table, validation support, Add Person note entry, and editable note cards at the bottom of the Person detail modal. Notes store free text plus a selected type and are not tied to individual addresses.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.

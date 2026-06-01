@@ -28,6 +28,58 @@ describe("personInputSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("parses person notes with valid types", () => {
+    const result = personInputSchema.safeParse({
+      name: "Ana Buyer",
+      phone: "021 000 000",
+      email: "ana@example.com",
+      notes: [
+        {
+          type: "General Note",
+          content: "Met at open home",
+        },
+      ],
+      addresses: [
+        {
+          streetAddress: "1 Queen Street",
+          suburb: "Auckland Central",
+          latitude: "",
+          longitude: "",
+        },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.notes).toHaveLength(1);
+      expect(result.data.notes[0]?.type).toBe("General Note");
+    }
+  });
+
+  it("rejects notes with unsupported types", () => {
+    const result = personInputSchema.safeParse({
+      name: "Ana Buyer",
+      phone: "021 000 000",
+      email: "ana@example.com",
+      notes: [
+        {
+          type: "Random",
+          content: "Met at open home",
+        },
+      ],
+      addresses: [
+        {
+          streetAddress: "1 Queen Street",
+          suburb: "Auckland Central",
+          latitude: "",
+          longitude: "",
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("rejects duplicate addresses", () => {
     const result = personInputSchema.safeParse({
       name: "Ana Buyer",
