@@ -39,6 +39,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 33. Complete: Redefine `preferredName` as a preferred first name only, normalize imports/saves accordingly, derive displayed full names from the legal surname/rest-of-name, and update owner matching/docs/tests.
 34. Complete: Add a strict owner-audit incomplete-name match state for first+last-only stored legal names that match PropertySmarts owners with extra middle names, render those pins in a separate color, and update docs/tests.
 35. Complete: Add person-level notes with typed free-text entries, persist them separately from addresses, expose them in Person create/update flows, and render the notes section at the bottom of the Person modal.
+36. Complete: Fix the empty-person-notes save regression by defaulting missing notes to an empty list and using stable direct note queries in the repository.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.

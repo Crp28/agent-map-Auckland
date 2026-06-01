@@ -26,6 +26,9 @@ describe("personInputSchema", () => {
     });
 
     expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.notes).toEqual([]);
+    }
   });
 
   it("parses person notes with valid types", () => {

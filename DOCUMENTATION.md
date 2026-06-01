@@ -66,6 +66,7 @@
 - 2026-05-12: Hardened PropertySmarts owner-audit address resolution for imported legacy address text. The resolver now expands common street suffix abbreviations such as `Rd`, `St`, and `Ave` and retries one normalized variant before returning `not_found`.
 - 2026-05-26: Added a distinct owner-audit result for incomplete stored legal names. When the stored legal name is strictly `FirstName LastName` and PropertySmarts shows the same first and last names with extra middle names, the audit now treats that as a match with an orange pin instead of a red mismatch.
 - 2026-06-02: Added person-level notes through a new `people_notes` table, validation support, Add Person note entry, and editable note cards at the bottom of the Person detail modal. Notes store free text plus a selected type and are not tied to individual addresses.
+- 2026-06-02: Fixed empty-note People saves. The repository now treats missing notes as an empty list and avoids the brittle `db.query.peopleNotes` path, so creating or updating a Person with no notes no longer throws at `syncPersonNotes()`.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.

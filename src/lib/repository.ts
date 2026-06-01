@@ -454,7 +454,7 @@ async function resolvePersonAddresses(
 }
 
 function resolvePersonNotes(notesInput: PersonInput["notes"], timestamp: string) {
-  return notesInput.map((note) => ({
+  return (notesInput ?? []).map((note) => ({
     ...note,
     type: note.type,
     content: normalizeText(note.content),
@@ -648,10 +648,11 @@ async function syncPersonNotes(
 ) {
   const db = getDb();
   const resolvedNotes = resolvePersonNotes(notesInput, timestamp);
-  const existingNotes = await db.query.peopleNotes.findMany({
-    where: eq(peopleNotes.personId, personId),
-    orderBy: (table, { asc }) => [asc(table.id)],
-  });
+  const existingNotes = await db
+    .select()
+    .from(peopleNotes)
+    .where(eq(peopleNotes.personId, personId))
+    .orderBy(peopleNotes.id);
   const existingById = new Map(existingNotes.map((note) => [note.id, note] as const));
   const keptNoteIds: number[] = [];
 
