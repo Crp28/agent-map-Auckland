@@ -95,6 +95,71 @@ describe("multi-address repository behavior", () => {
     expect(updated?.notes[0]?.content).toBe("Now owner occupied");
   }, 15000);
 
+  it("updates notes without re-geocoding unchanged addresses", async () => {
+    const geocodeAddress = vi.fn(async () => ({
+      latitude: -36.847,
+      longitude: 174.763,
+      matchedAddress: "1 Queen Street Auckland Central",
+    }));
+
+    vi.doMock("./geomaps", async () => {
+      const actual = await vi.importActual<typeof import("./geomaps")>("./geomaps");
+      return {
+        ...actual,
+        geocodeAddress,
+      };
+    });
+    await loadRepository();
+
+    const created = await repository.createOrUpdatePerson({
+      name: "Ana Buyer",
+      preferredName: "",
+      phone: "021 000 000",
+      email: "ana@example.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [],
+      addresses: [
+        {
+          streetAddress: "1 Queen Street",
+          suburb: "Auckland Central",
+          latitude: null,
+          longitude: null,
+        },
+      ],
+    }, { geocode: false });
+
+    expect(created?.notes).toEqual([]);
+
+    const updated = await repository.updatePersonById(created!.id, {
+      name: "Ana Buyer",
+      preferredName: "",
+      phone: "021 000 000",
+      email: "ana@example.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [
+        {
+          type: "General Note",
+          content: "Met at open home",
+        },
+      ],
+      addresses: [
+        {
+          id: created!.addresses[0]!.id,
+          streetAddress: "1 Queen Street",
+          suburb: "Auckland Central",
+          latitude: null,
+          longitude: null,
+        },
+      ],
+    });
+
+    expect(geocodeAddress).not.toHaveBeenCalled();
+    expect(updated?.notes).toHaveLength(1);
+    expect(updated?.notes[0]?.content).toBe("Met at open home");
+  });
+
   it("reuses the same person when the legal name changes but contact and address stay the same", async () => {
     const created = await repository.createOrUpdatePerson({
       name: "Russell Li",

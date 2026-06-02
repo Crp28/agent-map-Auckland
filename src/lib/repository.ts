@@ -53,6 +53,14 @@ type ResolvedAddress = PersonAddressInput & {
   updatedAt: string;
 };
 
+type ExistingPersonAddressSnapshot = {
+  id: number;
+  streetAddress: string;
+  suburb: string;
+  latitude: number | null;
+  longitude: number | null;
+};
+
 type AuditAddressRow = {
   person_id: number;
   address_id: number;
@@ -429,14 +437,27 @@ async function resolvePersonAddresses(
   personKey: string,
   addressesInput: PersonInput["addresses"],
   timestamp: string,
-  options: { geocode?: boolean } = {},
+  options: {
+    geocode?: boolean;
+    existingAddressesById?: Map<number, ExistingPersonAddressSnapshot>;
+  } = {},
 ) {
   const resolved: ResolvedAddress[] = [];
 
   for (const address of addressesInput) {
     const streetAddress = normalizeText(address.streetAddress);
     const suburb = normalizeText(address.suburb);
-    const coordinates = await resolveAddressCoordinates({ ...address, streetAddress, suburb }, options);
+    const existingAddress =
+      typeof address.id === "number" ? options.existingAddressesById?.get(address.id) : undefined;
+    const coordinates =
+      existingAddress &&
+      existingAddress.streetAddress === streetAddress &&
+      existingAddress.suburb === suburb
+        ? {
+            latitude: address.latitude ?? existingAddress.latitude,
+            longitude: address.longitude ?? existingAddress.longitude,
+          }
+        : await resolveAddressCoordinates({ ...address, streetAddress, suburb }, options);
 
     resolved.push({
       ...address,
@@ -578,7 +599,11 @@ async function syncPersonAddresses(
   personKey: string,
   addressesInput: PersonInput["addresses"],
   timestamp: string,
-  options: { geocode?: boolean; replaceMissing?: boolean } = {},
+  options: {
+    geocode?: boolean;
+    replaceMissing?: boolean;
+    existingAddressesById?: Map<number, ExistingPersonAddressSnapshot>;
+  } = {},
 ) {
   const db = getDb();
   const resolvedAddresses = await resolvePersonAddresses(personKey, addressesInput, timestamp, options);
@@ -806,7 +831,24 @@ export async function updatePersonById(
 
   const timestamp = nowIso();
   const personKey = normalizeKey(input.name, input.email, input.phone);
-  const resolvedAddresses = await resolvePersonAddresses(personKey, input.addresses, timestamp);
+  const existingAddresses = await db.query.peopleAddresses.findMany({
+    where: eq(peopleAddresses.personId, id),
+  });
+  const existingAddressesById = new Map(
+    existingAddresses.map((address) => [
+      address.id,
+      {
+        id: address.id,
+        streetAddress: address.streetAddress,
+        suburb: address.suburb,
+        latitude: address.latitude,
+        longitude: address.longitude,
+      } satisfies ExistingPersonAddressSnapshot,
+    ] as const),
+  );
+  const resolvedAddresses = await resolvePersonAddresses(personKey, input.addresses, timestamp, {
+    existingAddressesById,
+  });
   const primaryAddress = resolvedAddresses[0];
   const normalizedPhone = normalizeText(input.phone);
   const normalizedEmail = input.email.trim().toLowerCase();
@@ -835,6 +877,7 @@ export async function updatePersonById(
 
   await syncPersonAddresses(id, personKey, input.addresses, timestamp, {
     replaceMissing: true,
+    existingAddressesById,
   });
   await syncPersonNotes(id, input.notes, timestamp, {
     replaceMissing: true,
