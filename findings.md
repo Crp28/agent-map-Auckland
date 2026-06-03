@@ -75,6 +75,7 @@
 - Drizzle's generated `db.query.<table>` surface is not a good place to hang a new hot-reloaded table dependency when the process may still hold an older cached client shape. For person notes, direct `select().from(peopleNotes)` queries are more robust, especially when empty-note create flows exercise the path immediately.
 - Person note edits should not trigger address geocoding. If `updatePersonById()` blindly re-resolves all addresses, a note-only edit can hang or fail on unresolved addresses even though the address data itself did not change.
 - Editing a Person street address through the modal still sends the existing address coordinates back in the payload. If the repository treats those coordinates as authoritative after the address text changes, it preserves a stale map point instead of re-geocoding the new address.
+- Coordinate pairs cannot be edited reliably through two independent blur-save fields when validation requires latitude and longitude together. Manual fallback entry needs a paired editor with an explicit Save action.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.

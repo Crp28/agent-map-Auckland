@@ -617,7 +617,7 @@ export function DetailsDialog({
   return (
     <AppDialog open={open} onOpenChange={onOpenChange} title={title}>
       {selected ? (
-        <p className="mb-4 text-sm text-[#64748b]">Double click a field to edit it. Changes save when the field loses focus.</p>
+        <p className="mb-4 text-sm text-[#64748b]">Double click a field to edit it. Most changes save when the field loses focus. Coordinate pairs use Save.</p>
       ) : null}
       {selected?.type === "person" ? (
         <PersonDetails
@@ -730,6 +730,121 @@ function EditableDetailRow({
 function optionalNumberFromDraft(value: string) {
   const trimmed = value.trim();
   return trimmed ? Number(trimmed) : null;
+}
+
+export function EditableCoordinatePairRow({
+  latitude,
+  longitude,
+  onSave,
+}: {
+  latitude: number | null;
+  longitude: number | null;
+  onSave: (coordinates: { latitude: number | null; longitude: number | null }) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draftLatitude, setDraftLatitude] = useState(latitude?.toString() ?? "");
+  const [draftLongitude, setDraftLongitude] = useState(longitude?.toString() ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!editing) {
+      setDraftLatitude(latitude?.toString() ?? "");
+      setDraftLongitude(longitude?.toString() ?? "");
+    }
+  }, [editing, latitude, longitude]);
+
+  async function save() {
+    const nextLatitude = optionalNumberFromDraft(draftLatitude);
+    const nextLongitude = optionalNumberFromDraft(draftLongitude);
+
+    if ((nextLatitude === null) !== (nextLongitude === null)) {
+      setError("Latitude and longitude must be supplied together.");
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      await onSave({
+        latitude: nextLatitude,
+        longitude: nextLongitude,
+      });
+      setEditing(false);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Change could not be saved.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      className="rounded-md border border-[#e2e8f0] p-3 sm:col-span-2"
+      onDoubleClick={() => setEditing(true)}
+      title="Double click to edit"
+    >
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold uppercase text-[#64748b]">Coordinates</p>
+        {editing ? (
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setDraftLatitude(latitude?.toString() ?? "");
+                setDraftLongitude(longitude?.toString() ?? "");
+                setError(null);
+                setEditing(false);
+              }}
+              className="inline-flex min-h-11 items-center rounded-md border border-[#cbd5e1] px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void save()}
+              className="inline-flex min-h-11 items-center rounded-md bg-[#0056a7] px-3 py-2 text-sm font-semibold text-white hover:bg-[#004780] focus:outline-none focus:ring-2 focus:ring-[#0056a7] disabled:opacity-60"
+            >
+              Save coordinates
+            </button>
+          </div>
+        ) : null}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <dt className="text-xs font-semibold uppercase text-[#64748b]">Latitude</dt>
+          {editing ? (
+            <input
+              autoFocus
+              inputMode="decimal"
+              value={draftLatitude}
+              disabled={saving}
+              onChange={(event) => setDraftLatitude(event.target.value)}
+              className={`${inputClass} mt-1`}
+            />
+          ) : (
+            <dd className="mt-1 break-words text-sm text-[#111827]">{latitude ?? "Not set"}</dd>
+          )}
+        </div>
+        <div>
+          <dt className="text-xs font-semibold uppercase text-[#64748b]">Longitude</dt>
+          {editing ? (
+            <input
+              inputMode="decimal"
+              value={draftLongitude}
+              disabled={saving}
+              onChange={(event) => setDraftLongitude(event.target.value)}
+              className={`${inputClass} mt-1`}
+            />
+          ) : (
+            <dd className="mt-1 break-words text-sm text-[#111827]">{longitude ?? "Not set"}</dd>
+          )}
+        </div>
+      </div>
+      {error ? <p className={errorClass}>{error}</p> : null}
+    </div>
+  );
 }
 
 function notePayload(note: PersonNoteRecord) {
@@ -1283,26 +1398,13 @@ function PersonDetails({
                   )
                 }
               />
-              <EditableDetailRow
-                label="Latitude"
-                value={address.latitude}
-                inputType="number"
-                onSave={(value) =>
+              <EditableCoordinatePairRow
+                latitude={address.latitude}
+                longitude={address.longitude}
+                onSave={(coordinates) =>
                   updateAddresses(
                     person.addresses.map((item) =>
-                      item.id === address.id ? { ...item, latitude: optionalNumberFromDraft(value) } : item,
-                    ),
-                  )
-                }
-              />
-              <EditableDetailRow
-                label="Longitude"
-                value={address.longitude}
-                inputType="number"
-                onSave={(value) =>
-                  updateAddresses(
-                    person.addresses.map((item) =>
-                      item.id === address.id ? { ...item, longitude: optionalNumberFromDraft(value) } : item,
+                      item.id === address.id ? { ...item, ...coordinates } : item,
                     ),
                   )
                 }
@@ -1471,17 +1573,10 @@ function SoldPropertyDetails({
           inputType="number"
           onSave={(value) => saveSoldProperty({ ...soldProperty, soldPrice: Number(value.slice(1)) })}
         />
-        <EditableDetailRow
-          label="Latitude"
-          value={soldProperty.latitude}
-          inputType="number"
-          onSave={(value) => saveSoldProperty({ ...soldProperty, latitude: optionalNumberFromDraft(value) })}
-        />
-        <EditableDetailRow
-          label="Longitude"
-          value={soldProperty.longitude}
-          inputType="number"
-          onSave={(value) => saveSoldProperty({ ...soldProperty, longitude: optionalNumberFromDraft(value) })}
+        <EditableCoordinatePairRow
+          latitude={soldProperty.latitude}
+          longitude={soldProperty.longitude}
+          onSave={(coordinates) => saveSoldProperty({ ...soldProperty, ...coordinates })}
         />
         <DetailRow label="Updated" value={new Date(soldProperty.updatedAt).toLocaleString()} />
       </dl>

@@ -164,3 +164,4 @@
 - Fixed the first person-notes regression where creating a Person with no notes could throw from `syncPersonNotes()`. Missing notes now normalize to `[]`, and note reads use direct table selects instead of `db.query.peopleNotes`.
 - Fixed the second person-notes regression where editing notes could re-geocode unchanged unresolved addresses. `updatePersonById()` now preserves stored coordinates for unchanged address rows, and a regression test covers note updates without geocoding.
 - Fixed Person street-address edits so changed address text no longer reuses stale carried-over coordinates. Address edits now re-geocode changed rows, with regression coverage for the stale-coordinate payload case.
+- Replaced modal coordinate editing with a paired latitude/longitude editor and added focused component tests proving blank manual coordinates must be saved together and do save successfully when both values are entered.
