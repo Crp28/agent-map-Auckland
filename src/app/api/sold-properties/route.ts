@@ -4,6 +4,7 @@ import {
   listSoldPropertyRecords,
   updateSoldPropertyById,
 } from "@/lib/repository";
+import { identifySoldPropertyGeocodeFailure } from "@/lib/geocode-save-result";
 import { soldPropertyInputSchema } from "@/lib/validation";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -25,8 +26,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const soldProperty = await createOrUpdateSoldProperty(parsed.data);
-  return NextResponse.json({ soldProperty }, { status: 201 });
+  const soldProperty = (await createOrUpdateSoldProperty(parsed.data)) ?? null;
+  return NextResponse.json(
+    {
+      soldProperty,
+      geocodeFailure: identifySoldPropertyGeocodeFailure(parsed.data, soldProperty),
+    },
+    { status: 201 },
+  );
 }
 
 export async function PATCH(request: Request) {
@@ -38,12 +45,15 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    const soldProperty = await updateSoldPropertyById(parsed.data.id, parsed.data);
+    const soldProperty = (await updateSoldPropertyById(parsed.data.id, parsed.data)) ?? null;
     if (!soldProperty) {
       return NextResponse.json({ error: "Sold property not found." }, { status: 404 });
     }
 
-    return NextResponse.json({ soldProperty });
+    return NextResponse.json({
+      soldProperty,
+      geocodeFailure: identifySoldPropertyGeocodeFailure(parsed.data, soldProperty),
+    });
   } catch {
     return NextResponse.json({ error: "Sold property could not be updated." }, { status: 409 });
   }

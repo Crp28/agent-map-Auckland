@@ -1,4 +1,5 @@
 import { createOrUpdatePerson, deletePersonById, listPeopleRecords, updatePersonById } from "@/lib/repository";
+import { identifyPersonGeocodeFailures } from "@/lib/geocode-save-result";
 import { personInputSchema } from "@/lib/validation";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -22,7 +23,13 @@ export async function POST(request: Request) {
   }
 
   const person = await createOrUpdatePerson(parsed.data);
-  return NextResponse.json({ person }, { status: 201 });
+  return NextResponse.json(
+    {
+      person,
+      geocodeFailures: identifyPersonGeocodeFailures(parsed.data, person),
+    },
+    { status: 201 },
+  );
 }
 
 export async function PATCH(request: Request) {
@@ -41,7 +48,10 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Person not found." }, { status: 404 });
     }
 
-    return NextResponse.json({ person });
+    return NextResponse.json({
+      person,
+      geocodeFailures: identifyPersonGeocodeFailures(parsed.data, person),
+    });
   } catch {
     return NextResponse.json({ error: "Person could not be updated." }, { status: 409 });
   }

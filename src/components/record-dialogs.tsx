@@ -39,6 +39,22 @@ type PersonCoordinateAuditResult = {
   distanceKm: number | null;
 };
 
+type GeocodeFailureAddress = {
+  addressId: number | null;
+  streetAddress: string;
+  suburb: string;
+};
+
+type PersonSaveResponse = {
+  person: PersonRecord;
+  geocodeFailures: GeocodeFailureAddress[];
+};
+
+type SoldPropertySaveResponse = {
+  soldProperty: SoldPropertyRecord;
+  geocodeFailure: GeocodeFailureAddress | null;
+};
+
 function FieldError({ message }: { message?: string }) {
   return message ? <p className={errorClass}>{message}</p> : null;
 }
@@ -97,20 +113,29 @@ export function AddPersonDialog({
 
   async function onSubmit(values: z.output<typeof personInputSchema>) {
     setStatus(null);
-    const response = await fetch("/api/people", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
-    });
+    try {
+      const payload = await requestJson<PersonSaveResponse>("/api/people", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
 
-    if (!response.ok) {
+      let statusMessage = "Person saved.";
+      if (payload.geocodeFailures.length > 0) {
+        const fallbackResult = await applyGoogleFallbackToPerson(payload.person, payload.geocodeFailures, () => undefined, refresh);
+        if (fallbackResult.updatedCount > 0) {
+          statusMessage = `Person saved. Google Maps supplied coordinates for ${fallbackResult.updatedCount} address${fallbackResult.updatedCount === 1 ? "" : "es"}.`;
+        } else if (fallbackResult.declinedCount > 0) {
+          statusMessage = "Person saved without some coordinates. Manual coordinate entry is still available.";
+        }
+      }
+
+      reset();
+      refresh();
+      setStatus({ type: "success", message: statusMessage });
+    } catch {
       setStatus({ type: "error", message: "Person could not be saved. Check the fields." });
-      return;
     }
-
-    reset();
-    refresh();
-    setStatus({ type: "success", message: "Person saved." });
   }
 
   return (
@@ -309,20 +334,34 @@ export function AddSoldPropertyDialog({
 
   async function onSubmit(values: SoldPropertyForm) {
     setStatus(null);
-    const response = await fetch("/api/sold-properties", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
-    });
+    try {
+      const payload = await requestJson<SoldPropertySaveResponse>("/api/sold-properties", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
 
-    if (!response.ok) {
+      let statusMessage = "Sold property saved.";
+      if (payload.geocodeFailure) {
+        const fallbackResult = await applyGoogleFallbackToSoldProperty(
+          payload.soldProperty,
+          payload.geocodeFailure,
+          () => undefined,
+          refresh,
+        );
+        if (fallbackResult.updated) {
+          statusMessage = "Sold property saved. Google Maps supplied coordinates.";
+        } else if (fallbackResult.declined) {
+          statusMessage = "Sold property saved without coordinates. Manual coordinate entry is still available.";
+        }
+      }
+
+      reset();
+      refresh();
+      setStatus({ type: "success", message: statusMessage });
+    } catch {
       setStatus({ type: "error", message: "Sold property could not be saved." });
-      return;
     }
-
-    reset();
-    refresh();
-    setStatus({ type: "success", message: "Sold property saved." });
   }
 
   return (
@@ -885,6 +924,99 @@ function soldPropertyPayload(soldProperty: SoldPropertyRecord) {
   };
 }
 
+async function requestGoogleFallbackCoordinates(streetAddress: string, suburb: string) {
+  const payload = await requestJson<{
+    result: { latitude: number; longitude: number; matchedAddress: string | null };
+  }>("/api/geocode/google-fallback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ streetAddress, suburb }),
+  });
+
+  return payload.result;
+}
+
+async function applyGoogleFallbackToPerson(
+  person: PersonRecord,
+  geocodeFailures: GeocodeFailureAddress[],
+  onPersonChange: (person: PersonRecord) => void,
+  refresh: () => void,
+) {
+  let currentPerson = person;
+  let updatedCount = 0;
+  let declinedCount = 0;
+
+  for (const failure of geocodeFailures) {
+    const shouldTryGoogle = window.confirm(
+      `GeoMaps could not find coordinates for ${failure.streetAddress}, ${failure.suburb}. Try Google Maps fallback?`,
+    );
+    if (!shouldTryGoogle) {
+      declinedCount += 1;
+      continue;
+    }
+
+    const fallback = await requestGoogleFallbackCoordinates(failure.streetAddress, failure.suburb);
+    const nextPerson: PersonRecord = {
+      ...currentPerson,
+      addresses: currentPerson.addresses.map((address) =>
+        address.id === failure.addressId
+          ? {
+              ...address,
+              latitude: fallback.latitude,
+              longitude: fallback.longitude,
+            }
+          : address,
+      ),
+    };
+
+    const payload = await requestJson<PersonSaveResponse>("/api/people", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: currentPerson.id, selectedAddressId: nextPerson.addressId, ...personPayload(nextPerson) }),
+    });
+    currentPerson = payload.person;
+    onPersonChange(currentPerson);
+    refresh();
+    updatedCount += 1;
+  }
+
+  return { person: currentPerson, updatedCount, declinedCount };
+}
+
+async function applyGoogleFallbackToSoldProperty(
+  soldProperty: SoldPropertyRecord,
+  geocodeFailure: GeocodeFailureAddress | null,
+  onSoldPropertyChange: (soldProperty: SoldPropertyRecord) => void,
+  refresh: () => void,
+) {
+  if (!geocodeFailure) {
+    return { soldProperty, updated: false, declined: false };
+  }
+
+  const shouldTryGoogle = window.confirm(
+    `GeoMaps could not find coordinates for ${geocodeFailure.streetAddress}, ${geocodeFailure.suburb}. Try Google Maps fallback?`,
+  );
+  if (!shouldTryGoogle) {
+    return { soldProperty, updated: false, declined: true };
+  }
+
+  const fallback = await requestGoogleFallbackCoordinates(geocodeFailure.streetAddress, geocodeFailure.suburb);
+  const nextSoldProperty = {
+    ...soldProperty,
+    latitude: fallback.latitude,
+    longitude: fallback.longitude,
+  };
+
+  const payload = await requestJson<SoldPropertySaveResponse>("/api/sold-properties", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: soldProperty.id, ...soldPropertyPayload(nextSoldProperty) }),
+  });
+  onSoldPropertyChange(payload.soldProperty);
+  refresh();
+  return { soldProperty: payload.soldProperty, updated: true, declined: false };
+}
+
 async function requestJson<T>(url: string, init: RequestInit) {
   const response = await fetch(url, init);
   const payload = await response.json();
@@ -1065,13 +1197,27 @@ function PersonDetails({
   const [draftNoteError, setDraftNoteError] = useState<string | null>(null);
 
   async function savePerson(next: PersonRecord) {
-    const payload = await requestJson<{ person: PersonRecord }>("/api/people", {
+    const payload = await requestJson<PersonSaveResponse>("/api/people", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: person.id, selectedAddressId: next.addressId, ...personPayload(next) }),
     });
     onChange(payload.person);
     refresh();
+    if (payload.geocodeFailures.length > 0) {
+      const fallbackResult = await applyGoogleFallbackToPerson(payload.person, payload.geocodeFailures, onChange, refresh);
+      if (fallbackResult.updatedCount > 0) {
+        setGeocodeStatus(
+          `GeoMaps missed ${fallbackResult.updatedCount} address${fallbackResult.updatedCount === 1 ? "" : "es"}. Google Maps supplied the coordinates.`,
+        );
+      } else if (fallbackResult.declinedCount > 0) {
+        setGeocodeStatus("GeoMaps could not place this address. You can still enter coordinates manually.");
+      } else {
+        setGeocodeStatus(null);
+      }
+      return;
+    }
+    setGeocodeStatus(null);
   }
 
   async function deletePerson() {
@@ -1521,13 +1667,16 @@ function SoldPropertyDetails({
   refresh: () => void;
 }) {
   async function saveSoldProperty(next: SoldPropertyRecord) {
-    const payload = await requestJson<{ soldProperty: SoldPropertyRecord }>("/api/sold-properties", {
+    const payload = await requestJson<SoldPropertySaveResponse>("/api/sold-properties", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: soldProperty.id, ...soldPropertyPayload(next) }),
     });
     onChange(payload.soldProperty);
     refresh();
+    if (payload.geocodeFailure) {
+      await applyGoogleFallbackToSoldProperty(payload.soldProperty, payload.geocodeFailure, onChange, refresh);
+    }
   }
 
   async function deleteSoldProperty() {
