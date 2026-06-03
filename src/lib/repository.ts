@@ -449,15 +449,30 @@ async function resolvePersonAddresses(
     const suburb = normalizeText(address.suburb);
     const existingAddress =
       typeof address.id === "number" ? options.existingAddressesById?.get(address.id) : undefined;
-    const coordinates =
-      existingAddress &&
+    const addressUnchanged =
+      existingAddress !== undefined &&
       existingAddress.streetAddress === streetAddress &&
-      existingAddress.suburb === suburb
+      existingAddress.suburb === suburb;
+    const carriesExistingCoordinates =
+      existingAddress !== undefined &&
+      address.latitude === existingAddress.latitude &&
+      address.longitude === existingAddress.longitude;
+    const coordinates =
+      addressUnchanged
         ? {
             latitude: address.latitude ?? existingAddress.latitude,
             longitude: address.longitude ?? existingAddress.longitude,
           }
-        : await resolveAddressCoordinates({ ...address, streetAddress, suburb }, options);
+        : await resolveAddressCoordinates(
+            {
+              ...address,
+              streetAddress,
+              suburb,
+              latitude: carriesExistingCoordinates ? null : address.latitude,
+              longitude: carriesExistingCoordinates ? null : address.longitude,
+            },
+            options,
+          );
 
     resolved.push({
       ...address,

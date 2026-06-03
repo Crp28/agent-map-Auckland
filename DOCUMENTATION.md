@@ -68,6 +68,7 @@
 - 2026-06-02: Added person-level notes through a new `people_notes` table, validation support, Add Person note entry, and editable note cards at the bottom of the Person detail modal. Notes store free text plus a selected type and are not tied to individual addresses.
 - 2026-06-02: Fixed empty-note People saves. The repository now treats missing notes as an empty list and avoids the brittle `db.query.peopleNotes` path, so creating or updating a Person with no notes no longer throws at `syncPersonNotes()`.
 - 2026-06-02: Fixed note edits on People whose addresses still lack coordinates. Updating notes no longer re-geocodes unchanged addresses; the repository now preserves stored coordinates for unchanged address rows during `updatePersonById()`.
+- 2026-06-03: Fixed street-address edits on existing Person addresses. When an address text changes but the update payload still carries the old stored coordinates, the repository now treats those coordinates as stale and re-geocodes the new address instead of silently preserving the old point.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.

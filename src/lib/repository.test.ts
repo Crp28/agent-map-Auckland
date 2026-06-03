@@ -254,6 +254,66 @@ describe("multi-address repository behavior", () => {
     expect(updated?.streetAddress).toBe("9 Albert Street");
   });
 
+  it("re-geocodes when an address text changes but the payload still carries the old coordinates", async () => {
+    const geocodeAddress = vi.fn(async (streetAddress: string) => ({
+      latitude: streetAddress === "9 Albert Street" ? -36.8485 : -36.847,
+      longitude: streetAddress === "9 Albert Street" ? 174.7633 : 174.763,
+      matchedAddress: streetAddress,
+    }));
+
+    vi.doMock("./geomaps", async () => {
+      const actual = await vi.importActual<typeof import("./geomaps")>("./geomaps");
+      return {
+        ...actual,
+        geocodeAddress,
+      };
+    });
+    await loadRepository();
+
+    const created = await repository.createOrUpdatePerson({
+      name: "Ana Buyer",
+      preferredName: "",
+      phone: "021 000 000",
+      email: "ana@example.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [],
+      addresses: [
+        {
+          streetAddress: "1 Queen Street",
+          suburb: "Auckland Central",
+          latitude: -36.847,
+          longitude: 174.763,
+        },
+      ],
+    }, { geocode: false });
+
+    const updated = await repository.updatePersonById(created!.id, {
+      name: "Ana Buyer",
+      preferredName: "",
+      phone: "021 000 000",
+      email: "ana@example.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [],
+      addresses: [
+        {
+          id: created!.addresses[0]!.id,
+          streetAddress: "9 Albert Street",
+          suburb: "Auckland Central",
+          latitude: -36.847,
+          longitude: 174.763,
+        },
+      ],
+    });
+
+    expect(geocodeAddress).toHaveBeenCalled();
+    expect(geocodeAddress.mock.calls.every((call) => call[0] === "9 Albert Street" && call[1] === "Auckland Central")).toBe(true);
+    expect(updated?.streetAddress).toBe("9 Albert Street");
+    expect(updated?.latitude).toBe(-36.8485);
+    expect(updated?.longitude).toBe(174.7633);
+  });
+
   it("returns the requested selected address after updating a secondary address", async () => {
     const created = await repository.createOrUpdatePerson({
       name: "Michael Boulgaris",

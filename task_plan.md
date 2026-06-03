@@ -41,6 +41,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 35. Complete: Add person-level notes with typed free-text entries, persist them separately from addresses, expose them in Person create/update flows, and render the notes section at the bottom of the Person modal.
 36. Complete: Fix the empty-person-notes save regression by defaulting missing notes to an empty list and using stable direct note queries in the repository.
 37. Complete: Fix note edits so unchanged unresolved addresses are not re-geocoded during Person updates.
+38. Complete: Fix street-address edits so changed address rows do not preserve stale carried-over coordinates from the previous address.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.
