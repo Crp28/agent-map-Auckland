@@ -70,7 +70,7 @@
 - 2026-06-02: Fixed note edits on People whose addresses still lack coordinates. Updating notes no longer re-geocodes unchanged addresses; the repository now preserves stored coordinates for unchanged address rows during `updatePersonById()`.
 - 2026-06-03: Fixed street-address edits on existing Person addresses. When an address text changes but the update payload still carries the old stored coordinates, the repository now treats those coordinates as stale and re-geocodes the new address instead of silently preserving the old point.
 - 2026-06-03: Replaced the detail-modal coordinate editors with a paired latitude/longitude editor for Person addresses and Sold Properties. Manual coordinate entry now saves both fields together, which avoids the old one-field-at-a-time validation dead-end for blank coordinate pairs.
-- 2026-06-03: Added an optional Google Maps geocoding fallback after GeoMaps save failures. The app now detects unresolved saves, asks the user whether to try Google Maps, updates only the still-unresolved record/address when confirmed, and otherwise leaves the existing manual coordinate workflow unchanged.
+- 2026-06-03: Added an optional Google Maps geocoding fallback after GeoMaps save failures. The app now detects unresolved saves, asks the user whether to try Google Maps only when `GOOGLE_MAPS_API_KEY` is configured, updates only the still-unresolved record/address when confirmed, and otherwise leaves the existing manual coordinate workflow unchanged.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.

@@ -1,5 +1,6 @@
 import { createOrUpdatePerson, deletePersonById, listPeopleRecords, updatePersonById } from "@/lib/repository";
 import { identifyPersonGeocodeFailures } from "@/lib/geocode-save-result";
+import { isGoogleMapsFallbackConfigured } from "@/lib/google-maps";
 import { personInputSchema } from "@/lib/validation";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
     {
       person,
       geocodeFailures: identifyPersonGeocodeFailures(parsed.data, person),
+      googleMapsFallbackAvailable: isGoogleMapsFallbackConfigured(),
     },
     { status: 201 },
   );
@@ -51,6 +53,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({
       person,
       geocodeFailures: identifyPersonGeocodeFailures(parsed.data, person),
+      googleMapsFallbackAvailable: isGoogleMapsFallbackConfigured(),
     });
   } catch {
     return NextResponse.json({ error: "Person could not be updated." }, { status: 409 });

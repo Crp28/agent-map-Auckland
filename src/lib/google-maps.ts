@@ -24,13 +24,16 @@ function buildGoogleAddressQuery(streetAddress: string, suburb: string) {
     .join(", ");
 }
 
+export function isGoogleMapsFallbackConfigured() {
+  return Boolean(process.env.GOOGLE_MAPS_API_KEY?.trim());
+}
+
 export async function googleGeocodeAddress(
   streetAddress: string,
   suburb: string,
   options: { signal?: AbortSignal } = {},
 ): Promise<GoogleGeocodeResult | null> {
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY?.trim();
-  if (!apiKey) {
+  if (!isGoogleMapsFallbackConfigured()) {
     throw new Error("Google Maps fallback is not configured.");
   }
 
@@ -38,7 +41,7 @@ export async function googleGeocodeAddress(
   url.searchParams.set("address", buildGoogleAddressQuery(streetAddress, suburb));
   url.searchParams.set("components", "country:NZ");
   url.searchParams.set("region", "nz");
-  url.searchParams.set("key", apiKey);
+  url.searchParams.set("key", process.env.GOOGLE_MAPS_API_KEY!.trim());
 
   const response = await fetch(url, {
     cache: "no-store",
