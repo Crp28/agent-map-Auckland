@@ -85,7 +85,7 @@ The subdivision/local-board outline cache is refreshed by `cmd /c npm run sync:g
 - People records also support multiple person-level notes with the current types `General Note`, `Inspection`, and `Living`.
 - A Person modal opened from the map includes a small GeoMaps retry button for the selected address.
 - Sold Property validation includes required address, suburb, sold date, sold price, and optional coordinates.
-- When GeoMaps cannot find coordinates for a save, the UI offers a one-time Google Maps fallback only if `GOOGLE_MAPS_API_KEY` is configured. Without that key, no Google prompt appears and manual coordinate entry remains available.
+- When GeoMaps cannot find coordinates for a save, the UI offers a one-time in-app Google Maps fallback prompt only if `GOOGLE_MAPS_API_KEY` is configured. Without that key, no Google prompt appears and manual coordinate entry remains available.
 
 ## CSV Import
 

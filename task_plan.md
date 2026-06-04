@@ -44,6 +44,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 38. Complete: Fix street-address edits so changed address rows do not preserve stale carried-over coordinates from the previous address.
 39. Complete: Replace modal coordinate editing with a paired coordinate editor so manual fallback entry works when the stored coordinate pair is blank.
 40. Complete: Add an opt-in Google Maps geocoding fallback that is offered only after GeoMaps save failures and only when a Google Maps API key is configured, while preserving manual coordinate entry as the final fallback.
+41. Complete: Replace the Google fallback native confirm dialog with an in-app prompt so fallback choices are not affected by browser tab focus.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.

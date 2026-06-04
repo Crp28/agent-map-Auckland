@@ -61,6 +61,68 @@ function FieldError({ message }: { message?: string }) {
   return message ? <p className={errorClass}>{message}</p> : null;
 }
 
+function useGoogleFallbackPrompt() {
+  const [prompt, setPrompt] = useState<{
+    message: string;
+    resolve: (accepted: boolean) => void;
+  } | null>(null);
+
+  const askGoogleFallback = useCallback((message: string) => {
+    return new Promise<boolean>((resolve) => {
+      setPrompt({ message, resolve });
+    });
+  }, []);
+
+  function closePrompt(accepted: boolean) {
+    const currentPrompt = prompt;
+    if (!currentPrompt) {
+      return;
+    }
+
+    setPrompt(null);
+    currentPrompt.resolve(accepted);
+  }
+
+  return {
+    askGoogleFallback,
+    googleFallbackPrompt: prompt ? (
+      <div className="fixed inset-0 z-[80] grid place-items-center bg-black/30 p-4">
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="google-fallback-title"
+          aria-describedby="google-fallback-description"
+          className="w-[min(92vw,420px)] rounded-md border border-[#cbd5e1] bg-white p-4 shadow-xl"
+        >
+          <h3 id="google-fallback-title" className="text-base font-semibold text-[#111827]">
+            Try Google Maps
+          </h3>
+          <p id="google-fallback-description" className="mt-2 text-sm leading-6 text-[#475569]">
+            {prompt.message}
+          </p>
+          <div className="mt-4 flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => closePrompt(false)}
+              className="inline-flex min-h-11 items-center rounded-md border border-[#cbd5e1] px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+            >
+              Skip
+            </button>
+            <button
+              type="button"
+              autoFocus
+              onClick={() => closePrompt(true)}
+              className="inline-flex min-h-11 items-center rounded-md bg-[#0056a7] px-3 py-2 text-sm font-semibold text-white hover:bg-[#004780] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+            >
+              Try Google Maps
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null,
+  };
+}
+
 type SoldPropertyForm = z.input<typeof soldPropertyInputSchema>;
 type RecordKind = "person" | "soldProperty";
 type ManagedRecord = PersonRecord | SoldPropertyRecord;
@@ -74,6 +136,7 @@ export function AddPersonDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const [status, setStatus] = useState<FormStatus>(null);
+  const { askGoogleFallback, googleFallbackPrompt } = useGoogleFallbackPrompt();
   const {
     control,
     register,
@@ -128,6 +191,7 @@ export function AddPersonDialog({
           payload.person,
           payload.geocodeFailures,
           payload.googleMapsFallbackAvailable,
+          askGoogleFallback,
           () => undefined,
           refresh,
         );
@@ -150,6 +214,7 @@ export function AddPersonDialog({
 
   return (
     <AppDialog open={open} onOpenChange={onOpenChange} title="Add person">
+      {googleFallbackPrompt}
       <form className="grid gap-4" onSubmit={handleSubmit(onSubmit)}>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className={labelClass}>
@@ -329,6 +394,7 @@ export function AddSoldPropertyDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const [status, setStatus] = useState<FormStatus>(null);
+  const { askGoogleFallback, googleFallbackPrompt } = useGoogleFallbackPrompt();
   const {
     register,
     handleSubmit,
@@ -357,6 +423,7 @@ export function AddSoldPropertyDialog({
           payload.soldProperty,
           payload.geocodeFailure,
           payload.googleMapsFallbackAvailable,
+          askGoogleFallback,
           () => undefined,
           refresh,
         );
@@ -379,6 +446,7 @@ export function AddSoldPropertyDialog({
 
   return (
     <AppDialog open={open} onOpenChange={onOpenChange} title="Add sold property">
+      {googleFallbackPrompt}
       <form className="grid gap-4" onSubmit={handleSubmit(onSubmit)}>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className={`${labelClass} sm:col-span-2`}>
@@ -953,6 +1021,7 @@ async function applyGoogleFallbackToPerson(
   person: PersonRecord,
   geocodeFailures: GeocodeFailureAddress[],
   googleMapsFallbackAvailable: boolean,
+  askGoogleFallback: (message: string) => Promise<boolean>,
   onPersonChange: (person: PersonRecord) => void,
   refresh: () => void,
 ) {
@@ -973,7 +1042,7 @@ async function applyGoogleFallbackToPerson(
   }
 
   for (const failure of geocodeFailures) {
-    const shouldTryGoogle = window.confirm(
+    const shouldTryGoogle = await askGoogleFallback(
       `GeoMaps could not find coordinates for ${failure.streetAddress}, ${failure.suburb}. Try Google Maps fallback?`,
     );
     if (!shouldTryGoogle) {
@@ -1017,6 +1086,7 @@ async function applyGoogleFallbackToSoldProperty(
   soldProperty: SoldPropertyRecord,
   geocodeFailure: GeocodeFailureAddress | null,
   googleMapsFallbackAvailable: boolean,
+  askGoogleFallback: (message: string) => Promise<boolean>,
   onSoldPropertyChange: (soldProperty: SoldPropertyRecord) => void,
   refresh: () => void,
 ) {
@@ -1028,7 +1098,7 @@ async function applyGoogleFallbackToSoldProperty(
     return { soldProperty, updated: false, declined: false, failed: false, skipped: true };
   }
 
-  const shouldTryGoogle = window.confirm(
+  const shouldTryGoogle = await askGoogleFallback(
     `GeoMaps could not find coordinates for ${geocodeFailure.streetAddress}, ${geocodeFailure.suburb}. Try Google Maps fallback?`,
   );
   if (!shouldTryGoogle) {
@@ -1222,6 +1292,7 @@ function PersonDetails({
 }) {
   const [retryingGeocode, setRetryingGeocode] = useState(false);
   const [geocodeStatus, setGeocodeStatus] = useState<string | null>(null);
+  const { askGoogleFallback, googleFallbackPrompt } = useGoogleFallbackPrompt();
   const [draftAddress, setDraftAddress] = useState<{
     streetAddress: string;
     suburb: string;
@@ -1248,6 +1319,7 @@ function PersonDetails({
         payload.person,
         payload.geocodeFailures,
         payload.googleMapsFallbackAvailable,
+        askGoogleFallback,
         onChange,
         refresh,
       );
@@ -1416,6 +1488,7 @@ function PersonDetails({
 
   return (
     <div className="grid gap-4">
+      {googleFallbackPrompt}
       <div className="flex justify-end gap-2">
         {source === "map" && person.addressId ? (
           <button
@@ -1715,6 +1788,8 @@ function SoldPropertyDetails({
   onDeleted: () => void;
   refresh: () => void;
 }) {
+  const { askGoogleFallback, googleFallbackPrompt } = useGoogleFallbackPrompt();
+
   async function saveSoldProperty(next: SoldPropertyRecord) {
     const payload = await requestJson<SoldPropertySaveResponse>("/api/sold-properties", {
       method: "PATCH",
@@ -1728,6 +1803,7 @@ function SoldPropertyDetails({
         payload.soldProperty,
         payload.geocodeFailure,
         payload.googleMapsFallbackAvailable,
+        askGoogleFallback,
         onChange,
         refresh,
       );
@@ -1744,6 +1820,7 @@ function SoldPropertyDetails({
 
   return (
     <div className="grid gap-4">
+      {googleFallbackPrompt}
       <div className="flex justify-end">
         <button
           type="button"

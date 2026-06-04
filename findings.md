@@ -77,6 +77,7 @@
 - Editing a Person street address through the modal still sends the existing address coordinates back in the payload. If the repository treats those coordinates as authoritative after the address text changes, it preserves a stale map point instead of re-geocoding the new address.
 - Coordinate pairs cannot be edited reliably through two independent blur-save fields when validation requires latitude and longitude together. Manual fallback entry needs a paired editor with an explicit Save action.
 - GeoMaps misses should not automatically trigger a slower secondary provider on every save. The cleaner boundary is: save normally with GeoMaps, detect unresolved results in the API response, ask the user whether to try Google Maps only when the API key is configured, and patch only the unresolved record if they agree.
+- Browser-native `window.confirm()` is not reliable for delayed post-save prompts because tab focus and browser dialog suppression can make the fallback decision disappear. The Google fallback decision needs to be an in-app prompt rendered by React.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.
