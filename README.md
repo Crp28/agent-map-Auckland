@@ -19,6 +19,7 @@ Location Finder is a Next.js 16 app for viewing Auckland sold properties and peo
 - One Person can also store multiple person-level notes. Each note has a type and plain-text content, and notes render in a compact dark-grey section at the bottom of the Person modal.
 - People without coordinates remain stored and editable, but do not render on the map until latitude and longitude are added or geocoded.
 - The main page can audit stored People coordinates in batches, color suspected mismatches red on the map, and bulk refresh those mismatches.
+- The main page can map all People addresses that still lack coordinates through Google Maps in small batches. The action asks for confirmation because Google Maps usage may be billable, saves successful batches immediately, and safely skips addresses that gained coordinates before processing.
 - The main page can also audit stored People owners through a local PropertySmarts Playwright session, resume from the last completed batch, mark owner mismatches red, and mark strict first+last-only stored names in orange when PropertySmarts shows matching middle names that the system does not currently store.
 
 ## Setup
@@ -130,6 +131,7 @@ For bulk speed, the CLI import skips geocoding during import and preserves exist
 - `+` zooms in and `-` zooms out.
 - Selecting a Sold Property pin or search result opens its modal and can drive the nearby People workflow.
 - `Audit People coords` checks coordinate-bearing People addresses in batches so the browser does not send one timeout-prone geocode request for every stored marker at once.
+- `Map missing coords` uses Google Maps only for People address rows whose coordinate pair is still blank. Successful rows are saved after each small batch, so restarting the action naturally continues with the remaining missing rows.
 - `Audit ownership` checks all stored People addresses against PropertySmarts in resumable batches. It is local-only admin tooling, depends on a saved Playwright auth state, and leaves mismatch flags in session state only. Exact mismatches render red; strict first+last-only stored names that otherwise match PropertySmarts render orange.
 - Person notes are stored on the Person, not on individual addresses, so every address view of that Person shows the same note set.
 - Checking `Same suburb` makes nearby People satisfy both the distance limit and the selected Sold Property suburb.

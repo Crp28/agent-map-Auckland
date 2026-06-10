@@ -72,6 +72,7 @@
 - 2026-06-03: Replaced the detail-modal coordinate editors with a paired latitude/longitude editor for Person addresses and Sold Properties. Manual coordinate entry now saves both fields together, which avoids the old one-field-at-a-time validation dead-end for blank coordinate pairs.
 - 2026-06-03: Added an optional Google Maps geocoding fallback after GeoMaps save failures. The app now detects unresolved saves, asks the user whether to try Google Maps only when `GOOGLE_MAPS_API_KEY` is configured, updates only the still-unresolved record/address when confirmed, and otherwise leaves the existing manual coordinate workflow unchanged.
 - 2026-06-04: Replaced the Google Maps fallback `window.confirm()` prompt with an in-app prompt so fallback decisions are not lost when the browser tab is unfocused or native dialogs are suppressed.
+- 2026-06-10: Added a main-page `Map missing coords` workflow that uses Google Maps to backfill all coordinate-less People address rows in small batches. It confirms before the potentially billable run, writes successful coordinates immediately, and reports per-run outcome counts.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.

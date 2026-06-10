@@ -1,8 +1,10 @@
 import {
   auditPersonAddressCoordinates,
+  googleGeocodeMissingPersonAddresses,
   refreshPersonAddressCoordinates,
   retryPersonAddressGeocode,
 } from "@/lib/repository";
+import { isGoogleMapsFallbackConfigured } from "@/lib/google-maps";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -21,6 +23,10 @@ const requestSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("retry"),
     addressId: z.coerce.number().int().positive(),
+  }),
+  z.object({
+    action: z.literal("google-missing"),
+    addressIds: addressIdsSchema,
   }),
 ]);
 
@@ -41,6 +47,15 @@ export async function POST(request: Request) {
     if (parsed.data.action === "refresh") {
       const refreshedAddressIds = await refreshPersonAddressCoordinates(parsed.data.addressIds);
       return NextResponse.json({ refreshedAddressIds });
+    }
+
+    if (parsed.data.action === "google-missing") {
+      if (!isGoogleMapsFallbackConfigured()) {
+        return NextResponse.json({ error: "Google Maps fallback is not configured." }, { status: 503 });
+      }
+
+      const results = await googleGeocodeMissingPersonAddresses(parsed.data.addressIds);
+      return NextResponse.json({ results });
     }
 
     const result = await retryPersonAddressGeocode(parsed.data.addressId);

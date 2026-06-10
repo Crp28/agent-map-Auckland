@@ -78,6 +78,8 @@
 - Coordinate pairs cannot be edited reliably through two independent blur-save fields when validation requires latitude and longitude together. Manual fallback entry needs a paired editor with an explicit Save action.
 - GeoMaps misses should not automatically trigger a slower secondary provider on every save. The cleaner boundary is: save normally with GeoMaps, detect unresolved results in the API response, ask the user whether to try Google Maps only when the API key is configured, and patch only the unresolved record if they agree.
 - Browser-native `window.confirm()` is not reliable for delayed post-save prompts because tab focus and browser dialog suppression can make the fallback decision disappear. The Google fallback decision needs to be an in-app prompt rendered by React.
+- A bulk Google coordinate backfill can be naturally resumable without a separate checkpoint: select only address rows with null coordinate pairs, write each successful batch immediately, and reload the remaining null-coordinate rows on the next run.
+- Bulk Google geocoding should return per-address outcomes rather than aborting the batch on one failure. The useful operational summary is `mapped`, `not_found`, `failed`, and `already_mapped`, with low server concurrency and small client batches.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.

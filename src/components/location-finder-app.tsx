@@ -8,6 +8,7 @@ import {
   ImportPeopleDialog,
   RecordManagerDialog,
 } from "@/components/record-dialogs";
+import { AppDialog } from "@/components/ui/dialog";
 import { AUCKLAND_SUBURBS } from "@/lib/auckland-suburbs";
 import {
   PERSON_COORDINATE_AUDIT_SESSION_KEY,
@@ -27,6 +28,7 @@ import { displayPersonName } from "@/lib/person-display";
 import type {
   MapData,
   PersonCoordinateAuditResult,
+  PersonGoogleGeocodeResult,
   PersonOwnerAuditResult,
   PersonRecord,
   PointMapTarget,
@@ -48,6 +50,8 @@ const emptyMapData: MapData = {
 
 const PERSON_COORDINATE_BATCH_SIZE = 6;
 const PERSON_COORDINATE_BATCH_DELAY_MS = 250;
+const PERSON_GOOGLE_GEOCODE_BATCH_SIZE = 5;
+const PERSON_GOOGLE_GEOCODE_BATCH_DELAY_MS = 350;
 const PERSON_OWNER_BATCH_SIZE = 4;
 const PERSON_OWNER_BATCH_DELAY_MS = 500;
 
@@ -84,6 +88,8 @@ export function LocationFinderApp() {
   const [sameSuburb, setSameSuburb] = useState(true);
   const [mismatchedPersonAddressIds, setMismatchedPersonAddressIds] = useState<number[]>([]);
   const [coordinateAuditRunning, setCoordinateAuditRunning] = useState(false);
+  const [googleGeocodeRunning, setGoogleGeocodeRunning] = useState(false);
+  const [pendingGoogleGeocodeAddressIds, setPendingGoogleGeocodeAddressIds] = useState<number[]>([]);
   const [ownerMismatchedPersonAddressIds, setOwnerMismatchedPersonAddressIds] = useState<number[]>([]);
   const [ownerIncompleteNameAddressIds, setOwnerIncompleteNameAddressIds] = useState<number[]>([]);
   const [ownerAuditRunning, setOwnerAuditRunning] = useState(false);
@@ -399,6 +405,99 @@ export function LocationFinderApp() {
     return refreshedAddressIds;
   }
 
+  async function googleGeocodeMissingAddressBatch(addressIds: number[]) {
+    const results: PersonGoogleGeocodeResult[] = [];
+
+    for (let index = 0; index < addressIds.length; index += PERSON_GOOGLE_GEOCODE_BATCH_SIZE) {
+      const batch = addressIds.slice(index, index + PERSON_GOOGLE_GEOCODE_BATCH_SIZE);
+      setNotice(
+        `Mapping missing People coordinates with Google Maps ${Math.min(index + batch.length, addressIds.length)}/${addressIds.length}...`,
+      );
+      const response = await fetch("/api/people/coordinates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "google-missing", addressIds: batch }),
+      });
+      const payload = await readJsonResponse<{ error?: string; results?: PersonGoogleGeocodeResult[] }>(response);
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === "string" ? payload.error : "Google Maps coordinate backfill failed.");
+      }
+      results.push(...(payload?.results ?? []));
+      refresh();
+
+      if (index + batch.length < addressIds.length) {
+        await wait(PERSON_GOOGLE_GEOCODE_BATCH_DELAY_MS);
+      }
+    }
+
+    return results;
+  }
+
+  async function prepareGoogleMissingCoordinates() {
+    if (coordinateAuditRunning || googleGeocodeRunning || ownerAuditRunning) {
+      return;
+    }
+
+    setGoogleGeocodeRunning(true);
+    try {
+      setNotice("Loading People addresses without coordinates...");
+      const response = await fetch("/api/people");
+      const payload = await readJsonResponse<{
+        error?: string;
+        people?: PersonRecord[];
+        googleMapsFallbackAvailable?: boolean;
+      }>(response);
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === "string" ? payload.error : "People could not be loaded.");
+      }
+      if (!payload?.googleMapsFallbackAvailable) {
+        throw new Error("Google Maps fallback is not configured.");
+      }
+
+      const addressIds = (payload.people ?? []).flatMap((person) =>
+        person.addresses
+          .filter((address) => address.latitude === null && address.longitude === null)
+          .map((address) => address.id),
+      );
+      if (addressIds.length === 0) {
+        setNotice("All People addresses already have coordinates.");
+        return;
+      }
+
+      setPendingGoogleGeocodeAddressIds(addressIds);
+      setNotice(`${addressIds.length} People addresses are missing coordinates.`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Missing People addresses could not be loaded.");
+    } finally {
+      setGoogleGeocodeRunning(false);
+    }
+  }
+
+  async function confirmGoogleMissingCoordinates() {
+    const addressIds = pendingGoogleGeocodeAddressIds;
+    setPendingGoogleGeocodeAddressIds([]);
+    if (addressIds.length === 0) {
+      return;
+    }
+
+    setGoogleGeocodeRunning(true);
+    try {
+      const results = await googleGeocodeMissingAddressBatch(addressIds);
+      const mappedCount = results.filter((result) => result.status === "mapped").length;
+      const notFoundCount = results.filter((result) => result.status === "not_found").length;
+      const failedCount = results.filter((result) => result.status === "failed").length;
+      const alreadyMappedCount = results.filter((result) => result.status === "already_mapped").length;
+      setNotice(
+        `Google Maps coordinate backfill complete: ${mappedCount} mapped, ${notFoundCount} not found, ${failedCount} failed, ${alreadyMappedCount} already mapped.`,
+      );
+      refresh();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Google Maps coordinate backfill failed.");
+    } finally {
+      setGoogleGeocodeRunning(false);
+    }
+  }
+
   async function finishOwnerAuditSession() {
     try {
       await fetch("/api/people/owners", {
@@ -674,7 +773,7 @@ export function LocationFinderApp() {
   }
 
   function startOwnerAudit() {
-    if (coordinateAuditRunning || ownerAuditRunning) {
+    if (coordinateAuditRunning || googleGeocodeRunning || ownerAuditRunning) {
       return;
     }
 
@@ -856,7 +955,7 @@ export function LocationFinderApp() {
           <button
             type="button"
             onClick={() => void auditAllPeopleCoordinates()}
-            disabled={coordinateAuditRunning || ownerAuditRunning}
+            disabled={coordinateAuditRunning || googleGeocodeRunning || ownerAuditRunning}
             className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#cbd5e1] bg-white px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7] disabled:cursor-wait disabled:opacity-60"
           >
             <RefreshCw aria-hidden="true" size={18} className={coordinateAuditRunning ? "animate-spin" : ""} />
@@ -864,8 +963,17 @@ export function LocationFinderApp() {
           </button>
           <button
             type="button"
+            onClick={() => void prepareGoogleMissingCoordinates()}
+            disabled={coordinateAuditRunning || googleGeocodeRunning || ownerAuditRunning}
+            className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#cbd5e1] bg-white px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7] disabled:cursor-wait disabled:opacity-60"
+          >
+            <LocateFixed aria-hidden="true" size={18} className={googleGeocodeRunning ? "animate-pulse" : ""} />
+            Map missing coords
+          </button>
+          <button
+            type="button"
             onClick={startOwnerAudit}
-            disabled={coordinateAuditRunning || ownerAuditRunning}
+            disabled={coordinateAuditRunning || googleGeocodeRunning || ownerAuditRunning}
             className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#cbd5e1] bg-white px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7] disabled:cursor-wait disabled:opacity-60"
           >
             <RefreshCw aria-hidden="true" size={18} className={ownerAuditRunning ? "animate-spin" : ""} />
@@ -877,7 +985,7 @@ export function LocationFinderApp() {
               onClick={() => void deleteOwnerMismatches().catch((error) => {
                 setNotice(error instanceof Error ? error.message : "Mismatched addresses could not be deleted.");
               })}
-              disabled={coordinateAuditRunning || ownerAuditRunning}
+              disabled={coordinateAuditRunning || googleGeocodeRunning || ownerAuditRunning}
               className="inline-flex min-h-11 items-center gap-2 rounded-md bg-[#991b1b] px-3 py-2 text-sm font-semibold text-white hover:bg-[#7f1d1d] focus:outline-none focus:ring-2 focus:ring-[#991b1b] disabled:cursor-wait disabled:opacity-60"
             >
               <Trash2 aria-hidden="true" size={18} />
@@ -887,6 +995,41 @@ export function LocationFinderApp() {
         </div>
 
       </section>
+
+      <AppDialog
+        open={pendingGoogleGeocodeAddressIds.length > 0}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingGoogleGeocodeAddressIds([]);
+          }
+        }}
+        title="Map missing coordinates"
+        description="Google Maps usage may be billable. Successful addresses are saved immediately, so interrupted runs can safely be restarted."
+      >
+        <div className="grid gap-4">
+          <p className="text-sm leading-6 text-[#475569]">
+            Try Google Maps for {pendingGoogleGeocodeAddressIds.length} People address
+            {pendingGoogleGeocodeAddressIds.length === 1 ? "" : "es"} without coordinates?
+          </p>
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setPendingGoogleGeocodeAddressIds([])}
+              className="inline-flex min-h-11 items-center rounded-md border border-[#cbd5e1] px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void confirmGoogleMissingCoordinates()}
+              className="inline-flex min-h-11 items-center gap-2 rounded-md bg-[#0056a7] px-3 py-2 text-sm font-semibold text-white hover:bg-[#004780] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+            >
+              <LocateFixed aria-hidden="true" size={18} />
+              Map addresses
+            </button>
+          </div>
+        </div>
+      </AppDialog>
 
       <aside className="pointer-events-none absolute bottom-3 left-3 right-3 top-56 z-20 flex min-h-0 flex-col justify-end gap-3 md:left-auto md:w-[380px]">
         <div

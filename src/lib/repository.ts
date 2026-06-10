@@ -4,6 +4,7 @@ import { people, peopleAddresses, peopleNotes, soldProperties, syncMetadata } fr
 import { GEOMAPS_BOUNDARY_SOURCE_NAME } from "@/lib/constants";
 import { distanceKm, matchesNearbyFilter, purchasingPowerIncludesPrice } from "@/lib/distance";
 import { geocodeAddress } from "@/lib/geomaps";
+import { googleGeocodeAddress } from "@/lib/google-maps";
 import { emptyToNull, normalizeKey, normalizeText } from "@/lib/normalize";
 import { displayPersonName } from "@/lib/person-display";
 import { normalizePreferredFirstName } from "@/lib/person-name";
@@ -11,6 +12,7 @@ import type { PersonAddressInput, PersonInput, SoldPropertyInput } from "@/lib/v
 import type {
   PersonAddressRecord,
   PersonCoordinateAuditResult,
+  PersonGoogleGeocodeResult,
   PersonNoteRecord,
   PersonRecord,
 } from "@/types/location";
@@ -1218,6 +1220,69 @@ export async function refreshPersonAddressCoordinates(addressIds: number[]) {
   });
 
   return refreshedAddressIds;
+}
+
+export async function googleGeocodeMissingPersonAddresses(addressIds: number[]) {
+  const rows = getAuditAddressRows(addressIds);
+
+  return runAddressBatch(
+    rows,
+    async (row): Promise<PersonGoogleGeocodeResult> => {
+      if (row.latitude !== null || row.longitude !== null) {
+        return {
+          personId: row.person_id,
+          addressId: row.address_id,
+          streetAddress: row.street_address,
+          suburb: row.suburb,
+          status: "already_mapped",
+          matchedAddress: null,
+          error: null,
+        };
+      }
+
+      try {
+        const geocoded = await googleGeocodeAddress(row.street_address, row.suburb);
+        if (!geocoded) {
+          return {
+            personId: row.person_id,
+            addressId: row.address_id,
+            streetAddress: row.street_address,
+            suburb: row.suburb,
+            status: "not_found",
+            matchedAddress: null,
+            error: null,
+          };
+        }
+
+        await updatePersonAddressCoordinates(
+          row,
+          { latitude: geocoded.latitude, longitude: geocoded.longitude },
+          nowIso(),
+        );
+
+        return {
+          personId: row.person_id,
+          addressId: row.address_id,
+          streetAddress: row.street_address,
+          suburb: row.suburb,
+          status: "mapped",
+          matchedAddress: geocoded.matchedAddress,
+          error: null,
+        };
+      } catch (error) {
+        return {
+          personId: row.person_id,
+          addressId: row.address_id,
+          streetAddress: row.street_address,
+          suburb: row.suburb,
+          status: "failed",
+          matchedAddress: null,
+          error: error instanceof Error ? error.message : "Google Maps lookup failed.",
+        };
+      }
+    },
+    2,
+  );
 }
 
 export function getRawPeopleByIdentity(identityKey: string) {

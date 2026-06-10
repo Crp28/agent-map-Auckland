@@ -12,7 +12,10 @@ const selectedAddressIdSchema = z.coerce.number().int().positive().nullable().op
 
 export async function GET() {
   const people = await listPeopleRecords();
-  return NextResponse.json({ people });
+  return NextResponse.json({
+    people,
+    googleMapsFallbackAvailable: isGoogleMapsFallbackConfigured(),
+  });
 }
 
 export async function POST(request: Request) {

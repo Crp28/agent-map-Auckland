@@ -45,6 +45,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 39. Complete: Replace modal coordinate editing with a paired coordinate editor so manual fallback entry works when the stored coordinate pair is blank.
 40. Complete: Add an opt-in Google Maps geocoding fallback that is offered only after GeoMaps save failures and only when a Google Maps API key is configured, while preserving manual coordinate entry as the final fallback.
 41. Complete: Replace the Google fallback native confirm dialog with an in-app prompt so fallback choices are not affected by browser tab focus.
+42. Complete: Add a main-page bulk action that maps all coordinate-less People addresses through Google Maps in small, resumable batches.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.
@@ -71,3 +72,4 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 | `_`/`_` Person row received an arbitrary coordinate | Bulk geocoding | Root cause was SQL `LIKE` wildcard handling; added address specificity checks and cleared the false-positive coordinate. |
 | Existing local database crashed on `no such column: person_key` after the multi-address schema change | Live app verification | Root cause was `ensureDatabase()` creating the `people_person_key_unique` index before older databases had added the new `person_key` column; moved index creation after the conditional column migration. |
 | `agent-browser batch` parsed `wait 700` as command `700` | Nearby export browser verification | Switched to individual `agent-browser` commands with quoted refs on PowerShell and completed the CSV interception check. |
+| PowerShell rejected `&&` while chaining Playwright smoke-check commands | Bulk Google coordinate browser verification | Re-ran navigation and inspection as separate commands and completed the confirmation-dialog smoke check. |

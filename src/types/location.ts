@@ -53,6 +53,16 @@ export type PersonCoordinateAuditResult = {
   distanceKm: number | null;
 };
 
+export type PersonGoogleGeocodeResult = {
+  personId: number;
+  addressId: number;
+  streetAddress: string;
+  suburb: string;
+  status: "mapped" | "not_found" | "failed" | "already_mapped";
+  matchedAddress: string | null;
+  error: string | null;
+};
+
 export type PersonOwnerAuditResult = {
   personId: number;
   addressId: number;

@@ -587,4 +587,57 @@ describe("multi-address repository behavior", () => {
     expect(listed[0]?.suburb).toBe("Auckland Central");
     expect(listed[0]?.addresses).toHaveLength(1);
   });
+
+  it("maps only missing Person addresses through Google Maps", async () => {
+    const googleGeocodeAddress = vi.fn(async () => ({
+      latitude: -36.8078,
+      longitude: 174.7816,
+      matchedAddress: "2/5 Keys Street, Belmont, Auckland, New Zealand",
+    }));
+
+    vi.doMock("./google-maps", async () => {
+      const actual = await vi.importActual<typeof import("./google-maps")>("./google-maps");
+      return {
+        ...actual,
+        googleGeocodeAddress,
+      };
+    });
+    await loadRepository();
+
+    const created = await repository.createOrUpdatePerson({
+      name: "Google Backfill",
+      preferredName: "",
+      phone: "021 555 5555",
+      email: "",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [],
+      addresses: [
+        {
+          streetAddress: "2/5 Keys Street",
+          suburb: "Belmont",
+          latitude: null,
+          longitude: null,
+        },
+        {
+          streetAddress: "1 Queen Street",
+          suburb: "Auckland Central",
+          latitude: -36.847,
+          longitude: 174.763,
+        },
+      ],
+    }, { geocode: false });
+
+    const results = await repository.googleGeocodeMissingPersonAddresses(
+      created!.addresses.map((address) => address.id),
+    );
+
+    expect(results.map((result) => result.status)).toEqual(["mapped", "already_mapped"]);
+    expect(googleGeocodeAddress).toHaveBeenCalledTimes(1);
+
+    const listed = await repository.listPeopleRecords();
+    expect(listed[0]?.addresses[0]?.latitude).toBe(-36.8078);
+    expect(listed[0]?.addresses[0]?.longitude).toBe(174.7816);
+    expect(listed[0]?.addresses[1]?.latitude).toBe(-36.847);
+  });
 });
