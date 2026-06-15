@@ -80,6 +80,7 @@
 - Browser-native `window.confirm()` is not reliable for delayed post-save prompts because tab focus and browser dialog suppression can make the fallback decision disappear. The Google fallback decision needs to be an in-app prompt rendered by React.
 - A bulk Google coordinate backfill can be naturally resumable without a separate checkpoint: select only address rows with null coordinate pairs, write each successful batch immediately, and reload the remaining null-coordinate rows on the next run.
 - Bulk Google geocoding should return per-address outcomes rather than aborting the batch on one failure. The useful operational summary is `mapped`, `not_found`, `failed`, and `already_mapped`, with low server concurrency and small client batches.
+- People manager search is a local UI filter over already loaded records. Filtering by legal name and display name avoids an extra API request and keeps the modal responsive for the current record count.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.

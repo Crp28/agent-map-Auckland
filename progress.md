@@ -170,3 +170,5 @@
 - Started a bulk Google Maps backfill workflow for all People address rows that still have no coordinates.
 - Added the `google-missing` People-coordinate API action, per-address Google backfill results, a main-page `Map missing coords` confirmation workflow, small batch processing, and focused API/repository tests. Successful rows save immediately and future runs select only remaining null-coordinate rows.
 - Verified the bulk Google workflow against a production build on `http://127.0.0.1:3001`: the button detected 157 coordinate-less People addresses and opened the billable-use confirmation dialog. Canceled before starting the live backfill.
+- Added a local name search to the People manager header beside `Add person`. The list now filters visible People rows by legal/display name and shows filtered-versus-total counts.
+- Kept the People manager list viewport at a stable responsive height while searching, so the modal no longer shrinks when only a few rows match.

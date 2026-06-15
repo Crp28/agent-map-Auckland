@@ -73,6 +73,7 @@
 - 2026-06-03: Added an optional Google Maps geocoding fallback after GeoMaps save failures. The app now detects unresolved saves, asks the user whether to try Google Maps only when `GOOGLE_MAPS_API_KEY` is configured, updates only the still-unresolved record/address when confirmed, and otherwise leaves the existing manual coordinate workflow unchanged.
 - 2026-06-04: Replaced the Google Maps fallback `window.confirm()` prompt with an in-app prompt so fallback decisions are not lost when the browser tab is unfocused or native dialogs are suppressed.
 - 2026-06-10: Added a main-page `Map missing coords` workflow that uses Google Maps to backfill all coordinate-less People address rows in small batches. It confirms before the potentially billable run, writes successful coordinates immediately, and reports per-run outcome counts.
+- 2026-06-16: Added a People manager name search field beside `Add person`, with filtered counts, an empty-search result state, and a stable list viewport so the modal does not shrink while filtering.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.

@@ -8,6 +8,7 @@
 8. The user can filter People dots by entering a price to see if that overlaps with their purchasing power range.
 9. The user can manage Sold Properties from a popup manager, including viewing, adding, editing details, and deleting records.
 10. The user can manage People from a popup manager, including viewing, adding, editing details, and deleting records.
+10a. The user can search the People manager list by person name before opening a row.
 11. The user can bulk import People using a CSV file to quickly add multiple People entries in one action.
 12. The user can open a retractable side list of Auckland suburb/region names, search inside it, and click one to move the map to that suburb at a local zoom.
 13. The user can apply or cancel a nearby People filter from the same bottom-right control stack as the suburb side list without changing the current map position, and can export the visible nearby People list to CSV.

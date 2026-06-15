@@ -2,7 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { AddPersonDialog, EditableCoordinatePairRow } from "./record-dialogs";
+import { AddPersonDialog, EditableCoordinatePairRow, RecordManagerDialog } from "./record-dialogs";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -65,6 +65,41 @@ function fillPersonForm() {
   fireEvent.change(screen.getByLabelText("Phone (required if no email)"), { target: { value: "021 000 000" } });
   fireEvent.change(screen.getByLabelText("Street address"), { target: { value: "2/5 Keys Street" } });
   fireEvent.change(screen.getByLabelText("Suburb"), { target: { value: "Belmont" } });
+}
+
+function personRecord(id: number, name: string, streetAddress: string) {
+  return {
+    id,
+    personKey: `person-${id}`,
+    name,
+    preferredName: null,
+    addressId: id * 10,
+    streetAddress,
+    suburb: "Remuera",
+    phone: "021 000 000",
+    email: "",
+    purchasingPowerMin: null,
+    purchasingPowerMax: null,
+    latitude: null,
+    longitude: null,
+    notes: [],
+    addresses: [
+      {
+        id: id * 10,
+        personId: id,
+        identityKey: `person-${id}-address`,
+        streetAddress,
+        suburb: "Remuera",
+        latitude: null,
+        longitude: null,
+        createdAt: "2026-06-16T00:00:00.000Z",
+        updatedAt: "2026-06-16T00:00:00.000Z",
+      },
+    ],
+    lastUpdatedAt: "2026-06-16T00:00:00.000Z",
+    createdAt: "2026-06-16T00:00:00.000Z",
+    updatedAt: "2026-06-16T00:00:00.000Z",
+  };
 }
 
 describe("EditableCoordinatePairRow", () => {
@@ -148,5 +183,41 @@ describe("AddPersonDialog Google fallback prompt", () => {
     });
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     expect(confirmSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("RecordManagerDialog", () => {
+  it("filters people by name in the manager modal", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse({
+          people: [
+            personRecord(1, "Meena Balaguru", "34 Liddesdale Place"),
+            personRecord(2, "David Bainbridge-Smith", "49 Parker Ave"),
+          ],
+        }),
+      ),
+    );
+
+    render(
+      <RecordManagerDialog
+        type="person"
+        open
+        onOpenChange={() => undefined}
+        onAdd={() => undefined}
+        onSelect={() => undefined}
+        refresh={() => undefined}
+      />,
+    );
+
+    expect(await screen.findByText("Meena Balaguru")).toBeInTheDocument();
+    expect(screen.getByText("David Bainbridge-Smith")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Search people by name"), { target: { value: "david" } });
+
+    expect(screen.queryByText("Meena Balaguru")).not.toBeInTheDocument();
+    expect(screen.getByText("David Bainbridge-Smith")).toBeInTheDocument();
+    expect(screen.getByText("1 of 2 records")).toBeInTheDocument();
   });
 });

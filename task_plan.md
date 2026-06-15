@@ -46,6 +46,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 40. Complete: Add an opt-in Google Maps geocoding fallback that is offered only after GeoMaps save failures and only when a Google Maps API key is configured, while preserving manual coordinate entry as the final fallback.
 41. Complete: Replace the Google fallback native confirm dialog with an in-app prompt so fallback choices are not affected by browser tab focus.
 42. Complete: Add a main-page bulk action that maps all coordinate-less People addresses through Google Maps in small, resumable batches.
+43. Complete: Add a People manager name search field beside `Add person` while keeping the modal layout compact and accessible.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.

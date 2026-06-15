@@ -81,6 +81,7 @@ The subdivision/local-board outline cache is refreshed by `cmd /c npm run sync:g
 
 - `Sold property` opens the Sold Property manager for viewing, adding, editing, and deleting records.
 - `Person` opens the People manager for viewing, adding, editing, and deleting records.
+- The People manager includes a name search field beside `Add person` for filtering long person lists.
 - People validation requires at least one of phone or email, validates non-empty email format, checks optional purchasing power min/max ordering, and validates optional coordinate pairs per address.
 - People records also support an optional preferred first name. Legal name remains the canonical stored name for owner-checking and imports, while the UI derives the displayed full name by replacing only the legal first name.
 - People records also support multiple person-level notes with the current types `General Note`, `Inspection`, and `Living`.

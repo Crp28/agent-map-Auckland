@@ -11,9 +11,9 @@ import {
   type SoldPropertyRecord,
 } from "@/types/location";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
+import { Eye, Plus, RefreshCw, Search, Trash2, Upload } from "lucide-react";
 import type { FormEvent } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
 import { personFormSchema, personInputSchema, soldPropertyInputSchema } from "@/lib/validation";
@@ -575,6 +575,7 @@ export function RecordManagerDialog({
 }) {
   const [records, setRecords] = useState<ManagedRecord[]>([]);
   const [status, setStatus] = useState<FormStatus>(null);
+  const [personSearch, setPersonSearch] = useState("");
   const endpoint = type === "person" ? "/api/people" : "/api/sold-properties";
   const title = type === "person" ? "People" : "Sold properties";
   const addLabel = type === "person" ? "Add person" : "Add sold property";
@@ -630,6 +631,35 @@ export function RecordManagerDialog({
     };
   }, [fetchRecords, open, title]);
 
+  const visibleRecords = useMemo(() => {
+    if (type !== "person") {
+      return records;
+    }
+
+    const normalizedQuery = personSearch.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return records;
+    }
+
+    return records.filter((record) => {
+      if (!("name" in record)) {
+        return false;
+      }
+
+      return (
+        record.name.toLowerCase().includes(normalizedQuery) ||
+        displayPersonName(record).toLowerCase().includes(normalizedQuery)
+      );
+    });
+  }, [personSearch, records, type]);
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      setPersonSearch("");
+    }
+    onOpenChange(nextOpen);
+  }
+
   async function deleteRecord(record: ManagedRecord) {
     const recordLabel = "name" in record ? displayPersonName(record) : record.streetAddress;
     if (!window.confirm(`Delete ${recordLabel}? This cannot be undone.`)) {
@@ -648,14 +678,36 @@ export function RecordManagerDialog({
   }
 
   return (
-    <AppDialog open={open} onOpenChange={onOpenChange} title={title}>
+    <AppDialog open={open} onOpenChange={handleOpenChange} title={title}>
       <div className="grid gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-[#475569]">{records.length} records</p>
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+          <div className="grid gap-2">
+            <p className="text-sm text-[#475569]">
+              {type === "person" && personSearch.trim()
+                ? `${visibleRecords.length} of ${records.length} records`
+                : `${records.length} records`}
+            </p>
+            {type === "person" ? (
+              <label className="relative block max-w-sm">
+                <span className="sr-only">Search people by name</span>
+                <Search
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b]"
+                  size={18}
+                />
+                <input
+                  value={personSearch}
+                  onChange={(event) => setPersonSearch(event.target.value)}
+                  className="min-h-11 w-full rounded-md border border-[#cbd5e1] bg-white pl-10 pr-3 text-sm text-[#111827] outline-none focus:border-[#0056a7] focus:ring-2 focus:ring-[#0056a7]/20"
+                  placeholder="Search by name"
+                />
+              </label>
+            ) : null}
+          </div>
           <button
             type="button"
             onClick={onAdd}
-            className="inline-flex min-h-11 items-center gap-2 rounded-md bg-[#0056a7] px-3 py-2 text-sm font-semibold text-white hover:bg-[#004780] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-[#0056a7] px-3 py-2 text-sm font-semibold text-white hover:bg-[#004780] focus:outline-none focus:ring-2 focus:ring-[#0056a7] sm:justify-self-end"
           >
             <Plus aria-hidden="true" size={18} />
             {addLabel}
@@ -666,8 +718,14 @@ export function RecordManagerDialog({
             {status.message}
           </p>
         ) : null}
-        <div className="max-h-[56dvh] overflow-auto rounded-md border border-[#e2e8f0]">
-          {records.map((record) => {
+        <div
+          className={
+            type === "person"
+              ? "h-[min(448px,56dvh)] overflow-auto rounded-md border border-[#e2e8f0]"
+              : "max-h-[56dvh] overflow-auto rounded-md border border-[#e2e8f0]"
+          }
+        >
+          {visibleRecords.map((record) => {
             const isPerson = "name" in record;
             const titleText = isPerson ? displayPersonName(record) : record.streetAddress;
             const subtitle = isPerson
@@ -704,8 +762,10 @@ export function RecordManagerDialog({
               </div>
             );
           })}
-          {records.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-[#64748b]">No records yet.</p>
+          {visibleRecords.length === 0 ? (
+            <p className="px-3 py-6 text-center text-sm text-[#64748b]">
+              {records.length === 0 ? "No records yet." : "No people match that name."}
+            </p>
           ) : null}
         </div>
       </div>
