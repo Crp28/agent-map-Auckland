@@ -82,6 +82,7 @@
 - Bulk Google geocoding should return per-address outcomes rather than aborting the batch on one failure. The useful operational summary is `mapped`, `not_found`, `failed`, and `already_mapped`, with low server concurrency and small client batches.
 - People manager search is a local UI filter over already loaded records. Filtering by legal name and display name avoids an extra API request and keeps the modal responsive for the current record count.
 - Addressless People should be represented as zero `people_addresses` rows, not as one blank address. The top-level `people.street_address/suburb` snapshot can stay as empty strings for schema compatibility, but map, nearby, coordinate-audit, owner-audit, and Google backfill workflows must continue to select only concrete address rows.
+- New draft Person addresses in the detail modal use temporary client-side ids. Those ids must never be sent as `selectedAddressId` because the API only accepts persisted positive address ids or `null`; otherwise adding the first address to an addressless Person is rejected before repository code runs.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.

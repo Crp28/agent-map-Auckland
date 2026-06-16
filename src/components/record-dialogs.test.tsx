@@ -2,7 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { AddPersonDialog, EditableCoordinatePairRow, RecordManagerDialog } from "./record-dialogs";
+import { AddPersonDialog, DetailsDialog, EditableCoordinatePairRow, RecordManagerDialog } from "./record-dialogs";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -96,6 +96,29 @@ function personRecord(id: number, name: string, streetAddress: string) {
         updatedAt: "2026-06-16T00:00:00.000Z",
       },
     ],
+    lastUpdatedAt: "2026-06-16T00:00:00.000Z",
+    createdAt: "2026-06-16T00:00:00.000Z",
+    updatedAt: "2026-06-16T00:00:00.000Z",
+  };
+}
+
+function addresslessPersonRecord(id: number, name: string) {
+  return {
+    id,
+    personKey: `person-${id}`,
+    name,
+    preferredName: null,
+    addressId: null,
+    streetAddress: "",
+    suburb: "",
+    phone: "021 000 000",
+    email: "",
+    purchasingPowerMin: null,
+    purchasingPowerMax: null,
+    latitude: null,
+    longitude: null,
+    notes: [],
+    addresses: [],
     lastUpdatedAt: "2026-06-16T00:00:00.000Z",
     createdAt: "2026-06-16T00:00:00.000Z",
     updatedAt: "2026-06-16T00:00:00.000Z",
@@ -253,5 +276,67 @@ describe("RecordManagerDialog", () => {
     expect(screen.queryByText("Meena Balaguru")).not.toBeInTheDocument();
     expect(screen.getByText("David Bainbridge-Smith")).toBeInTheDocument();
     expect(screen.getByText("1 of 2 records")).toBeInTheDocument();
+  });
+});
+
+describe("DetailsDialog", () => {
+  it("adds an address to a person with no addresses without sending a temporary selected address id", async () => {
+    const addresslessPerson = addresslessPersonRecord(7, "Addressless Buyer");
+    const updatedPerson = {
+      ...addresslessPerson,
+      addressId: 70,
+      streetAddress: "21 Gibbston Crescent",
+      suburb: "Flat Bush",
+      addresses: [
+        {
+          id: 70,
+          personId: 7,
+          identityKey: "addressless-buyer-gibbston",
+          streetAddress: "21 Gibbston Crescent",
+          suburb: "Flat Bush",
+          latitude: null,
+          longitude: null,
+          createdAt: "2026-06-16T00:00:00.000Z",
+          updatedAt: "2026-06-16T00:00:00.000Z",
+        },
+      ],
+    };
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({
+        person: updatedPerson,
+        geocodeFailures: [],
+        googleMapsFallbackAvailable: false,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <DetailsDialog
+        selected={{ type: "person", item: addresslessPerson, source: "manager" }}
+        onOpenChange={() => undefined}
+        onSelectedChange={() => undefined}
+        onPersonAuditResult={() => undefined}
+        refresh={() => undefined}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Add address" }));
+    fireEvent.change(screen.getByLabelText("Street address"), { target: { value: "21 Gibbston Crescent" } });
+    fireEvent.change(screen.getByLabelText("Suburb"), { target: { value: "Flat Bush" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save address" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+    const request = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(request.selectedAddressId).toBeNull();
+    expect(request.addresses).toEqual([
+      {
+        streetAddress: "21 Gibbston Crescent",
+        suburb: "Flat Bush",
+        latitude: null,
+        longitude: null,
+      },
+    ]);
   });
 });

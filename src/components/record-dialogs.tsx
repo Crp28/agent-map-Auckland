@@ -1070,6 +1070,10 @@ function soldPropertyPayload(soldProperty: SoldPropertyRecord) {
   };
 }
 
+function persistedAddressId(addressId: number | null | undefined) {
+  return typeof addressId === "number" && addressId > 0 ? addressId : null;
+}
+
 async function requestGoogleFallbackCoordinates(streetAddress: string, suburb: string) {
   const payload = await requestJson<{
     result: { latitude: number; longitude: number; matchedAddress: string | null };
@@ -1133,7 +1137,11 @@ async function applyGoogleFallbackToPerson(
       const payload = await requestJson<PersonSaveResponse>("/api/people", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: currentPerson.id, selectedAddressId: nextPerson.addressId, ...personPayload(nextPerson) }),
+        body: JSON.stringify({
+          id: currentPerson.id,
+          selectedAddressId: persistedAddressId(nextPerson.addressId),
+          ...personPayload(nextPerson),
+        }),
       });
       currentPerson = payload.person;
       onPersonChange(currentPerson);
@@ -1375,7 +1383,11 @@ function PersonDetails({
     const payload = await requestJson<PersonSaveResponse>("/api/people", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: person.id, selectedAddressId: next.addressId, ...personPayload(next) }),
+      body: JSON.stringify({
+        id: person.id,
+        selectedAddressId: persistedAddressId(next.addressId),
+        ...personPayload(next),
+      }),
     });
     onChange(payload.person);
     refresh();
@@ -1455,9 +1467,12 @@ function PersonDetails({
     nextAddresses: PersonAddressRecord[],
     nextAddressId: number | null = person.addressId,
   ) {
+    const persistedNextAddressId =
+      persistedAddressId(nextAddressId) ?? nextAddresses.find((address) => address.id > 0)?.id ?? null;
+
     return savePerson({
       ...person,
-      addressId: nextAddressId ?? nextAddresses[0]?.id ?? null,
+      addressId: persistedNextAddressId,
       addresses: nextAddresses,
     });
   }
