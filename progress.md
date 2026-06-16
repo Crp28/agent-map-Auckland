@@ -173,3 +173,4 @@
 - Added a local name search to the People manager header beside `Add person`. The list now filters visible People rows by legal/display name and shows filtered-versus-total counts.
 - Kept the People manager list viewport at a stable responsive height while searching, so the modal no longer shrinks when only a few rows match.
 - Allowed People to be created, listed, searched, edited, and retained with zero addresses. The Add Person and Person detail modals now show addressless empty states and allow removing the final address, while map/nearby/coordinate-audit/owner-audit flows continue to operate only on concrete address rows.
+- Refined the Add Person modal to start with one blank address row again, while preserving the ability to remove that row and save the Person with zero addresses.

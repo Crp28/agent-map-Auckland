@@ -9,7 +9,7 @@
 9. The user can manage Sold Properties from a popup manager, including viewing, adding, editing details, and deleting records.
 10. The user can manage People from a popup manager, including viewing, adding, editing details, and deleting records.
 10a. The user can search the People manager list by person name before opening a row.
-10b. The user can save and manage a Person with zero addresses, then add addresses later when available.
+10b. The user can save and manage a Person with zero addresses, then add addresses later when available. The create Person modal still starts with one blank address row, which can be removed before saving.
 11. The user can bulk import People using a CSV file to quickly add multiple People entries in one action.
 12. The user can open a retractable side list of Auckland suburb/region names, search inside it, and click one to move the map to that suburb at a local zoom.
 13. The user can apply or cancel a nearby People filter from the same bottom-right control stack as the suburb side list without changing the current map position, and can export the visible nearby People list to CSV.

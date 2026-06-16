@@ -63,7 +63,6 @@ function personPayload(googleMapsFallbackAvailable: boolean) {
 function fillPersonForm() {
   fireEvent.change(screen.getByLabelText("Legal name"), { target: { value: "Ana Buyer" } });
   fireEvent.change(screen.getByLabelText("Phone (required if no email)"), { target: { value: "021 000 000" } });
-  fireEvent.click(screen.getByRole("button", { name: "Add address" }));
   fireEvent.change(screen.getByLabelText("Street address"), { target: { value: "2/5 Keys Street" } });
   fireEvent.change(screen.getByLabelText("Suburb"), { target: { value: "Belmont" } });
 }
@@ -168,6 +167,8 @@ describe("AddPersonDialog Google fallback prompt", () => {
 
     render(<AddPersonDialog open onOpenChange={() => undefined} refresh={() => undefined} />);
 
+    expect(screen.getByLabelText("Street address")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
     expect(screen.getByText("No addresses saved. Add one now or save this person without an address.")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Legal name"), { target: { value: "Ana Buyer" } });
     fireEvent.change(screen.getByLabelText("Phone (required if no email)"), { target: { value: "021 000 000" } });

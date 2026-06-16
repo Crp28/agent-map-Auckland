@@ -48,6 +48,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 42. Complete: Add a main-page bulk action that maps all coordinate-less People addresses through Google Maps in small, resumable batches.
 43. Complete: Add a People manager name search field beside `Add person` while keeping the modal layout compact and accessible.
 44. Complete: Allow People to be saved and edited with zero addresses, while keeping map, nearby, coordinate-audit, and owner-audit workflows address-specific.
+45. Complete: Keep the Add Person modal defaulted to one address row while still allowing that row to be removed so a Person can be created with zero addresses.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.

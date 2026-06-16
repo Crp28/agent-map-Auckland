@@ -153,7 +153,14 @@ export function AddPersonDialog({
       purchasingPowerMin: "",
       purchasingPowerMax: "",
       notes: [],
-      addresses: [],
+      addresses: [
+        {
+          streetAddress: "",
+          suburb: "",
+          latitude: "",
+          longitude: "",
+        },
+      ],
     },
   });
   const { fields, append, remove } = useFieldArray({

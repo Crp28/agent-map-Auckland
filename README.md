@@ -83,7 +83,7 @@ The subdivision/local-board outline cache is refreshed by `cmd /c npm run sync:g
 - `Person` opens the People manager for viewing, adding, editing, and deleting records.
 - The People manager includes a name search field beside `Add person` for filtering long person lists.
 - People validation requires at least one of phone or email, validates non-empty email format, checks optional purchasing power min/max ordering, and validates optional coordinate pairs per address.
-- People can be saved with zero addresses. Addressless People remain searchable and editable in the People manager, but do not appear on the map or in address-specific coordinate/ownership/nearby workflows until an address is added.
+- The Add Person modal starts with one blank address row, but that row can be removed so People can be saved with zero addresses. Addressless People remain searchable and editable in the People manager, but do not appear on the map or in address-specific coordinate/ownership/nearby workflows until an address is added.
 - People records also support an optional preferred first name. Legal name remains the canonical stored name for owner-checking and imports, while the UI derives the displayed full name by replacing only the legal first name.
 - People records also support multiple person-level notes with the current types `General Note`, `Inspection`, and `Living`.
 - A Person modal opened from the map includes a small GeoMaps retry button for the selected address.
