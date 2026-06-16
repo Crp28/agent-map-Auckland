@@ -153,14 +153,7 @@ export function AddPersonDialog({
       purchasingPowerMin: "",
       purchasingPowerMax: "",
       notes: [],
-      addresses: [
-        {
-          streetAddress: "",
-          suburb: "",
-          latitude: "",
-          longitude: "",
-        },
-      ],
+      addresses: [],
     },
   });
   const { fields, append, remove } = useFieldArray({
@@ -266,21 +259,24 @@ export function AddPersonDialog({
                 Add address
               </button>
             </div>
+            {fields.length === 0 ? (
+              <div className="rounded-md border border-dashed border-[#cbd5e1] bg-[#f8fafc] p-3 text-sm text-[#475569]">
+                No addresses saved. Add one now or save this person without an address.
+              </div>
+            ) : null}
             <div className="grid gap-4">
               {fields.map((field, index) => (
                 <div key={field.id} className="rounded-md border border-[#e2e8f0] p-3">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <p className="text-sm font-semibold text-[#111827]">Address {index + 1}</p>
-                    {fields.length > 1 ? (
-                      <button
-                        type="button"
-                        onClick={() => remove(index)}
-                        className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#fecdca] px-3 py-2 text-sm font-semibold text-[#b42318] hover:bg-[#fff1f0] focus:outline-none focus:ring-2 focus:ring-[#b42318]"
-                      >
-                        <Trash2 aria-hidden="true" size={18} />
-                        Remove
-                      </button>
-                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => remove(index)}
+                      className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#fecdca] px-3 py-2 text-sm font-semibold text-[#b42318] hover:bg-[#fff1f0] focus:outline-none focus:ring-2 focus:ring-[#b42318]"
+                    >
+                      <Trash2 aria-hidden="true" size={18} />
+                      Remove
+                    </button>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className={`${labelClass} sm:col-span-2`}>
@@ -729,7 +725,9 @@ export function RecordManagerDialog({
             const isPerson = "name" in record;
             const titleText = isPerson ? displayPersonName(record) : record.streetAddress;
             const subtitle = isPerson
-              ? `${record.streetAddress}, ${record.suburb}`
+              ? record.streetAddress && record.suburb
+                ? `${record.streetAddress}, ${record.suburb}`
+                : "No address saved"
               : `${record.suburb} - $${record.soldPrice.toLocaleString()}`;
 
             return (
@@ -1685,7 +1683,7 @@ function PersonDetails({
           <div key={address.id} className="rounded-md border border-[#e2e8f0] p-3">
             <div className="mb-3 flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-[#111827]">{address.streetAddress || "Address"}</p>
-              {source === "manager" && person.addresses.length > 1 ? (
+              {source === "manager" ? (
                 <button
                   type="button"
                   onClick={() =>
@@ -1740,6 +1738,11 @@ function PersonDetails({
             </dl>
           </div>
         ))}
+        {visibleAddresses.length === 0 ? (
+          <div className="rounded-md border border-dashed border-[#cbd5e1] bg-[#f8fafc] p-3 text-sm text-[#475569]">
+            No addresses saved. Add an address when one is available.
+          </div>
+        ) : null}
       </div>
       <div className="grid gap-3">
         <div className="flex items-center justify-between gap-3">

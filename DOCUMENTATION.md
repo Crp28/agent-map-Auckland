@@ -74,6 +74,7 @@
 - 2026-06-04: Replaced the Google Maps fallback `window.confirm()` prompt with an in-app prompt so fallback decisions are not lost when the browser tab is unfocused or native dialogs are suppressed.
 - 2026-06-10: Added a main-page `Map missing coords` workflow that uses Google Maps to backfill all coordinate-less People address rows in small batches. It confirms before the potentially billable run, writes successful coordinates immediately, and reports per-run outcome counts.
 - 2026-06-16: Added a People manager name search field beside `Add person`, with filtered counts, an empty-search result state, and a stable list viewport so the modal does not shrink while filtering.
+- 2026-06-16: Allowed People to exist with zero addresses. Manual/API People saves may now use an empty address list, the People modals show addressless empty states, final address deletion preserves the Person, and address-specific map/audit/nearby workflows continue to skip People with no address rows.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.

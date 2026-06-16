@@ -47,6 +47,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 41. Complete: Replace the Google fallback native confirm dialog with an in-app prompt so fallback choices are not affected by browser tab focus.
 42. Complete: Add a main-page bulk action that maps all coordinate-less People addresses through Google Maps in small, resumable batches.
 43. Complete: Add a People manager name search field beside `Add person` while keeping the modal layout compact and accessible.
+44. Complete: Allow People to be saved and edited with zero addresses, while keeping map, nearby, coordinate-audit, and owner-audit workflows address-specific.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.

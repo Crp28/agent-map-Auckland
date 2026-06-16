@@ -31,6 +31,22 @@ describe("personInputSchema", () => {
     }
   });
 
+  it("accepts people without addresses", () => {
+    const result = personInputSchema.safeParse({
+      name: "Ana Buyer",
+      phone: "021 000 000",
+      email: "",
+      purchasingPowerMin: "",
+      purchasingPowerMax: "",
+      addresses: [],
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.addresses).toEqual([]);
+    }
+  });
+
   it("parses person notes with valid types", () => {
     const result = personInputSchema.safeParse({
       name: "Ana Buyer",

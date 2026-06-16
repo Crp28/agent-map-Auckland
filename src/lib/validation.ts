@@ -81,7 +81,7 @@ export const personNoteInputSchema = z.object({
 });
 
 export const personFormSchema = personBaseSchema.extend({
-  addresses: z.array(personAddressInputSchema).min(1, "At least one address is required"),
+  addresses: z.array(personAddressInputSchema).default([]),
   notes: z.array(personNoteInputSchema).default([]),
 }).refine((data) => {
   const seen = new Set<string>();
@@ -108,6 +108,12 @@ export const personInputSchema = z.preprocess((value) => {
     return candidate;
   }
 
+  const hasLegacyAddress =
+    typeof candidate.streetAddress === "string" ||
+    typeof candidate.suburb === "string" ||
+    candidate.latitude !== undefined ||
+    candidate.longitude !== undefined;
+
   return {
     name: candidate.name,
     preferredName: candidate.preferredName,
@@ -116,14 +122,16 @@ export const personInputSchema = z.preprocess((value) => {
     purchasingPowerMin: candidate.purchasingPowerMin,
     purchasingPowerMax: candidate.purchasingPowerMax,
     notes: candidate.notes,
-    addresses: [
-      {
-        streetAddress: candidate.streetAddress,
-        suburb: candidate.suburb,
-        latitude: candidate.latitude,
-        longitude: candidate.longitude,
-      },
-    ],
+    addresses: hasLegacyAddress
+      ? [
+          {
+            streetAddress: candidate.streetAddress,
+            suburb: candidate.suburb,
+            latitude: candidate.latitude,
+            longitude: candidate.longitude,
+          },
+        ]
+      : [],
   };
 }, personFormSchema);
 

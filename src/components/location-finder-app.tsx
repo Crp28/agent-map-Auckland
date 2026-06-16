@@ -313,7 +313,11 @@ export function LocationFinderApp() {
     setQuery(result.title);
     setSearchResults([]);
     if (result.type === "person") {
-      selectPerson(result.item);
+      setSelected({
+        type: "person",
+        item: result.item,
+        source: result.item.addressId === null ? "manager" : "map",
+      });
     } else {
       selectSoldProperty(result.item, { focus: true, zoom: 6 });
     }

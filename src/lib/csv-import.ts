@@ -153,6 +153,14 @@ export async function importPeopleCsv(
 
     const personKey = normalizeKey(parsed.data.name, parsed.data.email, parsed.data.phone);
     const primaryAddress = parsed.data.addresses[0];
+    if (!primaryAddress) {
+      summary.failed += 1;
+      summary.errors.push({
+        row: rowNumber,
+        message: "CSV import rows must include an address.",
+      });
+      continue;
+    }
     const identityKey = normalizeKey(personKey, primaryAddress.streetAddress, primaryAddress.suburb);
     const existing =
       (getRawPeopleByIdentity(identityKey) as Record<string, unknown> | undefined) ??

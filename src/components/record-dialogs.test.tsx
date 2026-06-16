@@ -63,6 +63,7 @@ function personPayload(googleMapsFallbackAvailable: boolean) {
 function fillPersonForm() {
   fireEvent.change(screen.getByLabelText("Legal name"), { target: { value: "Ana Buyer" } });
   fireEvent.change(screen.getByLabelText("Phone (required if no email)"), { target: { value: "021 000 000" } });
+  fireEvent.click(screen.getByRole("button", { name: "Add address" }));
   fireEvent.change(screen.getByLabelText("Street address"), { target: { value: "2/5 Keys Street" } });
   fireEvent.change(screen.getByLabelText("Suburb"), { target: { value: "Belmont" } });
 }
@@ -147,6 +148,38 @@ describe("EditableCoordinatePairRow", () => {
 });
 
 describe("AddPersonDialog Google fallback prompt", () => {
+  it("saves a person without addresses", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({
+        person: {
+          ...personPayload(false).person,
+          addressId: null,
+          streetAddress: "",
+          suburb: "",
+          latitude: null,
+          longitude: null,
+          addresses: [],
+        },
+        geocodeFailures: [],
+        googleMapsFallbackAvailable: false,
+      }, 201),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AddPersonDialog open onOpenChange={() => undefined} refresh={() => undefined} />);
+
+    expect(screen.getByText("No addresses saved. Add one now or save this person without an address.")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Legal name"), { target: { value: "Ana Buyer" } });
+    fireEvent.change(screen.getByLabelText("Phone (required if no email)"), { target: { value: "021 000 000" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save person" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+    const request = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(request.addresses).toEqual([]);
+  });
+
   it("uses an in-app prompt instead of window.confirm when Google fallback is available", async () => {
     const fetchMock = vi.fn(async () => jsonResponse(personPayload(true), 201));
     vi.stubGlobal("fetch", fetchMock);

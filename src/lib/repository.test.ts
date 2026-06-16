@@ -40,6 +40,61 @@ afterEach(() => {
 });
 
 describe("multi-address repository behavior", () => {
+  it("creates and lists a person without addresses", async () => {
+    const created = await repository.createOrUpdatePerson({
+      name: "Addressless Buyer",
+      preferredName: "",
+      phone: "021 000 000",
+      email: "",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [],
+      addresses: [],
+    }, { geocode: false });
+
+    expect(created?.addressId).toBeNull();
+    expect(created?.streetAddress).toBe("");
+    expect(created?.suburb).toBe("");
+    expect(created?.latitude).toBeNull();
+    expect(created?.longitude).toBeNull();
+    expect(created?.addresses).toEqual([]);
+
+    const listed = await repository.listPeopleRecords();
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.name).toBe("Addressless Buyer");
+    expect(listed[0]?.addresses).toEqual([]);
+  });
+
+  it("preserves a person when their final address row is deleted", async () => {
+    const created = await repository.createOrUpdatePerson({
+      name: "Address Optional",
+      preferredName: "",
+      phone: "021 000 001",
+      email: "",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [],
+      addresses: [
+        {
+          streetAddress: "1 Queen Street",
+          suburb: "Auckland Central",
+          latitude: -36.847,
+          longitude: 174.763,
+        },
+      ],
+    }, { geocode: false });
+
+    const result = await repository.deletePersonAddressRows([created!.addresses[0]!.id]);
+    expect(result.deletedAddressIds).toEqual([created!.addresses[0]!.id]);
+    expect(result.deletedPersonIds).toEqual([]);
+
+    const listed = await repository.listPeopleRecords();
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.id).toBe(created?.id);
+    expect(listed[0]?.addressId).toBeNull();
+    expect(listed[0]?.addresses).toEqual([]);
+  });
+
   it("stores and updates person-level notes independently from addresses", async () => {
     const created = await repository.createOrUpdatePerson({
       name: "Ana Buyer",

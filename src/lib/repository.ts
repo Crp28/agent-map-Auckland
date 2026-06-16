@@ -55,6 +55,13 @@ type ResolvedAddress = PersonAddressInput & {
   updatedAt: string;
 };
 
+type PersonAddressSnapshot = {
+  streetAddress: string;
+  suburb: string;
+  latitude: number | null;
+  longitude: number | null;
+};
+
 type ExistingPersonAddressSnapshot = {
   id: number;
   streetAddress: string;
@@ -360,6 +367,21 @@ function flattenPeopleByAddress(records: PersonRecord[]) {
   );
 }
 
+function peopleSearchCandidates(records: PersonRecord[]) {
+  return records.flatMap((person) =>
+    person.addresses.length > 0
+      ? person.addresses.map((address) => ({
+          ...person,
+          addressId: address.id,
+          streetAddress: address.streetAddress,
+          suburb: address.suburb,
+          latitude: address.latitude,
+          longitude: address.longitude,
+        }))
+      : [person],
+  );
+}
+
 async function listPeopleWithAddresses() {
   ensureDatabase();
 
@@ -491,6 +513,25 @@ async function resolvePersonAddresses(
   return resolved;
 }
 
+function primaryPersonAddressSnapshot(resolvedAddresses: ResolvedAddress[]): PersonAddressSnapshot {
+  const primaryAddress = resolvedAddresses[0];
+  if (primaryAddress) {
+    return {
+      streetAddress: primaryAddress.streetAddress,
+      suburb: primaryAddress.suburb,
+      latitude: primaryAddress.latitude,
+      longitude: primaryAddress.longitude,
+    };
+  }
+
+  return {
+    streetAddress: "",
+    suburb: "",
+    latitude: null,
+    longitude: null,
+  };
+}
+
 function resolvePersonNotes(notesInput: PersonInput["notes"], timestamp: string) {
   return (notesInput ?? []).map((note) => ({
     ...note,
@@ -528,7 +569,7 @@ async function findExistingPersonByContactAndAddress(input: {
 
 async function upsertPersonCore(
   input: PersonInput,
-  primaryAddress: ResolvedAddress,
+  primaryAddress: PersonAddressSnapshot,
   timestamp: string,
 ) {
   const db = getDb();
@@ -539,12 +580,14 @@ async function upsertPersonCore(
   const normalizedEmail = input.email.trim().toLowerCase();
   const existingPerson =
     (await db.query.people.findFirst({ where: eq(people.personKey, personKey) })) ??
-    (await findExistingPersonByContactAndAddress({
-      email: normalizedEmail,
-      phone: normalizedPhone,
-      streetAddress: primaryAddress.streetAddress,
-      suburb: primaryAddress.suburb,
-    }));
+    (primaryAddress.streetAddress && primaryAddress.suburb
+      ? await findExistingPersonByContactAndAddress({
+          email: normalizedEmail,
+          phone: normalizedPhone,
+          streetAddress: primaryAddress.streetAddress,
+          suburb: primaryAddress.suburb,
+        })
+      : null);
 
   if (existingPerson) {
     await db
@@ -674,9 +717,13 @@ async function syncPersonAddresses(
   }
 
   if (options.replaceMissing) {
-    await db
-      .delete(peopleAddresses)
-      .where(and(eq(peopleAddresses.personId, personId), notInArray(peopleAddresses.id, keptAddressIds)));
+    if (keptAddressIds.length === 0) {
+      await db.delete(peopleAddresses).where(eq(peopleAddresses.personId, personId));
+    } else {
+      await db
+        .delete(peopleAddresses)
+        .where(and(eq(peopleAddresses.personId, personId), notInArray(peopleAddresses.id, keptAddressIds)));
+    }
   }
 
   return resolvedAddresses;
@@ -777,7 +824,7 @@ export async function createOrUpdatePerson(
   const timestamp = nowIso();
   const personKey = normalizeKey(input.name, input.email, input.phone);
   const resolvedAddresses = await resolvePersonAddresses(personKey, input.addresses, timestamp, options);
-  const primaryAddress = resolvedAddresses[0];
+  const primaryAddress = primaryPersonAddressSnapshot(resolvedAddresses);
   const person = await upsertPersonCore(input, primaryAddress, timestamp);
   if (!person) {
     return null;
@@ -866,7 +913,7 @@ export async function updatePersonById(
   const resolvedAddresses = await resolvePersonAddresses(personKey, input.addresses, timestamp, {
     existingAddressesById,
   });
-  const primaryAddress = resolvedAddresses[0];
+  const primaryAddress = primaryPersonAddressSnapshot(resolvedAddresses);
   const normalizedPhone = normalizeText(input.phone);
   const normalizedEmail = input.email.trim().toLowerCase();
 
@@ -983,8 +1030,17 @@ export async function deletePersonAddressRows(addressIds: number[]) {
     });
 
     if (remainingAddresses.length === 0) {
-      await db.delete(people).where(eq(people.id, personId));
-      deletedPersonIds.push(personId);
+      await db
+        .update(people)
+        .set({
+          streetAddress: "",
+          suburb: "",
+          latitude: null,
+          longitude: null,
+          lastUpdatedAt: timestamp,
+          updatedAt: timestamp,
+        })
+        .where(eq(people.id, personId));
       continue;
     }
 
@@ -1089,7 +1145,7 @@ export async function searchRecords(query: string) {
     }),
   ]);
 
-  const personMatches = flattenPeopleByAddress(personResults)
+  const personMatches = peopleSearchCandidates(personResults)
     .filter(
       (item) =>
         item.name.toLowerCase().includes(normalizedQuery) ||
@@ -1106,7 +1162,7 @@ export async function searchRecords(query: string) {
       type: "person" as const,
       id: item.addressId ?? item.id,
       title: displayPersonName(item),
-      subtitle: `${item.streetAddress}, ${item.suburb}`,
+      subtitle: item.streetAddress && item.suburb ? `${item.streetAddress}, ${item.suburb}` : "No address saved",
       item,
     })),
     ...propertyResults.map((item) => ({
