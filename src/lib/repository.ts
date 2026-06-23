@@ -233,27 +233,60 @@ async function syncOwnerPropertyRelationsForPerson(personId: number, timestamp: 
   }
 
   const uniquePropertyIds = [...new Set(propertyIds)];
-  if (uniquePropertyIds.length === 0) {
+  const existingOwnerRelations = await db
+    .select()
+    .from(contactPropertyRelations)
+    .where(
+      and(
+        eq(contactPropertyRelations.personId, personId),
+        eq(contactPropertyRelations.relationshipType, "owner"),
+      ),
+    );
+  const staleOwnerPropertyIds = existingOwnerRelations
+    .map((relation) => relation.propertyId)
+    .filter((propertyId) => !uniquePropertyIds.includes(propertyId));
+
+  for (const propertyId of staleOwnerPropertyIds) {
+    await db
+      .insert(contactPropertyRelations)
+      .values({
+        personId,
+        propertyId,
+        relationshipType: "former_owner",
+        createdAt: timestamp,
+      })
+      .onConflictDoNothing({
+        target: [
+          contactPropertyRelations.personId,
+          contactPropertyRelations.propertyId,
+          contactPropertyRelations.relationshipType,
+        ],
+      });
+  }
+
+  if (staleOwnerPropertyIds.length > 0) {
     await db
       .delete(contactPropertyRelations)
       .where(
         and(
           eq(contactPropertyRelations.personId, personId),
           eq(contactPropertyRelations.relationshipType, "owner"),
+          inArray(contactPropertyRelations.propertyId, staleOwnerPropertyIds),
         ),
       );
-    return;
   }
 
-  await db
-    .delete(contactPropertyRelations)
-    .where(
-      and(
-        eq(contactPropertyRelations.personId, personId),
-        eq(contactPropertyRelations.relationshipType, "owner"),
-        notInArray(contactPropertyRelations.propertyId, uniquePropertyIds),
-      ),
-    );
+  if (uniquePropertyIds.length > 0) {
+    await db
+      .delete(contactPropertyRelations)
+      .where(
+        and(
+          eq(contactPropertyRelations.personId, personId),
+          eq(contactPropertyRelations.relationshipType, "former_owner"),
+          inArray(contactPropertyRelations.propertyId, uniquePropertyIds),
+        ),
+      );
+  }
 }
 
 async function resolveAddressCoordinates(

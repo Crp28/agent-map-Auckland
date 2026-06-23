@@ -66,7 +66,7 @@ cmd /c npm run propertysmarts:check-owner -- --address "192 Remuera Road" --subu
 - Tables are created automatically the first time server-side code touches the database.
 - Older single-address People rows are migrated in place to the current logical-person plus `people_addresses` model.
 - `properties` stores canonical address-level records with a separate numeric id, address, suburb, optional type, and optional coordinates. Existing People addresses and Sold Properties are materialized into this table on startup.
-- `contact_property_relations` links People to Properties with `owner`, `former_owner`, `interested_in`, or `neighbour`. Current People address rows automatically sync `owner` relations.
+- `contact_property_relations` links People to Properties with `owner`, `former_owner`, `interested_in`, or `neighbour`. Current People address rows automatically sync `owner` relations, and edited or deleted address rows keep their old Property link as `former_owner`.
 - `interactions` stores People interactions with optional Property links and the current interaction types `enquiry`, `inspection`, `listing_click`, `sell`, and `buy`.
 - Sold Properties are entered manually in v1.
 

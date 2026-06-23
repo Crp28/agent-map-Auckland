@@ -52,6 +52,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 46. Complete: Fix adding the first address to an addressless Person by preventing temporary draft address ids from being sent as selected address ids.
 47. Complete: Add canonical Properties, People-Property relations, Interaction storage, materialize existing address data into Properties, and add scoped main search.
 48. Complete: Fix new Sold Property saves when the dev runtime has a cached Drizzle query surface without newly added tables.
+49. Complete: Preserve People address ownership history by converting removed or edited address owner links to `former_owner`, while direct Person deletion removes relations and interactions.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.

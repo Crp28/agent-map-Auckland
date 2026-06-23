@@ -80,6 +80,7 @@
 - 2026-06-23: Added a scoped main search selector for People, Properties, and Sold Properties. People search keeps the existing modal behavior, Property results focus the map when coordinates exist, and Sold Property results keep opening the detail modal plus nearby workflow.
 - 2026-06-23: Added a relation delete API at `DELETE /api/contact-property-relations?id=<id>` so contact-property relation rows can be removed without waiting for the later relationship-management UI.
 - 2026-06-23: Fixed a Sold Property save crash caused by reading new tables through a stale generated Drizzle `db.query` surface in the dev runtime. Repository reads for `properties`, `contact_property_relations`, and `interactions` now use direct `select().from(...)` queries.
+- 2026-06-23: Changed People address relation history so editing or deleting an address converts its old `owner` link to `former_owner` while keeping current address rows as `owner`. Directly deleting a Person removes that Person's contact-property relations and interactions through cascade cleanup.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
@@ -106,7 +107,7 @@
 - People now carry a canonical legal `name` plus an optional `preferred_name` that represents a preferred first name only. The app UI derives the visible full name by replacing only the legal first name, and owner checking compares against both the legal full name and that derived display variant.
 - The main-app PropertySmarts owner audit is explicitly local-only admin tooling. It persists only resumable batch progress in local storage; mismatch results themselves remain session-only and are cleared from the UI when the page state resets.
 - Canonical Properties use a separate numeric id for relationships and future UI. Exact normalized address/suburb text is still deduped through `property_key`, but this is not treated as a human-facing unique identifier because imported address formatting can vary.
-- Current People address rows are the source of truth for automatic `owner` contact-property relationships. If a Person address is removed or changed, the repository resyncs that Person's owner relations from remaining address rows.
+- Current People address rows are the source of truth for automatic `owner` contact-property relationships. If a Person address is removed or changed, the repository converts the previous address Property link to `former_owner` and keeps remaining/current address rows as `owner`.
 
 ## Notes
 - Use `cmd /c npm ...`, `npm.cmd`, or `npx.cmd` in PowerShell because this machine blocks `npm.ps1`.

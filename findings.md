@@ -87,6 +87,7 @@
 - Contact-property owner relations cannot be one-time backfill only. Address edits, final-address deletion, coordinate refreshes, and Google backfills all touch address data, so repository helpers need to resync or update the related Property row in those paths.
 - Scoped search avoids ambiguous result handling. People results still open a modal, Sold Property results open the sold-property modal and nearby workflow, while canonical Property results currently only move the map because the later Property UI has not been requested yet.
 - Drizzle's generated `db.query.<table>` surface can be stale in a long-running Next dev process after adding new schema tables. Newly added tables should use direct `select().from(table)` reads, as already done for `people_notes`, so hot runtime cache shape does not crash repository paths.
+- People address edits/deletes need historical relationship semantics. The `people_addresses` table is still the source of current ownership, but stale `owner` links should become `former_owner` rather than disappearing; direct Person deletion is the boundary that removes that Person's relations and interactions through foreign-key cascade.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.

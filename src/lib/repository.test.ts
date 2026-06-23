@@ -635,7 +635,7 @@ describe("multi-address repository behavior", () => {
     expect(relations[0]?.propertyId).toBe(properties[0]?.id);
   });
 
-  it("removes stale owner relations when a person address is deleted", async () => {
+  it("marks deleted person addresses as former owner relations", async () => {
     const created = await repository.createOrUpdatePerson({
       name: "Two Homes",
       preferredName: "",
@@ -665,10 +665,102 @@ describe("multi-address repository behavior", () => {
     await repository.deletePersonAddressRows([created!.addresses[0]!.id]);
 
     const relations = await repository.listContactPropertyRelations(created!.id);
-    expect(relations).toHaveLength(1);
     const properties = await repository.listPropertyRecords();
-    const remainingProperty = properties.find((property) => property.id === relations[0]?.propertyId);
-    expect(remainingProperty?.streetAddress).toBe("12 Test Road");
+    const relationByAddress = new Map(
+      relations.map((relation) => [
+        properties.find((property) => property.id === relation.propertyId)?.streetAddress,
+        relation.relationshipType,
+      ]),
+    );
+    expect(relationByAddress.get("11 Test Road")).toBe("former_owner");
+    expect(relationByAddress.get("12 Test Road")).toBe("owner");
+  });
+
+  it("marks edited person addresses as former owner relations and owns the new address", async () => {
+    const created = await repository.createOrUpdatePerson({
+      name: "Address Change",
+      preferredName: "",
+      phone: "021 666 7777",
+      email: "change@example.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [],
+      addresses: [
+        {
+          streetAddress: "14 Old Road",
+          suburb: "Remuera",
+          latitude: -36.873,
+          longitude: 174.783,
+        },
+      ],
+    }, { geocode: false });
+
+    await repository.updatePersonById(created!.id, {
+      name: "Address Change",
+      preferredName: "",
+      phone: "021 666 7777",
+      email: "change@example.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [],
+      addresses: [
+        {
+          id: created!.addresses[0]!.id,
+          streetAddress: "15 New Road",
+          suburb: "Remuera",
+          latitude: -36.874,
+          longitude: 174.784,
+        },
+      ],
+    });
+
+    const relations = await repository.listContactPropertyRelations(created!.id);
+    const properties = await repository.listPropertyRecords();
+    const relationByAddress = new Map(
+      relations.map((relation) => [
+        properties.find((property) => property.id === relation.propertyId)?.streetAddress,
+        relation.relationshipType,
+      ]),
+    );
+
+    expect(relationByAddress.get("14 Old Road")).toBe("former_owner");
+    expect(relationByAddress.get("15 New Road")).toBe("owner");
+  });
+
+  it("removes relations and interactions when a person is deleted", async () => {
+    const created = await repository.createOrUpdatePerson({
+      name: "Cascade Delete",
+      preferredName: "",
+      phone: "021 777 8888",
+      email: "cascade@example.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [],
+      addresses: [
+        {
+          streetAddress: "16 Cascade Road",
+          suburb: "Howick",
+          latitude: -36.875,
+          longitude: 174.785,
+        },
+      ],
+    }, { geocode: false });
+    const property = (await repository.listPropertyRecords())[0];
+    expect(property).toBeDefined();
+    await repository.createInteraction({
+      personId: created!.id,
+      propertyId: property!.id,
+      interactionType: "enquiry",
+      interactionDate: "2026-06-23",
+    });
+
+    expect(await repository.listContactPropertyRelations(created!.id)).toHaveLength(1);
+    expect(await repository.listPersonInteractions(created!.id)).toHaveLength(1);
+
+    await repository.deletePersonById(created!.id);
+
+    expect(await repository.listContactPropertyRelations(created!.id)).toEqual([]);
+    expect(await repository.listPersonInteractions(created!.id)).toEqual([]);
   });
 
   it("materializes sold properties as canonical properties", async () => {
