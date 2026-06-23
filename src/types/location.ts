@@ -85,6 +85,60 @@ export type SoldPropertyRecord = {
   updatedAt: string;
 };
 
+export const PROPERTY_TYPES = [
+  "house",
+  "townhouse",
+  "unit",
+  "house on cross lease",
+  "apartment",
+  "home and income",
+  "investment flats",
+  "section",
+  "car park",
+] as const;
+export type PropertyType = (typeof PROPERTY_TYPES)[number];
+
+export const CONTACT_PROPERTY_RELATIONSHIP_TYPES = [
+  "owner",
+  "former_owner",
+  "interested_in",
+  "neighbour",
+] as const;
+export type ContactPropertyRelationshipType = (typeof CONTACT_PROPERTY_RELATIONSHIP_TYPES)[number];
+
+export const INTERACTION_TYPES = ["enquiry", "inspection", "listing_click", "sell", "buy"] as const;
+export type InteractionType = (typeof INTERACTION_TYPES)[number];
+
+export type PropertyRecord = {
+  id: number;
+  propertyKey: string;
+  streetAddress: string;
+  suburb: string;
+  type: PropertyType | null;
+  latitude: number | null;
+  longitude: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ContactPropertyRelationRecord = {
+  id: number;
+  personId: number;
+  propertyId: number;
+  relationshipType: ContactPropertyRelationshipType;
+  createdAt: string;
+};
+
+export type InteractionRecord = {
+  id: number;
+  personId: number;
+  propertyId: number | null;
+  interactionType: InteractionType;
+  interactionDate: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type BoundaryRecord = {
   id: number;
   sourceObjectId: number;
@@ -141,6 +195,13 @@ export type SearchResult =
       title: string;
       subtitle: string;
       item: PersonRecord;
+    }
+  | {
+      type: "property";
+      id: number;
+      title: string;
+      subtitle: string;
+      item: PropertyRecord;
     }
   | {
       type: "soldProperty";

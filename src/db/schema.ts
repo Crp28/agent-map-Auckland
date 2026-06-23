@@ -63,6 +63,63 @@ export const peopleNotes = sqliteTable(
   ],
 );
 
+export const properties = sqliteTable(
+  "properties",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    propertyKey: text("property_key").notNull(),
+    streetAddress: text("street_address").notNull(),
+    suburb: text("suburb").notNull(),
+    type: text("type"),
+    latitude: real("latitude"),
+    longitude: real("longitude"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("properties_property_key_unique").on(table.propertyKey),
+    index("properties_suburb_idx").on(table.suburb),
+  ],
+);
+
+export const contactPropertyRelations = sqliteTable(
+  "contact_property_relations",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    personId: integer("person_id").notNull().references(() => people.id, { onDelete: "cascade" }),
+    propertyId: integer("property_id").notNull().references(() => properties.id, { onDelete: "cascade" }),
+    relationshipType: text("relationship_type").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("contact_property_relations_unique").on(
+      table.personId,
+      table.propertyId,
+      table.relationshipType,
+    ),
+    index("contact_property_relations_person_id_idx").on(table.personId),
+    index("contact_property_relations_property_id_idx").on(table.propertyId),
+  ],
+);
+
+export const interactions = sqliteTable(
+  "interactions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    personId: integer("person_id").notNull().references(() => people.id, { onDelete: "cascade" }),
+    propertyId: integer("property_id").references(() => properties.id, { onDelete: "set null" }),
+    interactionType: text("interaction_type").notNull(),
+    interactionDate: text("interaction_date").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("interactions_person_id_idx").on(table.personId),
+    index("interactions_property_id_idx").on(table.propertyId),
+    index("interactions_interaction_date_idx").on(table.interactionDate),
+  ],
+);
+
 export const soldProperties = sqliteTable(
   "sold_properties",
   {
@@ -113,6 +170,12 @@ export type PersonAddress = typeof peopleAddresses.$inferSelect;
 export type NewPersonAddress = typeof peopleAddresses.$inferInsert;
 export type PersonNote = typeof peopleNotes.$inferSelect;
 export type NewPersonNote = typeof peopleNotes.$inferInsert;
+export type Property = typeof properties.$inferSelect;
+export type NewProperty = typeof properties.$inferInsert;
+export type ContactPropertyRelation = typeof contactPropertyRelations.$inferSelect;
+export type NewContactPropertyRelation = typeof contactPropertyRelations.$inferInsert;
+export type Interaction = typeof interactions.$inferSelect;
+export type NewInteraction = typeof interactions.$inferInsert;
 export type SoldProperty = typeof soldProperties.$inferSelect;
 export type NewSoldProperty = typeof soldProperties.$inferInsert;
 export type CouncilAreaBoundary = typeof councilAreaBoundaries.$inferSelect;

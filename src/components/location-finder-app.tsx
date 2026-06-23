@@ -78,6 +78,7 @@ export function LocationFinderApp() {
   const [toDate, setToDate] = useState("");
   const [price, setPrice] = useState("");
   const [query, setQuery] = useState("");
+  const [searchScope, setSearchScope] = useState<"people" | "properties" | "soldProperties">("people");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [selected, setSelected] = useState<SelectedItem>(null);
   const [selectedSoldPropertyId, setSelectedSoldPropertyId] = useState<number | undefined>();
@@ -195,7 +196,11 @@ export function LocationFinderApp() {
 
     const controller = new AbortController();
     const timeout = window.setTimeout(() => {
-      fetch(`/api/search?q=${encodeURIComponent(trimmed)}`, { signal: controller.signal })
+      const params = new URLSearchParams({
+        q: trimmed,
+        scope: searchScope,
+      });
+      fetch(`/api/search?${params.toString()}`, { signal: controller.signal })
         .then((response) => response.json() as Promise<{ results: SearchResult[] }>)
         .then((payload) => setSearchResults(payload.results))
         .catch(() => setSearchResults([]));
@@ -205,7 +210,7 @@ export function LocationFinderApp() {
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [query]);
+  }, [query, searchScope]);
 
   const loadNearby = useCallback(
     async (
@@ -317,6 +322,17 @@ export function LocationFinderApp() {
         type: "person",
         item: result.item,
         source: result.item.addressId === null ? "manager" : "map",
+      });
+    } else if (result.type === "property") {
+      if (result.item.longitude === null || result.item.latitude === null) {
+        setNotice("That property has no coordinates saved yet.");
+        return;
+      }
+
+      setSelectedPropertyTarget({
+        key: `property-${result.item.id}-${Date.now()}`,
+        center: [result.item.longitude, result.item.latitude],
+        zoom: 6,
       });
     } else {
       selectSoldProperty(result.item, { focus: true, zoom: 6 });
@@ -857,23 +873,56 @@ export function LocationFinderApp() {
       <section className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col gap-3 p-3 md:items-end">
         <div className="pointer-events-auto w-full max-w-xl rounded-md border border-[#cbd5e1] bg-white p-3 shadow-lg">
           <div className="relative">
-            <Search
-              aria-hidden="true"
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b]"
-              size={18}
-            />
-            <input
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                if (!event.target.value.trim()) {
+            <div className="flex min-h-11 overflow-hidden rounded-md border border-[#cbd5e1] bg-white focus-within:border-[#0056a7] focus-within:ring-2 focus-within:ring-[#0056a7]/20">
+              <label className="sr-only" htmlFor="main-search-scope">
+                Search type
+              </label>
+              <select
+                id="main-search-scope"
+                value={searchScope}
+                onChange={(event) => {
+                  setSearchScope(event.target.value as typeof searchScope);
                   setSearchResults([]);
-                }
-              }}
-              className="min-h-11 w-full rounded-md border border-[#cbd5e1] pl-10 pr-3 outline-none focus:border-[#0056a7] focus:ring-2 focus:ring-[#0056a7]/20"
-              placeholder="Search people or sold properties"
-              aria-label="Search people or sold properties"
-            />
+                }}
+                className="min-h-11 shrink-0 border-r border-[#cbd5e1] bg-[#f8fafc] px-3 text-sm font-semibold text-[#334155] outline-none"
+                aria-label="Search type"
+              >
+                <option value="people">People</option>
+                <option value="properties">Properties</option>
+                <option value="soldProperties">Sold</option>
+              </select>
+              <div className="relative min-w-0 flex-1">
+                <Search
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b]"
+                  size={18}
+                />
+                <input
+                  value={query}
+                  onChange={(event) => {
+                    setQuery(event.target.value);
+                    if (!event.target.value.trim()) {
+                      setSearchResults([]);
+                    }
+                  }}
+                  className="min-h-11 w-full pl-10 pr-3 outline-none"
+                  placeholder={
+                    searchScope === "people"
+                      ? "Search people"
+                      : searchScope === "properties"
+                        ? "Search properties"
+                        : "Search sold properties"
+                  }
+                  aria-label={
+                    searchScope === "people"
+                      ? "Search people"
+                      : searchScope === "properties"
+                        ? "Search properties"
+                        : "Search sold properties"
+                  }
+                />
+              </div>
+            </div>
             {searchResults.length > 0 ? (
               <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-30 max-h-72 overflow-auto rounded-md border border-[#cbd5e1] bg-white shadow-xl">
                 {searchResults.map((result) => (

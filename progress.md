@@ -175,3 +175,12 @@
 - Allowed People to be created, listed, searched, edited, and retained with zero addresses. The Add Person and Person detail modals now show addressless empty states and allow removing the final address, while map/nearby/coordinate-audit/owner-audit flows continue to operate only on concrete address rows.
 - Refined the Add Person modal to start with one blank address row again, while preserving the ability to remove that row and save the Person with zero addresses.
 - Fixed the addressless-Person add-address regression. Draft addresses use temporary `id: 0`, and that temporary id was being sent as `selectedAddressId: 0`; PATCH validation rejected it. The dialog now sends `null` until the server returns a persisted address id.
+
+## 2026-06-23
+- Started the TODO.md property-model slice: add canonical Properties, People-Property owner relations, Interaction storage, materialize People/Sold address rows into Properties, and add scoped main search.
+- Added Drizzle schema and SQLite startup migration/backfill for `properties`, `contact_property_relations`, and `interactions`.
+- Wired repository sync so People address saves/deletes and coordinate refreshes update canonical Properties and owner relations; Sold Property saves also materialize their address into Properties.
+- Replaced merged main search with a scoped People/Properties/Sold Properties search API and added a left-side selector in the search control.
+- Added relation deletion through `DELETE /api/contact-property-relations?id=<id>`.
+- Added focused tests for property materialization, owner relation cleanup, scoped search, search validation, and relation deletion.
+- Verified the slice with focused tests, full `npm run lint`, full `npm run test`, `npm run build`, and a Playwright smoke check on `http://127.0.0.1:3001` confirming the search scope selector and Properties results render and can be clicked.

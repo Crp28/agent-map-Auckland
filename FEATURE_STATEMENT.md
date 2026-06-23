@@ -1,6 +1,6 @@
 1. The user can see a map of Auckland, defaulted to Highland Park.
 2. The user can see blue pins #0056A7 on the map representing Sold Properties, and yellow #F8C00B dots on the map representing People records with coordinates.
-3. The user can search for a Person or Sold Property in a top-right search bar.
+3. The user can choose People, Properties, or Sold Properties in the top-right search bar and search within that record type.
 4. The user can filter Sold Property pins by a date range. When no date range is entered, all Sold Properties with coordinates are shown by default.
 5. The user can drag, zoom in, and zoom out on the map with mouse or keyboard.
 6. The user can click on a Sold Property pin to look at its details.
@@ -19,11 +19,14 @@
 17. The user can audit all stored People addresses against PropertySmarts from the main page, resume the owner audit from the last completed batch, see owner mismatches marked red on the map for the current session, see strict first+last-only incomplete stored names marked in a separate color when PropertySmarts shows matching middle names, and delete mismatched address rows after review.
 18. The user can store multiple person-level notes on each Person, choose a note type from a defined list at create/edit time, and view those notes in a compact dark-grey style at the bottom of the Person modal.
 19. The user can run a confirmed bulk Google Maps backfill for all People addresses that still have no coordinates.
+20. The system stores a canonical Properties table for address-level records from People addresses and Sold Properties. A Property has its own id, address, suburb, optional type, and optional coordinates.
+21. The system stores People-to-Property relationships, including owner, former owner, interested in, and neighbour relationships. Current People address rows are synced as owner relationships.
+22. The system stores People interactions with optional Property links, including enquiry, inspection, listing click, sell, and buy interaction types.
 
 ====== ACCEPTANCE CRITERIA ======
 1. The map of Auckland should be fetched from Auckland Council GeoMaps (https://geomapspublic.aucklandcouncil.govt.nz/viewer/index.html), and GeoMaps boundary data is updated once every month at least.
 2. Both the pins and the dots are obvious to eye, and have an optimal size that can be easily clicked but not obstructing the map too much.
-3. As text is entered, results show up as a pop-up list under the search bar, each row in the list showing brief information about the item. Clicking on a result opens the modal containing detailed information about it, and clicking a Sold Property search result also centers the map on that property at zoom level 6.
+3. The primary search bar includes a left-side selector for People, Properties, and Sold Properties. As text is entered, results show up as a pop-up list under the search bar, each row in the list showing brief information about the selected record type. Clicking a Person result opens the Person modal, clicking a Property result centers the map on that Property when coordinates are stored, and clicking a Sold Property result opens its modal and centers the map at zoom level 6.
 4. The date range filter starts blank so all Sold Property pins with coordinates show by default. The user can modify the date range through date pickers, and the system then shows only filtered Sold Property pins on the map.
 5. The map moves when holding left click and moving on mouse, and using WASD or arrow keys on keyboard. Map zooms in when scrolling up on mouse, and pressing + key on keyboard. Map zooms out when scrolling down on mouse, and pressing - key on keyboard.
 6. A modal containing all information about the selected Sold Property shows up.
@@ -42,3 +45,6 @@
 19. Each Person can store zero-or-more person-level notes, not tied to individual addresses. Each note stores a text body plus a selected type from `General Note`, `Inspection`, or `Living`. The Add Person flow can create notes up front, and the Person detail modal can add, edit, and remove notes from a notes section shown below the other Person details and addresses. Displayed notes use a compact darker-grey style distinct from the main detail fields.
 20. When GeoMaps cannot find coordinates for a Person or Sold Property save, the app shows an in-app prompt asking whether to try Google Maps as a fallback only when a Google Maps API key is configured. If Google Maps also fails, the user declines, or no key is configured, the existing manual coordinate entry flow remains available.
 21. The main page provides a `Map missing coords` action when Google Maps fallback is configured. It loads only People address rows with no coordinates, asks for confirmation because Google Maps usage may be billable, processes the rows in small batches, immediately saves successful coordinates, skips rows that are already mapped, and reports mapped, not-found, failed, and already-mapped counts.
+22. Every saved People address and Sold Property address is materialized into the canonical `properties` table by normalized address/suburb key, while retaining a separate numeric Property id for relationships and future UI. Existing address rows are backfilled into Properties during database startup.
+23. Current People address rows create `owner` entries in `contact_property_relations`; editing or deleting People addresses refreshes those owner links, and relation rows can be deleted through the API.
+24. People interactions are stored in `interactions` with a required Person, optional Property, interaction type, and interaction date.

@@ -1,6 +1,15 @@
 import { getDb, getRawDb } from "@/db/client";
 import { ensureDatabase } from "@/db/init";
-import { people, peopleAddresses, peopleNotes, soldProperties, syncMetadata } from "@/db/schema";
+import {
+  contactPropertyRelations,
+  interactions,
+  people,
+  peopleAddresses,
+  peopleNotes,
+  properties,
+  soldProperties,
+  syncMetadata,
+} from "@/db/schema";
 import { GEOMAPS_BOUNDARY_SOURCE_NAME } from "@/lib/constants";
 import { distanceKm, matchesNearbyFilter, purchasingPowerIncludesPrice } from "@/lib/distance";
 import { geocodeAddress } from "@/lib/geomaps";
@@ -15,6 +24,9 @@ import type {
   PersonGoogleGeocodeResult,
   PersonNoteRecord,
   PersonRecord,
+  PropertyRecord,
+  ContactPropertyRelationshipType,
+  InteractionType,
 } from "@/types/location";
 import { and, desc, eq, gte, inArray, lte, notInArray, or, sql } from "drizzle-orm";
 
@@ -110,6 +122,130 @@ type TimedGeocodeResult = {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function propertyKeyForAddress(streetAddress: string, suburb: string) {
+  return normalizeKey(streetAddress, suburb);
+}
+
+function toPropertyRecord(row: typeof properties.$inferSelect): PropertyRecord {
+  return {
+    id: row.id,
+    propertyKey: row.propertyKey,
+    streetAddress: row.streetAddress,
+    suburb: row.suburb,
+    type: row.type as PropertyRecord["type"],
+    latitude: row.latitude,
+    longitude: row.longitude,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+async function upsertPropertyFromAddress(input: {
+  streetAddress: string;
+  suburb: string;
+  latitude: number | null;
+  longitude: number | null;
+  timestamp: string;
+  type?: PropertyRecord["type"] | null;
+}) {
+  const db = getDb();
+  const streetAddress = normalizeText(input.streetAddress);
+  const suburb = normalizeText(input.suburb);
+
+  if (!streetAddress || !suburb) {
+    return null;
+  }
+
+  const propertyKey = propertyKeyForAddress(streetAddress, suburb);
+  await db
+    .insert(properties)
+    .values({
+      propertyKey,
+      streetAddress,
+      suburb,
+      type: input.type ?? null,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      createdAt: input.timestamp,
+      updatedAt: input.timestamp,
+    })
+    .onConflictDoUpdate({
+      target: properties.propertyKey,
+      set: {
+        streetAddress,
+        suburb,
+        type: input.type ?? sql`COALESCE(${properties.type}, NULL)`,
+        latitude: input.latitude ?? sql`COALESCE(${properties.latitude}, NULL)`,
+        longitude: input.longitude ?? sql`COALESCE(${properties.longitude}, NULL)`,
+        updatedAt: input.timestamp,
+      },
+    });
+
+  return db.query.properties.findFirst({ where: eq(properties.propertyKey, propertyKey) });
+}
+
+async function syncOwnerPropertyRelationsForPerson(personId: number, timestamp: string) {
+  const db = getDb();
+  const currentAddresses = await db.query.peopleAddresses.findMany({
+    where: eq(peopleAddresses.personId, personId),
+  });
+  const propertyIds: number[] = [];
+
+  for (const address of currentAddresses) {
+    const property = await upsertPropertyFromAddress({
+      streetAddress: address.streetAddress,
+      suburb: address.suburb,
+      latitude: address.latitude,
+      longitude: address.longitude,
+      timestamp,
+    });
+
+    if (!property) {
+      continue;
+    }
+
+    propertyIds.push(property.id);
+    await db
+      .insert(contactPropertyRelations)
+      .values({
+        personId,
+        propertyId: property.id,
+        relationshipType: "owner",
+        createdAt: timestamp,
+      })
+      .onConflictDoNothing({
+        target: [
+          contactPropertyRelations.personId,
+          contactPropertyRelations.propertyId,
+          contactPropertyRelations.relationshipType,
+        ],
+      });
+  }
+
+  const uniquePropertyIds = [...new Set(propertyIds)];
+  if (uniquePropertyIds.length === 0) {
+    await db
+      .delete(contactPropertyRelations)
+      .where(
+        and(
+          eq(contactPropertyRelations.personId, personId),
+          eq(contactPropertyRelations.relationshipType, "owner"),
+        ),
+      );
+    return;
+  }
+
+  await db
+    .delete(contactPropertyRelations)
+    .where(
+      and(
+        eq(contactPropertyRelations.personId, personId),
+        eq(contactPropertyRelations.relationshipType, "owner"),
+        notInArray(contactPropertyRelations.propertyId, uniquePropertyIds),
+      ),
+    );
 }
 
 async function resolveAddressCoordinates(
@@ -291,6 +427,14 @@ async function updatePersonAddressCoordinates(
       updatedAt: timestamp,
     })
     .where(eq(peopleAddresses.id, row.address_id));
+
+  await upsertPropertyFromAddress({
+    streetAddress: row.street_address,
+    suburb: row.suburb,
+    latitude: coordinates.latitude,
+    longitude: coordinates.longitude,
+    timestamp,
+  });
 
   await db
     .update(people)
@@ -726,6 +870,8 @@ async function syncPersonAddresses(
     }
   }
 
+  await syncOwnerPropertyRelationsForPerson(personId, timestamp);
+
   return resolvedAddresses;
 }
 
@@ -869,6 +1015,14 @@ export async function createOrUpdateSoldProperty(input: SoldPropertyInput) {
       },
     });
 
+  await upsertPropertyFromAddress({
+    streetAddress: input.streetAddress,
+    suburb: input.suburb,
+    latitude: coordinates.latitude,
+    longitude: coordinates.longitude,
+    timestamp,
+  });
+
   return db.query.soldProperties.findFirst({ where: eq(soldProperties.identityKey, identityKey) });
 }
 
@@ -879,6 +1033,75 @@ export async function listPeopleRecords() {
 export async function listSoldPropertyRecords() {
   ensureDatabase();
   return getDb().query.soldProperties.findMany({ orderBy: desc(soldProperties.updatedAt) });
+}
+
+export async function listPropertyRecords() {
+  ensureDatabase();
+  const rows = await getDb().query.properties.findMany({ orderBy: desc(properties.updatedAt) });
+  return rows.map(toPropertyRecord);
+}
+
+export async function deleteContactPropertyRelationById(id: number) {
+  ensureDatabase();
+  const db = getDb();
+  const existing = await db.query.contactPropertyRelations.findFirst({
+    where: eq(contactPropertyRelations.id, id),
+  });
+  if (!existing) {
+    return false;
+  }
+
+  await db.delete(contactPropertyRelations).where(eq(contactPropertyRelations.id, id));
+  return true;
+}
+
+export async function createInteraction(input: {
+  personId: number;
+  propertyId?: number | null;
+  interactionType: InteractionType;
+  interactionDate: string;
+}) {
+  ensureDatabase();
+  const db = getDb();
+  const timestamp = nowIso();
+
+  const inserted = await db
+    .insert(interactions)
+    .values({
+      personId: input.personId,
+      propertyId: input.propertyId ?? null,
+      interactionType: input.interactionType,
+      interactionDate: input.interactionDate,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    })
+    .returning();
+
+  return inserted[0] ?? null;
+}
+
+export async function listContactPropertyRelations(personId: number) {
+  ensureDatabase();
+  return getDb().query.contactPropertyRelations.findMany({
+    where: eq(contactPropertyRelations.personId, personId),
+    orderBy: desc(contactPropertyRelations.createdAt),
+  }) as Promise<
+    Array<{
+      id: number;
+      personId: number;
+      propertyId: number;
+      relationshipType: ContactPropertyRelationshipType;
+      createdAt: string;
+    }>
+  >;
+}
+
+export async function listPersonInteractions(personId: number) {
+  ensureDatabase();
+  return getDb().query.interactions.findMany({
+    where: eq(interactions.personId, personId),
+    orderBy: desc(interactions.interactionDate),
+  });
 }
 
 export async function updatePersonById(
@@ -975,6 +1198,14 @@ export async function updateSoldPropertyById(id: number, input: SoldPropertyInpu
     })
     .where(eq(soldProperties.id, id));
 
+  await upsertPropertyFromAddress({
+    streetAddress: input.streetAddress,
+    suburb: input.suburb,
+    latitude: coordinates.latitude,
+    longitude: coordinates.longitude,
+    timestamp,
+  });
+
   return db.query.soldProperties.findFirst({ where: eq(soldProperties.id, id) });
 }
 
@@ -1041,6 +1272,7 @@ export async function deletePersonAddressRows(addressIds: number[]) {
           updatedAt: timestamp,
         })
         .where(eq(people.id, personId));
+      await syncOwnerPropertyRelationsForPerson(personId, timestamp);
       continue;
     }
 
@@ -1050,6 +1282,7 @@ export async function deletePersonAddressRows(addressIds: number[]) {
         address.suburb === person.suburb,
     );
     if (primaryAddressStillExists) {
+      await syncOwnerPropertyRelationsForPerson(personId, timestamp);
       continue;
     }
 
@@ -1069,6 +1302,8 @@ export async function deletePersonAddressRows(addressIds: number[]) {
         updatedAt: timestamp,
       })
       .where(eq(people.id, personId));
+
+    await syncOwnerPropertyRelationsForPerson(personId, timestamp);
   }
 
   return {
@@ -1130,49 +1365,70 @@ export async function getMapData(filters: {
   };
 }
 
-export async function searchRecords(query: string) {
+export async function searchRecords(query: string, scope: "people" | "properties" | "soldProperties" = "people") {
   ensureDatabase();
   const db = getDb();
   const normalizedQuery = query.trim().toLowerCase();
-  const [personResults, propertyResults] = await Promise.all([
-    listPeopleWithAddresses(),
-    db.query.soldProperties.findMany({
-      where: or(
-        sql`${soldProperties.streetAddress} LIKE ${`%${query.trim()}%`}`,
-        sql`${soldProperties.suburb} LIKE ${`%${query.trim()}%`}`,
-      ),
-      limit: 8,
-    }),
-  ]);
 
-  const personMatches = peopleSearchCandidates(personResults)
-    .filter(
-      (item) =>
-        item.name.toLowerCase().includes(normalizedQuery) ||
-        item.preferredName?.toLowerCase().includes(normalizedQuery) ||
-        displayPersonName(item).toLowerCase().includes(normalizedQuery) ||
-        item.streetAddress.toLowerCase().includes(normalizedQuery) ||
-        item.suburb.toLowerCase().includes(normalizedQuery) ||
-        item.email.toLowerCase().includes(normalizedQuery),
-    )
-    .slice(0, 8);
+  if (scope === "people") {
+    const personResults = await listPeopleWithAddresses();
+    const personMatches = peopleSearchCandidates(personResults)
+      .filter(
+        (item) =>
+          item.name.toLowerCase().includes(normalizedQuery) ||
+          item.preferredName?.toLowerCase().includes(normalizedQuery) ||
+          displayPersonName(item).toLowerCase().includes(normalizedQuery) ||
+          item.streetAddress.toLowerCase().includes(normalizedQuery) ||
+          item.suburb.toLowerCase().includes(normalizedQuery) ||
+          item.email.toLowerCase().includes(normalizedQuery),
+      )
+      .slice(0, 8);
 
-  return [
-    ...personMatches.map((item) => ({
+    return personMatches.map((item) => ({
       type: "person" as const,
       id: item.addressId ?? item.id,
       title: displayPersonName(item),
       subtitle: item.streetAddress && item.suburb ? `${item.streetAddress}, ${item.suburb}` : "No address saved",
       item,
-    })),
-    ...propertyResults.map((item) => ({
-      type: "soldProperty" as const,
-      id: item.id,
-      title: item.streetAddress,
-      subtitle: `${item.suburb} - $${item.soldPrice.toLocaleString()}`,
-      item,
-    })),
-  ];
+    }));
+  }
+
+  if (scope === "properties") {
+    const propertyResults = await db.query.properties.findMany({
+      where: or(
+        sql`${properties.streetAddress} LIKE ${`%${query.trim()}%`}`,
+        sql`${properties.suburb} LIKE ${`%${query.trim()}%`}`,
+      ),
+      limit: 8,
+    });
+
+    return propertyResults.map((item) => {
+      const record = toPropertyRecord(item);
+      return {
+        type: "property" as const,
+        id: record.id,
+        title: record.streetAddress,
+        subtitle: `${record.suburb}${record.type ? ` - ${record.type}` : ""}`,
+        item: record,
+      };
+    });
+  }
+
+  const soldPropertyResults = await db.query.soldProperties.findMany({
+      where: or(
+        sql`${soldProperties.streetAddress} LIKE ${`%${query.trim()}%`}`,
+        sql`${soldProperties.suburb} LIKE ${`%${query.trim()}%`}`,
+      ),
+      limit: 8,
+    });
+
+  return soldPropertyResults.map((item) => ({
+    type: "soldProperty" as const,
+    id: item.id,
+    title: item.streetAddress,
+    subtitle: `${item.suburb} - $${item.soldPrice.toLocaleString()}`,
+    item,
+  }));
 }
 
 export async function findNearbyPeople(input: {

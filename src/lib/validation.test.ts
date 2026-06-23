@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nearbySchema, personInputSchema, soldPropertyInputSchema } from "./validation";
+import { nearbySchema, personInputSchema, searchSchema, soldPropertyInputSchema } from "./validation";
 
 describe("personInputSchema", () => {
   it("parses multiple addresses for one person", () => {
@@ -256,5 +256,19 @@ describe("nearbySchema", () => {
     });
 
     expect(result.sameSuburb).toBe(false);
+  });
+});
+
+describe("searchSchema", () => {
+  it("defaults scoped search to people", () => {
+    const result = searchSchema.parse({ q: "smith" });
+
+    expect(result.scope).toBe("people");
+  });
+
+  it("accepts properties search scope", () => {
+    const result = searchSchema.parse({ q: "queen", scope: "properties" });
+
+    expect(result.scope).toBe("properties");
   });
 });

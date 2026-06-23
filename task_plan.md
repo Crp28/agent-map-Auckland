@@ -50,6 +50,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 44. Complete: Allow People to be saved and edited with zero addresses, while keeping map, nearby, coordinate-audit, and owner-audit workflows address-specific.
 45. Complete: Keep the Add Person modal defaulted to one address row while still allowing that row to be removed so a Person can be created with zero addresses.
 46. Complete: Fix adding the first address to an addressless Person by preventing temporary draft address ids from being sent as selected address ids.
+47. Complete: Add canonical Properties, People-Property relations, Interaction storage, materialize existing address data into Properties, and add scoped main search.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.

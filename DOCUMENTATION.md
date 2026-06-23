@@ -76,6 +76,9 @@
 - 2026-06-16: Added a People manager name search field beside `Add person`, with filtered counts, an empty-search result state, and a stable list viewport so the modal does not shrink while filtering.
 - 2026-06-16: Allowed People to exist with zero addresses. Manual/API People saves may now use an empty address list, final address deletion preserves the Person, and address-specific map/audit/nearby workflows continue to skip People with no address rows. The Add Person modal still starts with one blank address row for normal entry, and removing that row reveals the addressless empty state.
 - 2026-06-16: Fixed adding the first address to an addressless Person. The detail modal now keeps temporary draft address ids out of `selectedAddressId`, so the PATCH route receives `null` until the new address has a real database id.
+- 2026-06-23: Added canonical Property storage through new `properties`, `contact_property_relations`, and `interactions` tables. Database startup now materializes existing People address rows and Sold Properties into Properties, and People address rows sync `owner` relations as addresses are created, edited, deleted, or geocoded.
+- 2026-06-23: Added a scoped main search selector for People, Properties, and Sold Properties. People search keeps the existing modal behavior, Property results focus the map when coordinates exist, and Sold Property results keep opening the detail modal plus nearby workflow.
+- 2026-06-23: Added a relation delete API at `DELETE /api/contact-property-relations?id=<id>` so contact-property relation rows can be removed without waiting for the later relationship-management UI.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
@@ -101,6 +104,8 @@
 - PropertySmarts owner verification is implemented as standalone tooling under `scripts/propertysmarts/`, not as part of the deployed Next.js app runtime. It depends on a manually established authenticated browser session that is saved to Playwright storage state.
 - People now carry a canonical legal `name` plus an optional `preferred_name` that represents a preferred first name only. The app UI derives the visible full name by replacing only the legal first name, and owner checking compares against both the legal full name and that derived display variant.
 - The main-app PropertySmarts owner audit is explicitly local-only admin tooling. It persists only resumable batch progress in local storage; mismatch results themselves remain session-only and are cleared from the UI when the page state resets.
+- Canonical Properties use a separate numeric id for relationships and future UI. Exact normalized address/suburb text is still deduped through `property_key`, but this is not treated as a human-facing unique identifier because imported address formatting can vary.
+- Current People address rows are the source of truth for automatic `owner` contact-property relationships. If a Person address is removed or changed, the repository resyncs that Person's owner relations from remaining address rows.
 
 ## Notes
 - Use `cmd /c npm ...`, `npm.cmd`, or `npx.cmd` in PowerShell because this machine blocks `npm.ps1`.

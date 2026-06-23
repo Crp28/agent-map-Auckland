@@ -162,6 +162,7 @@ export const mapFilterSchema = z.object({
 
 export const searchSchema = z.object({
   q: z.string().trim().min(1),
+  scope: z.enum(["people", "properties", "soldProperties"]).default("people"),
 });
 
 export const nearbySchema = z.object({

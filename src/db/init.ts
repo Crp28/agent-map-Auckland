@@ -134,6 +134,98 @@ function migratePeopleToMultiAddress(rawDb: ReturnType<typeof getRawDb>) {
   transaction();
 }
 
+function materializeProperties(rawDb: ReturnType<typeof getRawDb>) {
+  const timestamp = new Date().toISOString();
+  const upsertProperty = rawDb.prepare(`
+    INSERT INTO properties (
+      property_key, street_address, suburb, type, latitude, longitude, created_at, updated_at
+    ) VALUES (
+      @propertyKey, @streetAddress, @suburb, NULL, @latitude, @longitude, @createdAt, @updatedAt
+    )
+    ON CONFLICT(property_key) DO UPDATE SET
+      street_address = excluded.street_address,
+      suburb = excluded.suburb,
+      latitude = COALESCE(excluded.latitude, properties.latitude),
+      longitude = COALESCE(excluded.longitude, properties.longitude),
+      updated_at = excluded.updated_at
+  `);
+  const findProperty = rawDb.prepare("SELECT id FROM properties WHERE property_key = ?");
+  const insertOwnerRelation = rawDb.prepare(`
+    INSERT INTO contact_property_relations (
+      person_id, property_id, relationship_type, created_at
+    ) VALUES (
+      @personId, @propertyId, 'owner', @createdAt
+    )
+    ON CONFLICT(person_id, property_id, relationship_type) DO NOTHING
+  `);
+
+  const peopleRows = rawDb
+    .prepare(
+      `SELECT person_id, street_address, suburb, latitude, longitude, created_at, updated_at
+       FROM people_addresses
+       WHERE trim(street_address) <> '' AND trim(suburb) <> ''
+       ORDER BY id ASC`,
+    )
+    .all() as Array<{
+      person_id: number;
+      street_address: string;
+      suburb: string;
+      latitude: number | null;
+      longitude: number | null;
+      created_at: string;
+      updated_at: string;
+    }>;
+
+  const soldRows = rawDb
+    .prepare(
+      `SELECT street_address, suburb, latitude, longitude, created_at, updated_at
+       FROM sold_properties
+       WHERE trim(street_address) <> '' AND trim(suburb) <> ''
+       ORDER BY id ASC`,
+    )
+    .all() as Array<{
+      street_address: string;
+      suburb: string;
+      latitude: number | null;
+      longitude: number | null;
+      created_at: string;
+      updated_at: string;
+    }>;
+
+  const transaction = rawDb.transaction(() => {
+    for (const row of [...peopleRows, ...soldRows]) {
+      const streetAddress = normalizeText(row.street_address);
+      const suburb = normalizeText(row.suburb);
+      upsertProperty.run({
+        propertyKey: normalizeKey(streetAddress, suburb),
+        streetAddress,
+        suburb,
+        latitude: row.latitude,
+        longitude: row.longitude,
+        createdAt: row.created_at ?? timestamp,
+        updatedAt: row.updated_at ?? timestamp,
+      });
+    }
+
+    for (const row of peopleRows) {
+      const streetAddress = normalizeText(row.street_address);
+      const suburb = normalizeText(row.suburb);
+      const property = findProperty.get(normalizeKey(streetAddress, suburb)) as { id: number } | undefined;
+      if (!property) {
+        continue;
+      }
+
+      insertOwnerRelation.run({
+        personId: row.person_id,
+        propertyId: property.id,
+        createdAt: row.created_at ?? timestamp,
+      });
+    }
+  });
+
+  transaction();
+}
+
 export function ensureDatabase() {
   if (initialized) {
     return;
@@ -189,6 +281,46 @@ export function ensureDatabase() {
 
     CREATE INDEX IF NOT EXISTS people_notes_person_id_idx ON people_notes(person_id);
     CREATE INDEX IF NOT EXISTS people_notes_type_idx ON people_notes(type);
+
+    CREATE TABLE IF NOT EXISTS properties (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      property_key TEXT NOT NULL UNIQUE,
+      street_address TEXT NOT NULL,
+      suburb TEXT NOT NULL,
+      type TEXT,
+      latitude REAL,
+      longitude REAL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS properties_suburb_idx ON properties(suburb);
+
+    CREATE TABLE IF NOT EXISTS contact_property_relations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      person_id INTEGER NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+      property_id INTEGER NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+      relationship_type TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE(person_id, property_id, relationship_type)
+    );
+
+    CREATE INDEX IF NOT EXISTS contact_property_relations_person_id_idx ON contact_property_relations(person_id);
+    CREATE INDEX IF NOT EXISTS contact_property_relations_property_id_idx ON contact_property_relations(property_id);
+
+    CREATE TABLE IF NOT EXISTS interactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      person_id INTEGER NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+      property_id INTEGER REFERENCES properties(id) ON DELETE SET NULL,
+      interaction_type TEXT NOT NULL,
+      interaction_date TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS interactions_person_id_idx ON interactions(person_id);
+    CREATE INDEX IF NOT EXISTS interactions_property_id_idx ON interactions(property_id);
+    CREATE INDEX IF NOT EXISTS interactions_interaction_date_idx ON interactions(interaction_date);
 
     CREATE TABLE IF NOT EXISTS sold_properties (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -261,6 +393,7 @@ export function ensureDatabase() {
   rawDb.exec("CREATE INDEX IF NOT EXISTS people_notes_person_id_idx ON people_notes(person_id)");
   rawDb.exec("CREATE INDEX IF NOT EXISTS people_notes_type_idx ON people_notes(type)");
   migratePeopleToMultiAddress(rawDb);
+  materializeProperties(rawDb);
 
   initialized = true;
 }

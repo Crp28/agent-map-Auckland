@@ -605,6 +605,125 @@ describe("multi-address repository behavior", () => {
     expect(listed[0]?.addresses[0]?.streetAddress).toBe("1 Queen Street");
   });
 
+  it("materializes people addresses as properties and owner relations", async () => {
+    const created = await repository.createOrUpdatePerson({
+      name: "Property Owner",
+      preferredName: "",
+      phone: "021 555 5555",
+      email: "owner@example.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [],
+      addresses: [
+        {
+          streetAddress: "10 Test Road",
+          suburb: "Remuera",
+          latitude: -36.87,
+          longitude: 174.78,
+        },
+      ],
+    }, { geocode: false });
+
+    const properties = await repository.listPropertyRecords();
+    expect(properties).toHaveLength(1);
+    expect(properties[0]?.streetAddress).toBe("10 Test Road");
+    expect(properties[0]?.suburb).toBe("Remuera");
+
+    const relations = await repository.listContactPropertyRelations(created!.id);
+    expect(relations).toHaveLength(1);
+    expect(relations[0]?.relationshipType).toBe("owner");
+    expect(relations[0]?.propertyId).toBe(properties[0]?.id);
+  });
+
+  it("removes stale owner relations when a person address is deleted", async () => {
+    const created = await repository.createOrUpdatePerson({
+      name: "Two Homes",
+      preferredName: "",
+      phone: "021 666 6666",
+      email: "two@example.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [],
+      addresses: [
+        {
+          streetAddress: "11 Test Road",
+          suburb: "Remuera",
+          latitude: -36.871,
+          longitude: 174.781,
+        },
+        {
+          streetAddress: "12 Test Road",
+          suburb: "Remuera",
+          latitude: -36.872,
+          longitude: 174.782,
+        },
+      ],
+    }, { geocode: false });
+
+    expect(await repository.listContactPropertyRelations(created!.id)).toHaveLength(2);
+
+    await repository.deletePersonAddressRows([created!.addresses[0]!.id]);
+
+    const relations = await repository.listContactPropertyRelations(created!.id);
+    expect(relations).toHaveLength(1);
+    const properties = await repository.listPropertyRecords();
+    const remainingProperty = properties.find((property) => property.id === relations[0]?.propertyId);
+    expect(remainingProperty?.streetAddress).toBe("12 Test Road");
+  });
+
+  it("materializes sold properties as canonical properties", async () => {
+    await repository.createOrUpdateSoldProperty({
+      streetAddress: "20 Sold Street",
+      suburb: "Howick",
+      lastSoldDate: "2026-06-01",
+      soldPrice: 1000000,
+      latitude: -36.9,
+      longitude: 174.9,
+    });
+
+    const properties = await repository.listPropertyRecords();
+    expect(properties).toHaveLength(1);
+    expect(properties[0]?.streetAddress).toBe("20 Sold Street");
+    expect(properties[0]?.latitude).toBe(-36.9);
+  });
+
+  it("supports scoped People, Properties, and Sold Properties search", async () => {
+    await repository.createOrUpdatePerson({
+      name: "Search Person",
+      preferredName: "",
+      phone: "021 777 0000",
+      email: "search@example.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [],
+      addresses: [
+        {
+          streetAddress: "30 Search Road",
+          suburb: "Howick",
+          latitude: -36.91,
+          longitude: 174.91,
+        },
+      ],
+    }, { geocode: false });
+    await repository.createOrUpdateSoldProperty({
+      streetAddress: "31 Search Road",
+      suburb: "Howick",
+      lastSoldDate: "2026-06-01",
+      soldPrice: 1200000,
+      latitude: -36.92,
+      longitude: 174.92,
+    });
+
+    const peopleResults = await repository.searchRecords("Search Person", "people");
+    const propertyResults = await repository.searchRecords("Search Road", "properties");
+    const soldResults = await repository.searchRecords("31 Search", "soldProperties");
+
+    expect(peopleResults.map((result) => result.type)).toEqual(["person"]);
+    expect(propertyResults.every((result) => result.type === "property")).toBe(true);
+    expect(propertyResults).toHaveLength(2);
+    expect(soldResults.map((result) => result.type)).toEqual(["soldProperty"]);
+  });
+
   it("promotes a remaining address when the primary address row is deleted", async () => {
     const created = await repository.createOrUpdatePerson({
       name: "Primary Swap",

@@ -7,7 +7,7 @@ Location Finder is a Next.js 16 app for viewing Auckland sold properties and peo
 - Full-screen Auckland map workspace, defaulted to Highland Park.
 - Sold Properties render as blue pins and People with coordinates render as yellow dots.
 - ALL data is manually entered.
-- Search matches both Sold Properties and People, opens detail modals from results, and moves Sold Property results to zoom level 6.
+- Search has a left-side scope selector for People, Properties, and Sold Properties. People results open detail modals, Property results move the map when coordinates exist, and Sold Property results open details plus move to zoom level 6.
 - Sold Property date filters are blank by default, so all coordinate-bearing Sold Properties are shown until a date range is entered.
 - People can be filtered by purchasing power and by nearby distance from a selected Sold Property.
 - The nearby filter affects only People dots. Sold Property pins continue to follow only the date filters.
@@ -65,6 +65,9 @@ cmd /c npm run propertysmarts:check-owner -- --address "192 Remuera Road" --subu
 - Database files are ignored by Git.
 - Tables are created automatically the first time server-side code touches the database.
 - Older single-address People rows are migrated in place to the current logical-person plus `people_addresses` model.
+- `properties` stores canonical address-level records with a separate numeric id, address, suburb, optional type, and optional coordinates. Existing People addresses and Sold Properties are materialized into this table on startup.
+- `contact_property_relations` links People to Properties with `owner`, `former_owner`, `interested_in`, or `neighbour`. Current People address rows automatically sync `owner` relations.
+- `interactions` stores People interactions with optional Property links and the current interaction types `enquiry`, `inspection`, `listing_click`, `sell`, and `buy`.
 - Sold Properties are entered manually in v1.
 
 ## GeoMaps Integration
