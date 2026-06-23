@@ -289,6 +289,106 @@ async function syncOwnerPropertyRelationsForPerson(personId: number, timestamp: 
   }
 }
 
+async function createPropertyInteractionIfMissing(input: {
+  personId: number;
+  propertyId: number;
+  interactionType: InteractionType;
+  interactionDate: string;
+  timestamp: string;
+}) {
+  const db = getDb();
+  const existing =
+    (
+      await db
+        .select({ id: interactions.id })
+        .from(interactions)
+        .where(
+          and(
+            eq(interactions.personId, input.personId),
+            eq(interactions.propertyId, input.propertyId),
+            eq(interactions.interactionType, input.interactionType),
+            eq(interactions.interactionDate, input.interactionDate),
+          ),
+        )
+        .limit(1)
+    )[0] ?? null;
+
+  if (existing) {
+    return existing;
+  }
+
+  const inserted = await db
+    .insert(interactions)
+    .values({
+      personId: input.personId,
+      propertyId: input.propertyId,
+      interactionType: input.interactionType,
+      interactionDate: input.interactionDate,
+      createdAt: input.timestamp,
+      updatedAt: input.timestamp,
+    })
+    .returning({ id: interactions.id });
+
+  return inserted[0] ?? null;
+}
+
+async function transitionCurrentOwnersForSoldProperty(input: {
+  propertyId: number;
+  streetAddress: string;
+  suburb: string;
+  interactionDate: string;
+  timestamp: string;
+}) {
+  const db = getDb();
+  const ownerRelations = await db
+    .select({
+      personId: contactPropertyRelations.personId,
+    })
+    .from(contactPropertyRelations)
+    .where(
+      and(
+        eq(contactPropertyRelations.propertyId, input.propertyId),
+        eq(contactPropertyRelations.relationshipType, "owner"),
+      ),
+    );
+  const ownerPersonIds = [...new Set(ownerRelations.map((relation) => relation.personId))];
+
+  if (ownerPersonIds.length === 0) {
+    return;
+  }
+
+  const addressRows = await db
+    .select({
+      id: peopleAddresses.id,
+      personId: peopleAddresses.personId,
+    })
+    .from(peopleAddresses)
+    .where(
+      and(
+        inArray(peopleAddresses.personId, ownerPersonIds),
+        eq(peopleAddresses.streetAddress, normalizeText(input.streetAddress)),
+        eq(peopleAddresses.suburb, normalizeText(input.suburb)),
+      ),
+    );
+  const affectedPersonIds = [...new Set(addressRows.map((row) => row.personId))];
+
+  if (addressRows.length === 0 || affectedPersonIds.length === 0) {
+    return;
+  }
+
+  await deletePersonAddressRows(addressRows.map((row) => row.id));
+
+  for (const personId of affectedPersonIds) {
+    await createPropertyInteractionIfMissing({
+      personId,
+      propertyId: input.propertyId,
+      interactionType: "sell",
+      interactionDate: input.interactionDate,
+      timestamp: input.timestamp,
+    });
+  }
+}
+
 async function resolveAddressCoordinates(
   input: PersonAddressInput | SoldPropertyInput,
   options: { geocode?: boolean } = {},
@@ -1056,13 +1156,22 @@ export async function createOrUpdateSoldProperty(input: SoldPropertyInput) {
       },
     });
 
-  await upsertPropertyFromAddress({
+  const property = await upsertPropertyFromAddress({
     streetAddress: input.streetAddress,
     suburb: input.suburb,
     latitude: coordinates.latitude,
     longitude: coordinates.longitude,
     timestamp,
   });
+  if (property) {
+    await transitionCurrentOwnersForSoldProperty({
+      propertyId: property.id,
+      streetAddress: input.streetAddress,
+      suburb: input.suburb,
+      interactionDate: input.lastSoldDate,
+      timestamp,
+    });
+  }
 
   return db.query.soldProperties.findFirst({ where: eq(soldProperties.identityKey, identityKey) });
 }

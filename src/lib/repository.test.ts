@@ -779,6 +779,105 @@ describe("multi-address repository behavior", () => {
     expect(properties[0]?.latitude).toBe(-36.9);
   });
 
+  it("moves current owner addresses to former owner and records a sale when a sold property is added", async () => {
+    const person = await repository.createOrUpdatePerson({
+      name: "Selling Owner",
+      preferredName: "",
+      phone: "021 111 2222",
+      email: "seller@example.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [],
+      addresses: [
+        {
+          streetAddress: "22 Sale Road",
+          suburb: "Howick",
+          latitude: -36.902,
+          longitude: 174.902,
+        },
+      ],
+    }, { geocode: false });
+
+    await repository.createOrUpdateSoldProperty({
+      streetAddress: "22 Sale Road",
+      suburb: "Howick",
+      lastSoldDate: "2026-06-03",
+      soldPrice: 1300000,
+      latitude: -36.902,
+      longitude: 174.902,
+    });
+
+    const listedPeople = await repository.listPeopleRecords();
+    expect(listedPeople.find((item) => item.id === person!.id)?.addresses).toEqual([]);
+
+    const property = (await repository.listPropertyRecords()).find(
+      (item) => item.streetAddress === "22 Sale Road" && item.suburb === "Howick",
+    );
+    expect(property).toBeDefined();
+
+    const relations = await repository.listContactPropertyRelations(person!.id);
+    expect(relations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          propertyId: property!.id,
+          relationshipType: "former_owner",
+        }),
+      ]),
+    );
+    expect(relations.some((relation) => relation.propertyId === property!.id && relation.relationshipType === "owner")).toBe(false);
+
+    const interactions = await repository.listPersonInteractions(person!.id);
+    expect(interactions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          propertyId: property!.id,
+          interactionType: "sell",
+          interactionDate: "2026-06-03",
+        }),
+      ]),
+    );
+  });
+
+  it("does not duplicate sell interactions when the same sold property is saved again", async () => {
+    const person = await repository.createOrUpdatePerson({
+      name: "Repeat Seller",
+      preferredName: "",
+      phone: "021 222 3333",
+      email: "repeat@example.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [],
+      addresses: [
+        {
+          streetAddress: "23 Sale Road",
+          suburb: "Howick",
+          latitude: -36.903,
+          longitude: 174.903,
+        },
+      ],
+    }, { geocode: false });
+    const input = {
+      streetAddress: "23 Sale Road",
+      suburb: "Howick",
+      lastSoldDate: "2026-06-04",
+      soldPrice: 1400000,
+      latitude: -36.903,
+      longitude: 174.903,
+    };
+
+    await repository.createOrUpdateSoldProperty(input);
+    await repository.createOrUpdateSoldProperty(input);
+
+    const interactions = await repository.listPersonInteractions(person!.id);
+    expect(
+      interactions.filter(
+        (interaction) =>
+          interaction.interactionType === "sell" &&
+          interaction.interactionDate === "2026-06-04",
+      ),
+    ).toHaveLength(1);
+  });
+
   it("creates sold properties when the cached Drizzle query surface lacks new tables", async () => {
     const { drizzle } = await import("drizzle-orm/better-sqlite3");
     const { getRawDb } = await import("@/db/client");

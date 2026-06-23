@@ -188,3 +188,5 @@
 - Added a regression test that simulates a stale Drizzle query surface missing `properties` and confirms Sold Property creation still materializes the canonical Property row.
 - Changed People address relation sync so removed or edited address rows convert their old `owner` relationship into `former_owner` instead of deleting it, while current addresses still receive `owner`.
 - Added repository coverage for address-delete history, address-edit history, and direct Person deletion cascading away that Person's contact-property relations and interactions.
+- Added automatic sale transitions for Sold Property saves: if the sold address is currently owned by People, the matching People address rows are removed, their Property relation becomes `former_owner`, and a `sell` interaction is recorded for each affected Person.
+- Added repository coverage proving sale transitions remove the address, preserve former ownership, record the `sell` interaction, and avoid duplicate sale interactions on repeated saves.
