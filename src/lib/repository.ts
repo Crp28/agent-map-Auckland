@@ -183,7 +183,15 @@ async function upsertPropertyFromAddress(input: {
       },
     });
 
-  return db.query.properties.findFirst({ where: eq(properties.propertyKey, propertyKey) });
+  return (
+    (
+      await db
+        .select()
+        .from(properties)
+        .where(eq(properties.propertyKey, propertyKey))
+        .limit(1)
+    )[0] ?? null
+  );
 }
 
 async function syncOwnerPropertyRelationsForPerson(personId: number, timestamp: string) {
@@ -1037,16 +1045,21 @@ export async function listSoldPropertyRecords() {
 
 export async function listPropertyRecords() {
   ensureDatabase();
-  const rows = await getDb().query.properties.findMany({ orderBy: desc(properties.updatedAt) });
+  const rows = await getDb().select().from(properties).orderBy(desc(properties.updatedAt));
   return rows.map(toPropertyRecord);
 }
 
 export async function deleteContactPropertyRelationById(id: number) {
   ensureDatabase();
   const db = getDb();
-  const existing = await db.query.contactPropertyRelations.findFirst({
-    where: eq(contactPropertyRelations.id, id),
-  });
+  const existing =
+    (
+      await db
+        .select({ id: contactPropertyRelations.id })
+        .from(contactPropertyRelations)
+        .where(eq(contactPropertyRelations.id, id))
+        .limit(1)
+    )[0] ?? null;
   if (!existing) {
     return false;
   }
@@ -1082,26 +1095,24 @@ export async function createInteraction(input: {
 
 export async function listContactPropertyRelations(personId: number) {
   ensureDatabase();
-  return getDb().query.contactPropertyRelations.findMany({
-    where: eq(contactPropertyRelations.personId, personId),
-    orderBy: desc(contactPropertyRelations.createdAt),
-  }) as Promise<
-    Array<{
-      id: number;
-      personId: number;
-      propertyId: number;
-      relationshipType: ContactPropertyRelationshipType;
-      createdAt: string;
-    }>
-  >;
+  const rows = await getDb()
+    .select()
+    .from(contactPropertyRelations)
+    .where(eq(contactPropertyRelations.personId, personId))
+    .orderBy(desc(contactPropertyRelations.createdAt));
+  return rows.map((row) => ({
+    ...row,
+    relationshipType: row.relationshipType as ContactPropertyRelationshipType,
+  }));
 }
 
 export async function listPersonInteractions(personId: number) {
   ensureDatabase();
-  return getDb().query.interactions.findMany({
-    where: eq(interactions.personId, personId),
-    orderBy: desc(interactions.interactionDate),
-  });
+  return getDb()
+    .select()
+    .from(interactions)
+    .where(eq(interactions.personId, personId))
+    .orderBy(desc(interactions.interactionDate));
 }
 
 export async function updatePersonById(
@@ -1394,13 +1405,16 @@ export async function searchRecords(query: string, scope: "people" | "properties
   }
 
   if (scope === "properties") {
-    const propertyResults = await db.query.properties.findMany({
-      where: or(
-        sql`${properties.streetAddress} LIKE ${`%${query.trim()}%`}`,
-        sql`${properties.suburb} LIKE ${`%${query.trim()}%`}`,
-      ),
-      limit: 8,
-    });
+    const propertyResults = await db
+      .select()
+      .from(properties)
+      .where(
+        or(
+          sql`${properties.streetAddress} LIKE ${`%${query.trim()}%`}`,
+          sql`${properties.suburb} LIKE ${`%${query.trim()}%`}`,
+        ),
+      )
+      .limit(8);
 
     return propertyResults.map((item) => {
       const record = toPropertyRecord(item);

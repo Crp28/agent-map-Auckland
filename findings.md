@@ -86,6 +86,7 @@
 - Canonical Property storage needs to coexist with the existing address-specific People/Sold Property tables. The practical migration is to materialize exact normalized address/suburb pairs into `properties`, then keep People address rows as the current source of truth for automatic `owner` relations.
 - Contact-property owner relations cannot be one-time backfill only. Address edits, final-address deletion, coordinate refreshes, and Google backfills all touch address data, so repository helpers need to resync or update the related Property row in those paths.
 - Scoped search avoids ambiguous result handling. People results still open a modal, Sold Property results open the sold-property modal and nearby workflow, while canonical Property results currently only move the map because the later Property UI has not been requested yet.
+- Drizzle's generated `db.query.<table>` surface can be stale in a long-running Next dev process after adding new schema tables. Newly added tables should use direct `select().from(table)` reads, as already done for `people_notes`, so hot runtime cache shape does not crash repository paths.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.

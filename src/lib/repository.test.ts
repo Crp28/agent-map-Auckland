@@ -687,6 +687,32 @@ describe("multi-address repository behavior", () => {
     expect(properties[0]?.latitude).toBe(-36.9);
   });
 
+  it("creates sold properties when the cached Drizzle query surface lacks new tables", async () => {
+    const { drizzle } = await import("drizzle-orm/better-sqlite3");
+    const { getRawDb } = await import("@/db/client");
+    const { soldProperties } = await import("@/db/schema");
+    const globalWithDb = globalThis as typeof globalThis & {
+      locationFinderDrizzle?: unknown;
+    };
+    globalWithDb.locationFinderDrizzle = drizzle(getRawDb(), {
+      schema: { soldProperties },
+    }) as unknown;
+
+    const created = await repository.createOrUpdateSoldProperty({
+      streetAddress: "21 Sold Street",
+      suburb: "Howick",
+      lastSoldDate: "2026-06-02",
+      soldPrice: 1100000,
+      latitude: -36.901,
+      longitude: 174.901,
+    });
+
+    expect(created?.streetAddress).toBe("21 Sold Street");
+    const properties = await repository.listPropertyRecords();
+    expect(properties).toHaveLength(1);
+    expect(properties[0]?.streetAddress).toBe("21 Sold Street");
+  });
+
   it("supports scoped People, Properties, and Sold Properties search", async () => {
     await repository.createOrUpdatePerson({
       name: "Search Person",

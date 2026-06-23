@@ -79,6 +79,7 @@
 - 2026-06-23: Added canonical Property storage through new `properties`, `contact_property_relations`, and `interactions` tables. Database startup now materializes existing People address rows and Sold Properties into Properties, and People address rows sync `owner` relations as addresses are created, edited, deleted, or geocoded.
 - 2026-06-23: Added a scoped main search selector for People, Properties, and Sold Properties. People search keeps the existing modal behavior, Property results focus the map when coordinates exist, and Sold Property results keep opening the detail modal plus nearby workflow.
 - 2026-06-23: Added a relation delete API at `DELETE /api/contact-property-relations?id=<id>` so contact-property relation rows can be removed without waiting for the later relationship-management UI.
+- 2026-06-23: Fixed a Sold Property save crash caused by reading new tables through a stale generated Drizzle `db.query` surface in the dev runtime. Repository reads for `properties`, `contact_property_relations`, and `interactions` now use direct `select().from(...)` queries.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.

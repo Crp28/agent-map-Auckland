@@ -184,3 +184,5 @@
 - Added relation deletion through `DELETE /api/contact-property-relations?id=<id>`.
 - Added focused tests for property materialization, owner relation cleanup, scoped search, search validation, and relation deletion.
 - Verified the slice with focused tests, full `npm run lint`, full `npm run test`, `npm run build`, and a Playwright smoke check on `http://127.0.0.1:3001` confirming the search scope selector and Properties results render and can be clicked.
+- Fixed a follow-up Sold Property save crash where `upsertPropertyFromAddress()` used `db.query.properties.findFirst()` while the dev runtime still had a cached Drizzle instance whose generated `db.query` surface did not include the new table. New-table reads now use direct `select().from(...)` queries.
+- Added a regression test that simulates a stale Drizzle query surface missing `properties` and confirms Sold Property creation still materializes the canonical Property row.

@@ -51,6 +51,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 45. Complete: Keep the Add Person modal defaulted to one address row while still allowing that row to be removed so a Person can be created with zero addresses.
 46. Complete: Fix adding the first address to an addressless Person by preventing temporary draft address ids from being sent as selected address ids.
 47. Complete: Add canonical Properties, People-Property relations, Interaction storage, materialize existing address data into Properties, and add scoped main search.
+48. Complete: Fix new Sold Property saves when the dev runtime has a cached Drizzle query surface without newly added tables.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.
