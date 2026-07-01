@@ -54,6 +54,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 48. Complete: Fix new Sold Property saves when the dev runtime has a cached Drizzle query surface without newly added tables.
 49. Complete: Preserve People address ownership history by converting removed or edited address owner links to `former_owner`, while direct Person deletion removes relations and interactions.
 50. Complete: Convert current People owners to former owners and add sell interactions when a Sold Property is saved for their owned address.
+51. Complete: Add the canonical Properties manager/detail timeline, switcher to Sold Properties, and Person interaction filtering/creation UI.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.
@@ -81,3 +82,4 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 | Existing local database crashed on `no such column: person_key` after the multi-address schema change | Live app verification | Root cause was `ensureDatabase()` creating the `people_person_key_unique` index before older databases had added the new `person_key` column; moved index creation after the conditional column migration. |
 | `agent-browser batch` parsed `wait 700` as command `700` | Nearby export browser verification | Switched to individual `agent-browser` commands with quoted refs on PowerShell and completed the CSV interception check. |
 | PowerShell rejected `&&` while chaining Playwright smoke-check commands | Bulk Google coordinate browser verification | Re-ran navigation and inspection as separate commands and completed the confirmation-dialog smoke check. |
+| Existing Person detail test parsed the new interaction GET as a PATCH body | Phase 51 focused UI tests | Update fetch mocks to route by URL/method and select the actual PATCH call. |

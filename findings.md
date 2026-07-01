@@ -89,6 +89,9 @@
 - Drizzle's generated `db.query.<table>` surface can be stale in a long-running Next dev process after adding new schema tables. Newly added tables should use direct `select().from(table)` reads, as already done for `people_notes`, so hot runtime cache shape does not crash repository paths.
 - People address edits/deletes need historical relationship semantics. The `people_addresses` table is still the source of current ownership, but stale `owner` links should become `former_owner` rather than disappearing; direct Person deletion is the boundary that removes that Person's relations and interactions through foreign-key cascade.
 - Sold Property creation is also an ownership-transition event. When the sold address is currently attached to People as an owned address, the repository should remove that address row, rely on address sync to mark the Property relation as `former_owner`, and add an idempotent `sell` interaction dated to the sold date.
+- The canonical Property detail timeline can be derived from existing persistent event sources: Property created/updated timestamps, contact-property relationship creation, interaction dates, and Sold Property dates. This satisfies the current UI without adding a speculative history table before Property editing exists.
+- Person interactions should load independently from Person PATCH data. Keeping `/api/interactions` separate prevents interaction edits from invoking the Person address/geocoding update path.
+- The local canonical Property dataset already exceeds 1,300 rows. The manager should paginate instead of mounting every row; 100-row pages preserve straightforward browsing/search while keeping the dialog responsive.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.

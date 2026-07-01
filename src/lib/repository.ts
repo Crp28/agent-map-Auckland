@@ -19,14 +19,17 @@ import { displayPersonName } from "@/lib/person-display";
 import { normalizePreferredFirstName } from "@/lib/person-name";
 import type { PersonAddressInput, PersonInput, SoldPropertyInput } from "@/lib/validation";
 import type {
+  ContactPropertyRelationshipType,
+  InteractionType,
   PersonAddressRecord,
   PersonCoordinateAuditResult,
   PersonGoogleGeocodeResult,
+  PersonInteractionRecord,
   PersonNoteRecord,
   PersonRecord,
+  PropertyDetailRecord,
   PropertyRecord,
-  ContactPropertyRelationshipType,
-  InteractionType,
+  PropertyTimelineEvent,
 } from "@/types/location";
 import { and, desc, eq, gte, inArray, lte, notInArray, or, sql } from "drizzle-orm";
 
@@ -1191,6 +1194,126 @@ export async function listPropertyRecords() {
   return rows.map(toPropertyRecord);
 }
 
+export async function getPropertyDetailById(id: number): Promise<PropertyDetailRecord | null> {
+  ensureDatabase();
+  const db = getDb();
+  const propertyRow =
+    (await db.select().from(properties).where(eq(properties.id, id)).limit(1))[0] ?? null;
+  if (!propertyRow) {
+    return null;
+  }
+
+  const [relationRows, interactionRows, soldRows] = await Promise.all([
+    db
+      .select({
+        id: contactPropertyRelations.id,
+        personId: contactPropertyRelations.personId,
+        propertyId: contactPropertyRelations.propertyId,
+        relationshipType: contactPropertyRelations.relationshipType,
+        createdAt: contactPropertyRelations.createdAt,
+        personName: people.name,
+        preferredName: people.preferredName,
+      })
+      .from(contactPropertyRelations)
+      .innerJoin(people, eq(people.id, contactPropertyRelations.personId))
+      .where(eq(contactPropertyRelations.propertyId, id)),
+    db
+      .select({
+        id: interactions.id,
+        personId: interactions.personId,
+        propertyId: interactions.propertyId,
+        interactionType: interactions.interactionType,
+        interactionDate: interactions.interactionDate,
+        createdAt: interactions.createdAt,
+        updatedAt: interactions.updatedAt,
+        personName: people.name,
+        preferredName: people.preferredName,
+      })
+      .from(interactions)
+      .innerJoin(people, eq(people.id, interactions.personId))
+      .where(eq(interactions.propertyId, id)),
+    db
+      .select()
+      .from(soldProperties)
+      .where(
+        and(
+          eq(soldProperties.streetAddress, propertyRow.streetAddress),
+          eq(soldProperties.suburb, propertyRow.suburb),
+        ),
+      )
+      .orderBy(desc(soldProperties.lastSoldDate)),
+  ]);
+
+  const relations = relationRows.map((row) => ({
+    id: row.id,
+    personId: row.personId,
+    propertyId: row.propertyId,
+    relationshipType: row.relationshipType as ContactPropertyRelationshipType,
+    createdAt: row.createdAt,
+    personName: displayPersonName({ name: row.personName, preferredName: row.preferredName }),
+  }));
+  const propertyInteractions = interactionRows.map((row) => ({
+    id: row.id,
+    personId: row.personId,
+    propertyId: row.propertyId,
+    interactionType: row.interactionType as InteractionType,
+    interactionDate: row.interactionDate,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    personName: displayPersonName({ name: row.personName, preferredName: row.preferredName }),
+  }));
+  const timeline: PropertyTimelineEvent[] = [
+    {
+      id: `property-created-${propertyRow.id}`,
+      eventType: "property_created",
+      date: propertyRow.createdAt,
+      title: "Property record created",
+      description: `${propertyRow.streetAddress}, ${propertyRow.suburb}`,
+    },
+    ...relations.map((relation) => ({
+      id: `relationship-${relation.id}`,
+      eventType: "relationship" as const,
+      date: relation.createdAt,
+      title: `${relation.personName}: ${relation.relationshipType.replaceAll("_", " ")}`,
+      description: "Contact relationship recorded",
+    })),
+    ...propertyInteractions.map((interaction) => ({
+      id: `interaction-${interaction.id}`,
+      eventType: "interaction" as const,
+      date: interaction.interactionDate,
+      title: `${interaction.personName}: ${interaction.interactionType.replaceAll("_", " ")}`,
+      description: "Interaction recorded",
+    })),
+    ...soldRows.map((soldProperty) => ({
+      id: `sold-${soldProperty.id}`,
+      eventType: "sold" as const,
+      date: soldProperty.lastSoldDate,
+      title: `Sold for $${soldProperty.soldPrice.toLocaleString()}`,
+      description: `${soldProperty.streetAddress}, ${soldProperty.suburb}`,
+    })),
+  ];
+
+  if (propertyRow.updatedAt !== propertyRow.createdAt) {
+    timeline.push({
+      id: `property-updated-${propertyRow.id}`,
+      eventType: "property_updated",
+      date: propertyRow.updatedAt,
+      title: "Property information updated",
+      description: "Address, type, or coordinates changed",
+    });
+  }
+
+  timeline.sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
+
+  return {
+    ...toPropertyRecord(propertyRow),
+    relations,
+    interactions: propertyInteractions,
+    soldProperties: soldRows,
+    timeline,
+  };
+}
+
 export async function deleteContactPropertyRelationById(id: number) {
   ensureDatabase();
   const db = getDb();
@@ -1248,13 +1371,46 @@ export async function listContactPropertyRelations(personId: number) {
   }));
 }
 
-export async function listPersonInteractions(personId: number) {
+export async function listPersonInteractions(
+  personId: number,
+  filters: { from?: string; to?: string } = {},
+): Promise<PersonInteractionRecord[]> {
   ensureDatabase();
-  return getDb()
-    .select()
+  const db = getDb();
+  const conditions = [eq(interactions.personId, personId)];
+  if (filters.from) {
+    conditions.push(gte(interactions.interactionDate, filters.from));
+  }
+  if (filters.to) {
+    conditions.push(lte(interactions.interactionDate, filters.to));
+  }
+
+  const rows = await db
+    .select({
+      id: interactions.id,
+      personId: interactions.personId,
+      propertyId: interactions.propertyId,
+      interactionType: interactions.interactionType,
+      interactionDate: interactions.interactionDate,
+      createdAt: interactions.createdAt,
+      updatedAt: interactions.updatedAt,
+      property: properties,
+    })
     .from(interactions)
-    .where(eq(interactions.personId, personId))
+    .leftJoin(properties, eq(properties.id, interactions.propertyId))
+    .where(and(...conditions))
     .orderBy(desc(interactions.interactionDate));
+
+  return rows.map((row) => ({
+    id: row.id,
+    personId: row.personId,
+    propertyId: row.propertyId,
+    interactionType: row.interactionType as InteractionType,
+    interactionDate: row.interactionDate,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    property: row.property ? toPropertyRecord(row.property) : null,
+  }));
 }
 
 export async function updatePersonById(

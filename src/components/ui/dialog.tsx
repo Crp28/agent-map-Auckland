@@ -23,11 +23,11 @@ export function AppDialog({ open, onOpenChange, title, description, children }: 
               <DialogPrimitive.Title className="text-xl font-semibold text-[#111827]">
                 {title}
               </DialogPrimitive.Title>
-              {description ? (
-                <DialogPrimitive.Description className="mt-1 text-sm leading-6 text-[#475569]">
-                  {description}
-                </DialogPrimitive.Description>
-              ) : null}
+              <DialogPrimitive.Description
+                className={description ? "mt-1 text-sm leading-6 text-[#475569]" : "sr-only"}
+              >
+                {description ?? `${title} dialog`}
+              </DialogPrimitive.Description>
             </div>
             <DialogPrimitive.Close className="grid min-h-11 min-w-11 place-items-center rounded-md border border-[#cbd5e1] text-[#334155] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]">
               <X aria-hidden="true" size={18} />

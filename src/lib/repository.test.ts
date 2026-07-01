@@ -941,6 +941,94 @@ describe("multi-address repository behavior", () => {
     expect(soldResults.map((result) => result.type)).toEqual(["soldProperty"]);
   });
 
+  it("returns property details with relationships, interactions, sold records, and newest-first timeline", async () => {
+    const person = await repository.createOrUpdatePerson({
+      name: "Timeline Owner",
+      preferredName: "",
+      phone: "021 555 1212",
+      email: "timeline@example.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [],
+      addresses: [
+        {
+          streetAddress: "40 Timeline Road",
+          suburb: "Howick",
+          latitude: -36.91,
+          longitude: 174.91,
+        },
+      ],
+    }, { geocode: false });
+    const property = (await repository.listPropertyRecords())[0]!;
+    await repository.createInteraction({
+      personId: person!.id,
+      propertyId: property.id,
+      interactionType: "inspection",
+      interactionDate: "2026-06-20",
+    });
+    await repository.createOrUpdateSoldProperty({
+      streetAddress: "40 Timeline Road",
+      suburb: "Howick",
+      lastSoldDate: "2026-06-25",
+      soldPrice: 1500000,
+      latitude: -36.91,
+      longitude: 174.91,
+    });
+
+    const detail = await repository.getPropertyDetailById(property.id);
+
+    expect(detail?.relations.some((relation) => relation.relationshipType === "former_owner")).toBe(true);
+    expect(detail?.interactions.map((interaction) => interaction.interactionType)).toEqual(
+      expect.arrayContaining(["inspection", "sell"]),
+    );
+    expect(detail?.soldProperties).toHaveLength(1);
+    expect(detail?.timeline.some((event) => event.eventType === "sold")).toBe(true);
+    const timelineTimes = detail?.timeline.map((event) => Date.parse(event.date)) ?? [];
+    expect(timelineTimes).toEqual([...timelineTimes].sort((a, b) => b - a));
+  });
+
+  it("filters person interactions by date and includes linked property information", async () => {
+    const person = await repository.createOrUpdatePerson({
+      name: "Interaction Contact",
+      preferredName: "",
+      phone: "021 444 1313",
+      email: "interactions@example.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [],
+      addresses: [
+        {
+          streetAddress: "41 Interaction Road",
+          suburb: "Howick",
+          latitude: -36.92,
+          longitude: 174.92,
+        },
+      ],
+    }, { geocode: false });
+    const property = (await repository.listPropertyRecords())[0]!;
+    await repository.createInteraction({
+      personId: person!.id,
+      propertyId: property.id,
+      interactionType: "enquiry",
+      interactionDate: "2025-01-01",
+    });
+    await repository.createInteraction({
+      personId: person!.id,
+      propertyId: property.id,
+      interactionType: "inspection",
+      interactionDate: "2026-06-15",
+    });
+
+    const filtered = await repository.listPersonInteractions(person!.id, {
+      from: "2026-01-01",
+      to: "2026-06-30",
+    });
+
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0]?.interactionType).toBe("inspection");
+    expect(filtered[0]?.property?.streetAddress).toBe("41 Interaction Road");
+  });
+
   it("promotes a remaining address when the primary address row is deleted", async () => {
     const created = await repository.createOrUpdatePerson({
       name: "Primary Swap",

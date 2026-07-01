@@ -82,6 +82,9 @@
 - 2026-06-23: Fixed a Sold Property save crash caused by reading new tables through a stale generated Drizzle `db.query` surface in the dev runtime. Repository reads for `properties`, `contact_property_relations`, and `interactions` now use direct `select().from(...)` queries.
 - 2026-06-23: Changed People address relation history so editing or deleting an address converts its old `owner` link to `former_owner` while keeping current address rows as `owner`. Directly deleting a Person removes that Person's contact-property relations and interactions through cascade cleanup.
 - 2026-06-23: Added automatic Sold Property sale transitions. Saving a Sold Property for an address currently owned by People removes the matching People address row, converts the relation to `former_owner`, and records an idempotent `sell` interaction dated to the sold date.
+- 2026-07-01: Replaced the main `Sold property` action with `Properties`. Added a canonical Properties manager with searchable rows, current Property information, People relationships, and a newest-first timeline derived from Property, relationship, interaction, and Sold Property records. Added a bottom-right switcher between canonical Properties and the existing Sold Properties manager.
+- 2026-07-01: Added a Person Interactions section above Notes with a default previous-six-month date range, live date filtering, and an Add Interaction form for type, date, and optional Property.
+- 2026-07-01: Paginated the canonical Properties manager at 100 rows per page for the current 1,356-record dataset, and added screen-reader fallback descriptions to shared dialogs.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
@@ -110,6 +113,7 @@
 - Canonical Properties use a separate numeric id for relationships and future UI. Exact normalized address/suburb text is still deduped through `property_key`, but this is not treated as a human-facing unique identifier because imported address formatting can vary.
 - Current People address rows are the source of truth for automatic `owner` contact-property relationships. If a Person address is removed or changed, the repository converts the previous address Property link to `former_owner` and keeps remaining/current address rows as `owner`.
 - Adding a Sold Property is treated as an ownership transition when its address is currently an owned People address. The matching People address row is removed, the historical relation is retained as `former_owner`, and a `sell` interaction is recorded once for that Person/Property/date.
+- Property timelines are derived from the current stored event sources rather than a separate change-log table: Property created/updated timestamps, contact-property relationships, interactions, and Sold Property records.
 
 ## Notes
 - Use `cmd /c npm ...`, `npm.cmd`, or `npx.cmd` in PowerShell because this machine blocks `npm.ps1`.

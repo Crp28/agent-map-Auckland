@@ -22,6 +22,9 @@
 20. The system stores a canonical Properties table for address-level records from People addresses and Sold Properties. A Property has its own id, address, suburb, optional type, and optional coordinates.
 21. The system stores People-to-Property relationships, including owner, former owner, interested in, and neighbour relationships. Current People address rows are synced as owner relationships.
 22. The system stores People interactions with optional Property links, including enquiry, inspection, listing click, sell, and buy interaction types.
+23. The user can open a Properties manager, browse and search all canonical Property records, open current Property information, and review a newest-first timeline of recorded changes.
+24. The user can switch between the canonical Properties manager and the existing Sold Properties manager from a bottom-right switcher.
+25. The Person details modal shows an Interactions section above Notes, defaults to the previous six months, supports a date range filter, and allows adding typed interactions with an optional Property link.
 
 ====== ACCEPTANCE CRITERIA ======
 1. The map of Auckland should be fetched from Auckland Council GeoMaps (https://geomapspublic.aucklandcouncil.govt.nz/viewer/index.html), and GeoMaps boundary data is updated once every month at least.
@@ -48,3 +51,5 @@
 22. Every saved People address and Sold Property address is materialized into the canonical `properties` table by normalized address/suburb key, while retaining a separate numeric Property id for relationships and future UI. Existing address rows are backfilled into Properties during database startup.
 23. Current People address rows create `owner` entries in `contact_property_relations`; editing or deleting People addresses converts the previous address relationship to `former_owner` and keeps the current address as `owner`. Adding a Sold Property for an address currently owned by People removes that address from those People, marks them as `former_owner`, and records a `sell` interaction. Deleting a Person removes that Person's relations and interactions, and relation rows can also be deleted through the API.
 24. People interactions are stored in `interactions` with a required Person, optional Property, interaction type, and interaction date.
+25. The main `Properties` action opens the canonical Properties manager. The manager lists all Property records with address/suburb/type search, opens a detail view containing all stored Property fields and People relationships, and shows a newest-first timeline derived from Property creation/update, relationship, interaction, and Sold Property records. A bottom-right switcher moves between this view and the existing Sold Properties manager.
+26. Person details show an Interactions section immediately above Notes. The date range defaults from six months before today through today, changing either date reloads the filtered interactions, and `Add interaction` accepts one of `enquiry`, `inspection`, `listing_click`, `sell`, or `buy`, a required date, and an optional Property.

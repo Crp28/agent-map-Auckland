@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { toOptionalInteger, toOptionalNumber } from "./normalize";
-import { PERSON_NOTE_TYPES } from "@/types/location";
+import { INTERACTION_TYPES, PERSON_NOTE_TYPES } from "@/types/location";
 
 const requiredText = (field: string) => z.string().trim().min(1, `${field} is required`);
 const optionalText = z.preprocess(
@@ -165,6 +165,25 @@ export const searchSchema = z.object({
   scope: z.enum(["people", "properties", "soldProperties"]).default("people"),
 });
 
+export const interactionInputSchema = z.object({
+  personId: z.coerce.number().int().positive(),
+  propertyId: z.preprocess(
+    (value) => (value === undefined || value === null || value === "" ? null : value),
+    z.coerce.number().int().positive().nullable(),
+  ),
+  interactionType: z.enum(INTERACTION_TYPES),
+  interactionDate: requiredText("Interaction date").refine(
+    (value) => !Number.isNaN(Date.parse(value)),
+    { message: "Enter a valid interaction date" },
+  ),
+});
+
+export const interactionFilterSchema = z.object({
+  personId: z.coerce.number().int().positive(),
+  from: z.string().optional(),
+  to: z.string().optional(),
+});
+
 export const nearbySchema = z.object({
   propertyId: z.coerce.number().int().positive(),
   distanceKm: z.coerce.number().positive().max(100).default(2),
@@ -185,3 +204,4 @@ export type PersonAddressInput = z.output<typeof personAddressInputSchema>;
 export type PersonNoteInput = z.output<typeof personNoteInputSchema>;
 export type PersonInput = z.output<typeof personInputSchema>;
 export type SoldPropertyInput = z.infer<typeof soldPropertyInputSchema>;
+export type InteractionInput = z.infer<typeof interactionInputSchema>;

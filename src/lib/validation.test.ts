@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { nearbySchema, personInputSchema, searchSchema, soldPropertyInputSchema } from "./validation";
+import {
+  interactionInputSchema,
+  nearbySchema,
+  personInputSchema,
+  searchSchema,
+  soldPropertyInputSchema,
+} from "./validation";
 
 describe("personInputSchema", () => {
   it("parses multiple addresses for one person", () => {
@@ -270,5 +276,29 @@ describe("searchSchema", () => {
     const result = searchSchema.parse({ q: "queen", scope: "properties" });
 
     expect(result.scope).toBe("properties");
+  });
+});
+
+describe("interactionInputSchema", () => {
+  it("accepts an interaction without a property", () => {
+    const result = interactionInputSchema.parse({
+      personId: 1,
+      propertyId: "",
+      interactionType: "enquiry",
+      interactionDate: "2026-07-01",
+    });
+
+    expect(result.propertyId).toBeNull();
+  });
+
+  it("rejects unknown interaction types", () => {
+    const result = interactionInputSchema.safeParse({
+      personId: 1,
+      propertyId: null,
+      interactionType: "phone_call",
+      interactionDate: "2026-07-01",
+    });
+
+    expect(result.success).toBe(false);
   });
 });

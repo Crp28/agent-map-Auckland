@@ -21,6 +21,8 @@ Location Finder is a Next.js 16 app for viewing Auckland sold properties and peo
 - The main page can audit stored People coordinates in batches, color suspected mismatches red on the map, and bulk refresh those mismatches.
 - The main page can map all People addresses that still lack coordinates through Google Maps in small batches. The action asks for confirmation because Google Maps usage may be billable, saves successful batches immediately, and safely skips addresses that gained coordinates before processing.
 - The main page can also audit stored People owners through a local PropertySmarts Playwright session, resume from the last completed batch, mark owner mismatches red, and mark strict first+last-only stored names in orange when PropertySmarts shows matching middle names that the system does not currently store.
+- The main `Properties` button opens the canonical Property list and detail timeline. A bottom-right switcher changes between canonical Properties and the existing Sold Properties manager.
+- Person details include a date-filtered Interactions section above Notes, defaulted to the previous six months, with creation support for typed interactions and optional Property links.
 
 ## Setup
 
@@ -83,7 +85,7 @@ The subdivision/local-board outline cache is refreshed by `cmd /c npm run sync:g
 
 ## Record Management
 
-- `Sold property` opens the Sold Property manager for viewing, adding, editing, and deleting records.
+- `Properties` opens the canonical Property manager. Its bottom-right switcher opens the Sold Property manager for viewing, adding, editing, and deleting sold records.
 - `Person` opens the People manager for viewing, adding, editing, and deleting records.
 - The People manager includes a name search field beside `Add person` for filtering long person lists.
 - People validation requires at least one of phone or email, validates non-empty email format, checks optional purchasing power min/max ordering, and validates optional coordinate pairs per address.

@@ -301,13 +301,16 @@ describe("DetailsDialog", () => {
         },
       ],
     };
-    const fetchMock = vi.fn(async () =>
-      jsonResponse({
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).startsWith("/api/interactions") && !init?.method) {
+        return jsonResponse({ interactions: [] });
+      }
+      return jsonResponse({
         person: updatedPerson,
         geocodeFailures: [],
         googleMapsFallbackAvailable: false,
-      }),
-    );
+      });
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     render(
@@ -328,7 +331,8 @@ describe("DetailsDialog", () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalled();
     });
-    const request = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    const patchCall = fetchMock.mock.calls.find((call) => call[1]?.method === "PATCH");
+    const request = JSON.parse(String(patchCall?.[1]?.body));
     expect(request.selectedAddressId).toBeNull();
     expect(request.addresses).toEqual([
       {
@@ -338,5 +342,91 @@ describe("DetailsDialog", () => {
         longitude: null,
       },
     ]);
+  });
+
+  it("filters and adds person interactions above notes", async () => {
+    const person = personRecord(8, "Interaction Person", "50 Market Road");
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.startsWith("/api/interactions") && !init?.method) {
+        return jsonResponse({
+          interactions: [
+            {
+              id: 1,
+              personId: 8,
+              propertyId: 4,
+              interactionType: "inspection",
+              interactionDate: "2026-06-20",
+              createdAt: "2026-06-20T00:00:00.000Z",
+              updatedAt: "2026-06-20T00:00:00.000Z",
+              property: {
+                id: 4,
+                propertyKey: "50 market road|remuera",
+                streetAddress: "50 Market Road",
+                suburb: "Remuera",
+                type: null,
+                latitude: null,
+                longitude: null,
+                createdAt: "2026-06-01T00:00:00.000Z",
+                updatedAt: "2026-06-01T00:00:00.000Z",
+              },
+            },
+          ],
+        });
+      }
+      if (url === "/api/properties") {
+        return jsonResponse({
+          properties: [
+            {
+              id: 4,
+              propertyKey: "50 market road|remuera",
+              streetAddress: "50 Market Road",
+              suburb: "Remuera",
+              type: null,
+              latitude: null,
+              longitude: null,
+              createdAt: "2026-06-01T00:00:00.000Z",
+              updatedAt: "2026-06-01T00:00:00.000Z",
+            },
+          ],
+        });
+      }
+      if (url === "/api/interactions" && init?.method === "POST") {
+        return jsonResponse({ interaction: { id: 2 } }, 201);
+      }
+      return jsonResponse({}, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <DetailsDialog
+        selected={{ type: "person", item: person, source: "manager" }}
+        onOpenChange={() => undefined}
+        onSelectedChange={() => undefined}
+        onPersonAuditResult={() => undefined}
+        refresh={() => undefined}
+      />,
+    );
+
+    expect(await screen.findByText("inspection")).toBeInTheDocument();
+    expect(screen.getByLabelText("From")).toBeInTheDocument();
+    expect(screen.getByLabelText("To")).toBeInTheDocument();
+    expect(screen.getByText("Notes (0)")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add interaction" }));
+    expect(await screen.findByText("New interaction")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Type"), { target: { value: "buy" } });
+    fireEvent.change(screen.getByLabelText("Property (optional)"), { target: { value: "4" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save interaction" }));
+
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.some((call) => call[1]?.method === "POST")).toBe(true);
+    });
+    const postCall = fetchMock.mock.calls.find((call) => call[1]?.method === "POST");
+    expect(JSON.parse(String(postCall?.[1]?.body))).toMatchObject({
+      personId: 8,
+      propertyId: "4",
+      interactionType: "buy",
+    });
   });
 });

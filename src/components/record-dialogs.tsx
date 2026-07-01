@@ -3,10 +3,14 @@
 import { AppDialog } from "@/components/ui/dialog";
 import { displayPersonName } from "@/lib/person-display";
 import {
+  INTERACTION_TYPES,
   PERSON_NOTE_TYPES,
+  type InteractionType,
   type PersonAddressRecord,
+  type PersonInteractionRecord,
   type PersonNoteRecord,
   type PersonRecord,
+  type PropertyRecord,
   type SelectedItem,
   type SoldPropertyRecord,
 } from "@/types/location";
@@ -24,6 +28,20 @@ const inputClass =
   "min-h-11 w-full rounded-md border border-[#cbd5e1] bg-white px-3 py-2 text-[#111827] outline-none focus:border-[#0056a7] focus:ring-2 focus:ring-[#0056a7]/20";
 const labelClass = "text-sm font-medium text-[#334155]";
 const errorClass = "mt-1 text-sm text-[#b42318]";
+
+function dateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function defaultInteractionDateRange() {
+  const to = new Date();
+  const from = new Date(to);
+  from.setMonth(from.getMonth() - 6);
+  return { from: dateInputValue(from), to: dateInputValue(to) };
+}
 
 type DialogActions = {
   refresh: () => void;
@@ -568,6 +586,7 @@ export function RecordManagerDialog({
   onOpenChange,
   onAdd,
   onSelect,
+  onSwitchToProperties,
   refresh,
 }: DialogActions & {
   type: RecordKind;
@@ -575,6 +594,7 @@ export function RecordManagerDialog({
   onOpenChange: (open: boolean) => void;
   onAdd: () => void;
   onSelect: (record: ManagedRecord) => void;
+  onSwitchToProperties?: () => void;
 }) {
   const [records, setRecords] = useState<ManagedRecord[]>([]);
   const [status, setStatus] = useState<FormStatus>(null);
@@ -773,6 +793,26 @@ export function RecordManagerDialog({
             </p>
           ) : null}
         </div>
+        {type === "soldProperty" && onSwitchToProperties ? (
+          <div className="flex justify-end border-t border-[#e2e8f0] pt-3">
+            <div className="inline-flex rounded-md border border-[#cbd5e1] bg-[#f8fafc] p-1" aria-label="Property record view">
+              <button
+                type="button"
+                onClick={onSwitchToProperties}
+                className="min-h-10 rounded-md px-3 text-sm font-semibold text-[#334155] hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+              >
+                Properties
+              </button>
+              <button
+                type="button"
+                aria-pressed="true"
+                className="min-h-10 rounded-md bg-[#111827] px-3 text-sm font-semibold text-white"
+              >
+                Sold properties
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
     </AppDialog>
   );
@@ -1363,6 +1403,17 @@ function PersonDetails({
   onDeleted: () => void;
   refresh: () => void;
 }) {
+  const [interactionRange, setInteractionRange] = useState(defaultInteractionDateRange);
+  const [interactions, setInteractions] = useState<PersonInteractionRecord[] | null>(null);
+  const [interactionError, setInteractionError] = useState<string | null>(null);
+  const [interactionRefreshKey, setInteractionRefreshKey] = useState(0);
+  const [interactionProperties, setInteractionProperties] = useState<PropertyRecord[]>([]);
+  const [draftInteraction, setDraftInteraction] = useState<{
+    interactionType: InteractionType;
+    interactionDate: string;
+    propertyId: string;
+  } | null>(null);
+  const [savingInteraction, setSavingInteraction] = useState(false);
   const [retryingGeocode, setRetryingGeocode] = useState(false);
   const [geocodeStatus, setGeocodeStatus] = useState<string | null>(null);
   const { askGoogleFallback, googleFallbackPrompt } = useGoogleFallbackPrompt();
@@ -1378,6 +1429,88 @@ function PersonDetails({
     content: string;
   } | null>(null);
   const [draftNoteError, setDraftNoteError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const params = new URLSearchParams({
+      personId: String(person.id),
+      from: interactionRange.from,
+      to: interactionRange.to,
+    });
+
+    fetch(`/api/interactions?${params.toString()}`, { signal: controller.signal })
+      .then(async (response) => {
+        const payload = (await response.json()) as { interactions?: PersonInteractionRecord[]; error?: string };
+        if (!response.ok) {
+          throw new Error(payload.error ?? "Interactions could not be loaded.");
+        }
+        return payload.interactions ?? [];
+      })
+      .then((nextInteractions) => {
+        setInteractions(nextInteractions);
+        setInteractionError(null);
+      })
+      .catch((loadError) => {
+        if (loadError instanceof DOMException && loadError.name === "AbortError") {
+          return;
+        }
+        setInteractions([]);
+        setInteractionError(loadError instanceof Error ? loadError.message : "Interactions could not be loaded.");
+      });
+
+    return () => controller.abort();
+  }, [interactionRange.from, interactionRange.to, interactionRefreshKey, person.id]);
+
+  async function openInteractionDraft() {
+    setInteractionError(null);
+    if (interactionProperties.length === 0) {
+      try {
+        const response = await fetch("/api/properties");
+        const payload = (await response.json()) as { properties?: PropertyRecord[]; error?: string };
+        if (!response.ok) {
+          throw new Error(payload.error ?? "Properties could not be loaded.");
+        }
+        setInteractionProperties(payload.properties ?? []);
+      } catch (loadError) {
+        setInteractionError(loadError instanceof Error ? loadError.message : "Properties could not be loaded.");
+        return;
+      }
+    }
+
+    setDraftInteraction({
+      interactionType: "enquiry",
+      interactionDate: dateInputValue(new Date()),
+      propertyId: "",
+    });
+  }
+
+  async function saveDraftInteraction() {
+    if (!draftInteraction) {
+      return;
+    }
+
+    setSavingInteraction(true);
+    setInteractionError(null);
+    try {
+      await requestJson<{ interaction: PersonInteractionRecord }>("/api/interactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          personId: person.id,
+          propertyId: draftInteraction.propertyId || null,
+          interactionType: draftInteraction.interactionType,
+          interactionDate: draftInteraction.interactionDate,
+        }),
+      });
+      setDraftInteraction(null);
+      setInteractionRefreshKey((value) => value + 1);
+      refresh();
+    } catch (saveError) {
+      setInteractionError(saveError instanceof Error ? saveError.message : "Interaction could not be saved.");
+    } finally {
+      setSavingInteraction(false);
+    }
+  }
 
   async function savePerson(next: PersonRecord) {
     const payload = await requestJson<PersonSaveResponse>("/api/people", {
@@ -1765,6 +1898,149 @@ function PersonDetails({
             No addresses saved. Add an address when one is available.
           </div>
         ) : null}
+      </div>
+      <div className="grid gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <p className="pb-2 text-sm font-semibold text-[#111827]">
+            Interactions ({interactions?.length ?? 0})
+          </p>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="text-xs font-medium text-[#475569]">
+              From
+              <input
+                type="date"
+                value={interactionRange.from}
+                onChange={(event) =>
+                  setInteractionRange((current) => ({ ...current, from: event.target.value }))
+                }
+                className="mt-1 min-h-11 rounded-md border border-[#cbd5e1] px-2 text-sm outline-none focus:border-[#0056a7] focus:ring-2 focus:ring-[#0056a7]/20"
+              />
+            </label>
+            <label className="text-xs font-medium text-[#475569]">
+              To
+              <input
+                type="date"
+                value={interactionRange.to}
+                onChange={(event) =>
+                  setInteractionRange((current) => ({ ...current, to: event.target.value }))
+                }
+                className="mt-1 min-h-11 rounded-md border border-[#cbd5e1] px-2 text-sm outline-none focus:border-[#0056a7] focus:ring-2 focus:ring-[#0056a7]/20"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => void openInteractionDraft()}
+              className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#cbd5e1] px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+            >
+              <Plus aria-hidden="true" size={18} />
+              Add interaction
+            </button>
+          </div>
+        </div>
+
+        {draftInteraction ? (
+          <div className="rounded-md border border-dashed border-[#cbd5e1] bg-[#f8fafc] p-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-[#111827]">New interaction</p>
+              <button
+                type="button"
+                disabled={savingInteraction}
+                onClick={() => setDraftInteraction(null)}
+                className="min-h-11 rounded-md border border-[#cbd5e1] px-3 text-sm font-semibold text-[#111827] hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#0056a7] disabled:opacity-60"
+              >
+                Cancel
+              </button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className={labelClass}>
+                Type
+                <select
+                  value={draftInteraction.interactionType}
+                  onChange={(event) =>
+                    setDraftInteraction((current) =>
+                      current ? { ...current, interactionType: event.target.value as InteractionType } : current,
+                    )
+                  }
+                  className={inputClass}
+                >
+                  {INTERACTION_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type.replaceAll("_", " ")}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={labelClass}>
+                Date
+                <input
+                  type="date"
+                  required
+                  value={draftInteraction.interactionDate}
+                  onChange={(event) =>
+                    setDraftInteraction((current) =>
+                      current ? { ...current, interactionDate: event.target.value } : current,
+                    )
+                  }
+                  className={inputClass}
+                />
+              </label>
+              <label className={labelClass}>
+                Property (optional)
+                <select
+                  value={draftInteraction.propertyId}
+                  onChange={(event) =>
+                    setDraftInteraction((current) =>
+                      current ? { ...current, propertyId: event.target.value } : current,
+                    )
+                  }
+                  className={inputClass}
+                >
+                  <option value="">No property</option>
+                  {interactionProperties.map((property) => (
+                    <option key={property.id} value={property.id}>
+                      {property.streetAddress}, {property.suburb}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                disabled={savingInteraction || !draftInteraction.interactionDate}
+                onClick={() => void saveDraftInteraction()}
+                className="min-h-11 rounded-md bg-[#0056a7] px-3 text-sm font-semibold text-white hover:bg-[#004780] focus:outline-none focus:ring-2 focus:ring-[#0056a7] disabled:opacity-60"
+              >
+                {savingInteraction ? "Saving..." : "Save interaction"}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {interactionError ? <p role="alert" className={errorClass}>{interactionError}</p> : null}
+        {interactions === null ? (
+          <p className="text-sm text-[#64748b]">Loading interactions...</p>
+        ) : interactions.length > 0 ? (
+          <div className="divide-y divide-[#e2e8f0] rounded-md border border-[#e2e8f0]">
+            {interactions.map((interaction) => (
+              <div key={interaction.id} className="flex flex-wrap items-start justify-between gap-2 px-3 py-3">
+                <div>
+                  <p className="text-sm font-semibold capitalize text-[#111827]">
+                    {interaction.interactionType.replaceAll("_", " ")}
+                  </p>
+                  <p className="mt-1 text-xs text-[#64748b]">
+                    {interaction.property
+                      ? `${interaction.property.streetAddress}, ${interaction.property.suburb}`
+                      : "No property linked"}
+                  </p>
+                </div>
+                <time className="text-sm text-[#475569]">{interaction.interactionDate}</time>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-[#64748b]">No interactions in this date range.</p>
+        )}
       </div>
       <div className="grid gap-3">
         <div className="flex items-center justify-between gap-3">

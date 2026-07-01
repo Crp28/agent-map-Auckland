@@ -8,6 +8,7 @@ import {
   ImportPeopleDialog,
   RecordManagerDialog,
 } from "@/components/record-dialogs";
+import { PropertiesManagerDialog } from "@/components/property-dialogs";
 import { AppDialog } from "@/components/ui/dialog";
 import { AUCKLAND_SUBURBS } from "@/lib/auckland-suburbs";
 import {
@@ -101,6 +102,7 @@ export function LocationFinderApp() {
   const [propertyDialogOpen, setPropertyDialogOpen] = useState(false);
   const [personManagerOpen, setPersonManagerOpen] = useState(false);
   const [propertyManagerOpen, setPropertyManagerOpen] = useState(false);
+  const [propertyManagerView, setPropertyManagerView] = useState<"properties" | "soldProperties">("properties");
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [suburbListOpen, setSuburbListOpen] = useState(false);
   const [suburbQuery, setSuburbQuery] = useState("");
@@ -975,11 +977,14 @@ export function LocationFinderApp() {
         <div className="pointer-events-auto flex w-full max-w-xl flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => setPropertyManagerOpen(true)}
+            onClick={() => {
+              setPropertyManagerView("properties");
+              setPropertyManagerOpen(true);
+            }}
             className="inline-flex min-h-11 items-center gap-2 rounded-md bg-[#0056a7] px-3 py-2 text-sm font-semibold text-white hover:bg-[#004780] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
           >
             <Plus aria-hidden="true" size={18} />
-            Sold property
+            Properties
           </button>
           <button
             type="button"
@@ -1263,9 +1268,14 @@ export function LocationFinderApp() {
         }}
         refresh={refresh}
       />
+      <PropertiesManagerDialog
+        open={propertyManagerOpen && propertyManagerView === "properties"}
+        onOpenChange={setPropertyManagerOpen}
+        onSwitchToSold={() => setPropertyManagerView("soldProperties")}
+      />
       <RecordManagerDialog
         type="soldProperty"
-        open={propertyManagerOpen}
+        open={propertyManagerOpen && propertyManagerView === "soldProperties"}
         onOpenChange={setPropertyManagerOpen}
         onAdd={() => {
           setPropertyManagerOpen(false);
@@ -1277,6 +1287,7 @@ export function LocationFinderApp() {
             selectSoldProperty(record);
           }
         }}
+        onSwitchToProperties={() => setPropertyManagerView("properties")}
         refresh={refresh}
       />
       <AddPersonDialog open={personDialogOpen} onOpenChange={setPersonDialogOpen} refresh={refresh} />

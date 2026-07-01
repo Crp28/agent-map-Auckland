@@ -190,3 +190,14 @@
 - Added repository coverage for address-delete history, address-edit history, and direct Person deletion cascading away that Person's contact-property relations and interactions.
 - Added automatic sale transitions for Sold Property saves: if the sold address is currently owned by People, the matching People address rows are removed, their Property relation becomes `former_owner`, and a `sell` interaction is recorded for each affected Person.
 - Added repository coverage proving sale transitions remove the address, preserve former ownership, record the `sell` interaction, and avoid duplicate sale interactions on repeated saves.
+
+## 2026-07-01
+- Started the TODO.md UI slice for a canonical Properties manager/detail timeline, a Properties/Sold Properties switcher, and Person interaction filtering/creation above Notes.
+- Added `/api/properties` list/detail reads and `/api/interactions` filtered GET/create POST routes with Zod validation.
+- Added Property detail aggregation for relationships, interactions, Sold Property history, and newest-first timeline events.
+- Replaced the main `Sold property` button with `Properties`, added the canonical Properties dialog, and added reciprocal bottom-right switchers between Properties and Sold Properties.
+- Added the Person Interactions section above Notes with previous-six-month defaults, date filtering, optional Property selection, and interaction creation.
+- Added repository, API, validation, and component coverage for Property timelines, interaction filtering/creation, manager switching, and interaction UI behavior.
+- Paginated the canonical Properties list at 100 rows per page after live verification showed 1,356 records, keeping every record accessible without rendering the entire list at once.
+- Added a screen-reader-only fallback description to shared dialogs when no visible description is supplied, removing Radix accessibility warnings.
+- Verified phase 51 with `npm run lint`, all 113 tests, `npm run build`, and live browser checks for the Properties button, list pagination, Property detail/current information/timeline, reciprocal Sold Properties switcher, and Person interaction range (`2026-01-01` through `2026-07-01`) plus Add Interaction form.

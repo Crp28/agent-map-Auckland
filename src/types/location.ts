@@ -139,6 +139,33 @@ export type InteractionRecord = {
   updatedAt: string;
 };
 
+export type PersonInteractionRecord = InteractionRecord & {
+  property: PropertyRecord | null;
+};
+
+export type PropertyRelationDetail = ContactPropertyRelationRecord & {
+  personName: string;
+};
+
+export type PropertyInteractionDetail = InteractionRecord & {
+  personName: string;
+};
+
+export type PropertyTimelineEvent = {
+  id: string;
+  eventType: "property_created" | "property_updated" | "relationship" | "interaction" | "sold";
+  date: string;
+  title: string;
+  description: string;
+};
+
+export type PropertyDetailRecord = PropertyRecord & {
+  relations: PropertyRelationDetail[];
+  interactions: PropertyInteractionDetail[];
+  soldProperties: SoldPropertyRecord[];
+  timeline: PropertyTimelineEvent[];
+};
+
 export type BoundaryRecord = {
   id: number;
   sourceObjectId: number;
