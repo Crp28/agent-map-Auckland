@@ -85,6 +85,9 @@
 - 2026-07-01: Replaced the main `Sold property` action with `Properties`. Added a canonical Properties manager with searchable rows, current Property information, People relationships, and a newest-first timeline derived from Property, relationship, interaction, and Sold Property records. Added a bottom-right switcher between canonical Properties and the existing Sold Properties manager.
 - 2026-07-01: Added a Person Interactions section above Notes with a default previous-six-month date range, live date filtering, and an Add Interaction form for type, date, and optional Property.
 - 2026-07-01: Paginated the canonical Properties manager at 100 rows per page for the current 1,356-record dataset, and added screen-reader fallback descriptions to shared dialogs.
+- 2026-07-08: Refined the Properties and Sold Properties managers with a slim top record-view control, compact Property details, and one viewport-bounded scrolling region so the dialogs do not overflow vertically.
+- 2026-07-08: Removed internal Property create/update operations from the public timeline. Timelines now contain relationship, interaction, and sale events only.
+- 2026-07-08: Added shared suburb abbreviation normalization for matching and search. Common Auckland forms such as `Mt`/`Mount`, `St`/`Saint`, and `Pt`/`Point` now compare equally across nearby filters, canonical Property reuse, sale transitions, validation, geocoding, and owner auditing while preserving entered display text.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
@@ -113,7 +116,8 @@
 - Canonical Properties use a separate numeric id for relationships and future UI. Exact normalized address/suburb text is still deduped through `property_key`, but this is not treated as a human-facing unique identifier because imported address formatting can vary.
 - Current People address rows are the source of truth for automatic `owner` contact-property relationships. If a Person address is removed or changed, the repository converts the previous address Property link to `former_owner` and keeps remaining/current address rows as `owner`.
 - Adding a Sold Property is treated as an ownership transition when its address is currently an owned People address. The matching People address row is removed, the historical relation is retained as `former_owner`, and a `sell` interaction is recorded once for that Person/Property/date.
-- Property timelines are derived from the current stored event sources rather than a separate change-log table: Property created/updated timestamps, contact-property relationships, interactions, and Sold Property records.
+- Property timelines are derived from contact-property relationships, interactions, and Sold Property records rather than a separate change-log table. Internal Property creation and update timestamps remain visible as current metadata but are not timeline events.
+- Suburb aliases are canonicalized only for matching. Stored suburb values remain user-facing source text, and an existing equivalent canonical Property id is reused when abbreviated and expanded suburb forms meet.
 
 ## Notes
 - Use `cmd /c npm ...`, `npm.cmd`, or `npx.cmd` in PowerShell because this machine blocks `npm.ps1`.

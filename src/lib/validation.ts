@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { toOptionalInteger, toOptionalNumber } from "./normalize";
+import { normalizeSuburbKey, normalizeText, toOptionalInteger, toOptionalNumber } from "./normalize";
 import { INTERACTION_TYPES, PERSON_NOTE_TYPES } from "@/types/location";
 
 const requiredText = (field: string) => z.string().trim().min(1, `${field} is required`);
@@ -86,7 +86,7 @@ export const personFormSchema = personBaseSchema.extend({
 }).refine((data) => {
   const seen = new Set<string>();
   for (const address of data.addresses) {
-    const key = `${address.streetAddress.toLowerCase()}|${address.suburb.toLowerCase()}`;
+    const key = `${normalizeText(address.streetAddress).toLowerCase()}|${normalizeSuburbKey(address.suburb)}`;
     if (seen.has(key)) {
       return false;
     }

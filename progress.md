@@ -201,3 +201,9 @@
 - Paginated the canonical Properties list at 100 rows per page after live verification showed 1,356 records, keeping every record accessible without rendering the entire list at once.
 - Added a screen-reader-only fallback description to shared dialogs when no visible description is supplied, removing Radix accessibility warnings.
 - Verified phase 51 with `npm run lint`, all 113 tests, `npm run build`, and live browser checks for the Properties button, list pagination, Property detail/current information/timeline, reciprocal Sold Properties switcher, and Person interaction range (`2026-01-01` through `2026-07-01`) plus Add Interaction form.
+
+## 2026-07-08
+- Started the current TODO slice: reduce Properties modal density and overflow, remove internal-only Property timeline events, and make suburb comparisons abbreviation-aware.
+- Replaced the bottom Properties/Sold Properties tabs with a slim top record-view control, compacted Property detail fields, and bounded both manager dialogs to one internal scrolling region.
+- Removed Property create/update maintenance entries from timelines and added shared suburb alias matching across nearby filters, Property reuse/sales, duplicate validation, GeoMaps, PropertySmarts, and suburb searches.
+- Verified the completed slice with lint, all 121 tests, a production build, and live browser checks at `1440x900` and `390x844`. Both dialogs stayed within the viewport and the page document did not overflow.

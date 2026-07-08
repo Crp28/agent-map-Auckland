@@ -14,7 +14,13 @@ import { GEOMAPS_BOUNDARY_SOURCE_NAME } from "@/lib/constants";
 import { distanceKm, matchesNearbyFilter, purchasingPowerIncludesPrice } from "@/lib/distance";
 import { geocodeAddress } from "@/lib/geomaps";
 import { googleGeocodeAddress } from "@/lib/google-maps";
-import { emptyToNull, normalizeKey, normalizeText } from "@/lib/normalize";
+import {
+  emptyToNull,
+  normalizeKey,
+  normalizeSuburbKey,
+  normalizeText,
+  suburbsEqual,
+} from "@/lib/normalize";
 import { displayPersonName } from "@/lib/person-display";
 import { normalizePreferredFirstName } from "@/lib/person-name";
 import type { PersonAddressInput, PersonInput, SoldPropertyInput } from "@/lib/validation";
@@ -159,6 +165,32 @@ async function upsertPropertyFromAddress(input: {
 
   if (!streetAddress || !suburb) {
     return null;
+  }
+
+  const equivalentProperty = (
+    await db
+      .select()
+      .from(properties)
+      .where(sql`lower(${properties.streetAddress}) = ${streetAddress.toLowerCase()}`)
+  ).find((property) => suburbsEqual(property.suburb, suburb));
+
+  if (equivalentProperty) {
+    await db
+      .update(properties)
+      .set({
+        streetAddress,
+        suburb,
+        type: input.type ?? equivalentProperty.type,
+        latitude: input.latitude ?? equivalentProperty.latitude,
+        longitude: input.longitude ?? equivalentProperty.longitude,
+        updatedAt: input.timestamp,
+      })
+      .where(eq(properties.id, equivalentProperty.id));
+
+    return (
+      (await db.select().from(properties).where(eq(properties.id, equivalentProperty.id)).limit(1))[0] ??
+      null
+    );
   }
 
   const propertyKey = propertyKeyForAddress(streetAddress, suburb);
@@ -364,22 +396,25 @@ async function transitionCurrentOwnersForSoldProperty(input: {
     .select({
       id: peopleAddresses.id,
       personId: peopleAddresses.personId,
+      suburb: peopleAddresses.suburb,
     })
     .from(peopleAddresses)
     .where(
       and(
         inArray(peopleAddresses.personId, ownerPersonIds),
-        eq(peopleAddresses.streetAddress, normalizeText(input.streetAddress)),
-        eq(peopleAddresses.suburb, normalizeText(input.suburb)),
+        sql`lower(${peopleAddresses.streetAddress}) = ${normalizeText(input.streetAddress).toLowerCase()}`,
       ),
     );
-  const affectedPersonIds = [...new Set(addressRows.map((row) => row.personId))];
+  const matchingAddressRows = addressRows.filter((row) =>
+    suburbsEqual(row.suburb, input.suburb),
+  );
+  const affectedPersonIds = [...new Set(matchingAddressRows.map((row) => row.personId))];
 
-  if (addressRows.length === 0 || affectedPersonIds.length === 0) {
+  if (matchingAddressRows.length === 0 || affectedPersonIds.length === 0) {
     return;
   }
 
-  await deletePersonAddressRows(addressRows.map((row) => row.id));
+  await deletePersonAddressRows(matchingAddressRows.map((row) => row.id));
 
   for (const personId of affectedPersonIds) {
     await createPropertyInteractionIfMissing({
@@ -615,7 +650,7 @@ function buildPersonRecord(
     addresses.find(
       (address) =>
         address.streetAddress === first.person_street_address &&
-        address.suburb === first.person_suburb,
+        suburbsEqual(address.suburb, first.person_suburb),
     ) ?? addresses[0] ?? null;
   const selectedAddress =
     addresses.find((address) => address.id === selectedAddressId) ?? primaryAddress;
@@ -764,7 +799,7 @@ async function resolvePersonAddresses(
     const addressUnchanged =
       existingAddress !== undefined &&
       existingAddress.streetAddress === streetAddress &&
-      existingAddress.suburb === suburb;
+      suburbsEqual(existingAddress.suburb, suburb);
     const carriesExistingCoordinates =
       existingAddress !== undefined &&
       address.latitude === existingAddress.latitude &&
@@ -1235,12 +1270,7 @@ export async function getPropertyDetailById(id: number): Promise<PropertyDetailR
     db
       .select()
       .from(soldProperties)
-      .where(
-        and(
-          eq(soldProperties.streetAddress, propertyRow.streetAddress),
-          eq(soldProperties.suburb, propertyRow.suburb),
-        ),
-      )
+      .where(sql`lower(${soldProperties.streetAddress}) = ${propertyRow.streetAddress.toLowerCase()}`)
       .orderBy(desc(soldProperties.lastSoldDate)),
   ]);
 
@@ -1262,14 +1292,10 @@ export async function getPropertyDetailById(id: number): Promise<PropertyDetailR
     updatedAt: row.updatedAt,
     personName: displayPersonName({ name: row.personName, preferredName: row.preferredName }),
   }));
+  const matchingSoldRows = soldRows.filter((soldProperty) =>
+    suburbsEqual(soldProperty.suburb, propertyRow.suburb),
+  );
   const timeline: PropertyTimelineEvent[] = [
-    {
-      id: `property-created-${propertyRow.id}`,
-      eventType: "property_created",
-      date: propertyRow.createdAt,
-      title: "Property record created",
-      description: `${propertyRow.streetAddress}, ${propertyRow.suburb}`,
-    },
     ...relations.map((relation) => ({
       id: `relationship-${relation.id}`,
       eventType: "relationship" as const,
@@ -1284,7 +1310,7 @@ export async function getPropertyDetailById(id: number): Promise<PropertyDetailR
       title: `${interaction.personName}: ${interaction.interactionType.replaceAll("_", " ")}`,
       description: "Interaction recorded",
     })),
-    ...soldRows.map((soldProperty) => ({
+    ...matchingSoldRows.map((soldProperty) => ({
       id: `sold-${soldProperty.id}`,
       eventType: "sold" as const,
       date: soldProperty.lastSoldDate,
@@ -1293,23 +1319,13 @@ export async function getPropertyDetailById(id: number): Promise<PropertyDetailR
     })),
   ];
 
-  if (propertyRow.updatedAt !== propertyRow.createdAt) {
-    timeline.push({
-      id: `property-updated-${propertyRow.id}`,
-      eventType: "property_updated",
-      date: propertyRow.updatedAt,
-      title: "Property information updated",
-      description: "Address, type, or coordinates changed",
-    });
-  }
-
   timeline.sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
 
   return {
     ...toPropertyRecord(propertyRow),
     relations,
     interactions: propertyInteractions,
-    soldProperties: soldRows,
+    soldProperties: matchingSoldRows,
     timeline,
   };
 }
@@ -1588,7 +1604,7 @@ export async function deletePersonAddressRows(addressIds: number[]) {
     const primaryAddressStillExists = remainingAddresses.find(
       (address) =>
         address.streetAddress === person.streetAddress &&
-        address.suburb === person.suburb,
+        suburbsEqual(address.suburb, person.suburb),
     );
     if (primaryAddressStillExists) {
       await syncOwnerPropertyRelationsForPerson(personId, timestamp);
@@ -1688,7 +1704,7 @@ export async function searchRecords(query: string, scope: "people" | "properties
           item.preferredName?.toLowerCase().includes(normalizedQuery) ||
           displayPersonName(item).toLowerCase().includes(normalizedQuery) ||
           item.streetAddress.toLowerCase().includes(normalizedQuery) ||
-          item.suburb.toLowerCase().includes(normalizedQuery) ||
+          normalizeSuburbKey(item.suburb).includes(normalizeSuburbKey(query)) ||
           item.email.toLowerCase().includes(normalizedQuery),
       )
       .slice(0, 8);

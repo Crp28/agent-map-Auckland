@@ -1,11 +1,12 @@
 "use client";
 
 import { AppDialog } from "@/components/ui/dialog";
+import { PropertyViewSwitch } from "@/components/property-view-switch";
+import { normalizeSuburbKey } from "@/lib/normalize";
 import type { PropertyDetailRecord, PropertyRecord } from "@/types/location";
 import { ArrowLeft, Building2, History, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-const fieldClass = "rounded-md border border-[#e2e8f0] p-3";
 const PROPERTY_PAGE_SIZE = 100;
 
 function formatDate(value: string) {
@@ -15,9 +16,9 @@ function formatDate(value: string) {
 
 function DetailField({ label, value }: { label: string; value: string | number | null }) {
   return (
-    <div className={fieldClass}>
+    <div className="border-b border-[#e2e8f0] py-2.5 last:border-b-0">
       <dt className="text-xs font-semibold uppercase text-[#64748b]">{label}</dt>
-      <dd className="mt-1 break-words text-sm text-[#111827]">{value ?? "Not set"}</dd>
+      <dd className="mt-0.5 break-words text-sm text-[#111827]">{value ?? "Not set"}</dd>
     </div>
   );
 }
@@ -28,7 +29,7 @@ function PropertyDetail({ property }: { property: PropertyDetailRecord }) {
     .map((relation) => relation.personName);
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-6 pr-1">
       <section aria-labelledby="property-current-heading" className="grid gap-3">
         <div>
           <h3 id="property-current-heading" className="text-base font-semibold text-[#111827]">
@@ -36,7 +37,7 @@ function PropertyDetail({ property }: { property: PropertyDetailRecord }) {
           </h3>
           <p className="mt-1 text-sm text-[#64748b]">Property #{property.id}</p>
         </div>
-        <dl className="grid gap-3 sm:grid-cols-2">
+        <dl className="grid border-y border-[#e2e8f0] sm:grid-cols-2 sm:gap-x-6">
           <DetailField label="Street address" value={property.streetAddress} />
           <DetailField label="Suburb" value={property.suburb} />
           <DetailField label="Type" value={property.type} />
@@ -142,13 +143,14 @@ export function PropertiesManagerDialog({
 
   const visibleProperties = useMemo(() => {
     const normalized = query.trim().toLowerCase();
+    const normalizedSuburb = normalizeSuburbKey(query);
     if (!normalized) {
       return properties;
     }
     return properties.filter(
       (property) =>
         property.streetAddress.toLowerCase().includes(normalized) ||
-        property.suburb.toLowerCase().includes(normalized) ||
+        normalizeSuburbKey(property.suburb).includes(normalizedSuburb) ||
         property.type?.toLowerCase().includes(normalized),
     );
   }, [properties, query]);
@@ -190,8 +192,11 @@ export function PropertiesManagerDialog({
       open={open}
       onOpenChange={handleOpenChange}
       title={selected ? selected.streetAddress : "Properties"}
+      contentClassName="flex h-[min(88dvh,760px)] flex-col overflow-hidden"
+      bodyClassName="min-h-0 flex-1 overflow-hidden"
     >
-      <div className="grid gap-4">
+      <div className="flex h-full min-h-0 flex-col gap-4">
+        <PropertyViewSwitch active="properties" onShowSoldProperties={onSwitchToSold} />
         {selected ? (
           <button
             type="button"
@@ -226,9 +231,11 @@ export function PropertiesManagerDialog({
         {loading ? <p className="text-sm text-[#64748b]">Loading...</p> : null}
 
         {selected ? (
-          <PropertyDetail property={selected} />
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <PropertyDetail property={selected} />
+          </div>
         ) : (
-          <div className="h-[min(520px,62dvh)] overflow-auto rounded-md border border-[#e2e8f0]">
+          <div className="min-h-0 flex-1 overflow-auto overscroll-contain rounded-md border border-[#e2e8f0]">
             {pagedProperties.map((property) => (
               <button
                 key={property.id}
@@ -277,20 +284,6 @@ export function PropertiesManagerDialog({
           </div>
         ) : null}
 
-        <div className="flex justify-end border-t border-[#e2e8f0] pt-3">
-          <div className="inline-flex rounded-md border border-[#cbd5e1] bg-[#f8fafc] p-1" aria-label="Property record view">
-            <button type="button" aria-pressed="true" className="min-h-10 rounded-md bg-[#111827] px-3 text-sm font-semibold text-white">
-              Properties
-            </button>
-            <button
-              type="button"
-              onClick={onSwitchToSold}
-              className="min-h-10 rounded-md px-3 text-sm font-semibold text-[#334155] hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
-            >
-              Sold properties
-            </button>
-          </div>
-        </div>
       </div>
     </AppDialog>
   );

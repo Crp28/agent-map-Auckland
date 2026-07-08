@@ -92,6 +92,9 @@
 - The canonical Property detail timeline can be derived from existing persistent event sources: Property created/updated timestamps, contact-property relationship creation, interaction dates, and Sold Property dates. This satisfies the current UI without adding a speculative history table before Property editing exists.
 - Person interactions should load independently from Person PATCH data. Keeping `/api/interactions` separate prevents interaction edits from invoking the Person address/geocoding update path.
 - The local canonical Property dataset already exceeds 1,300 rows. The manager should paginate instead of mounting every row; 100-row pages preserve straightforward browsing/search while keeping the dialog responsive.
+- Suburb equality is currently implemented inconsistently: nearby filtering lowercases values, while Property materialization and ownership transitions rely on exact normalized text. A shared suburb-key normalizer is needed so aliases such as `Mt`/`Mount` behave consistently without changing the user-facing stored suburb text.
+- The Property timeline currently includes record-created and record-updated entries generated from storage timestamps. Those are internal persistence operations rather than user-domain events and should be excluded at the repository boundary.
+- GeoMaps candidate validation, PropertySmarts scoring, Person duplicate-address validation, and the suburb navigation search each had separate normalization rules. Applying the shared suburb key in those paths prevents a fix in nearby filtering from leaving audit and save behavior inconsistent.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.

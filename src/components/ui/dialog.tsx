@@ -9,15 +9,27 @@ type AppDialogProps = {
   onOpenChange: (open: boolean) => void;
   title: string;
   description?: string;
+  contentClassName?: string;
+  bodyClassName?: string;
   children: ReactNode;
 };
 
-export function AppDialog({ open, onOpenChange, title, description, children }: AppDialogProps) {
+export function AppDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  contentClassName = "",
+  bodyClassName = "",
+  children,
+}: AppDialogProps) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-black/50" />
-        <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-50 max-h-[88dvh] w-[min(92vw,720px)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-md border border-[#cbd5e1] bg-white p-5 shadow-xl focus:outline-none">
+        <DialogPrimitive.Content
+          className={`fixed left-1/2 top-1/2 z-50 max-h-[88dvh] w-[min(92vw,720px)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-md border border-[#cbd5e1] bg-white p-5 shadow-xl focus:outline-none ${contentClassName}`}
+        >
           <div className="flex items-start justify-between gap-4">
             <div>
               <DialogPrimitive.Title className="text-xl font-semibold text-[#111827]">
@@ -34,7 +46,7 @@ export function AppDialog({ open, onOpenChange, title, description, children }: 
               <span className="sr-only">Close</span>
             </DialogPrimitive.Close>
           </div>
-          <div className="mt-5">{children}</div>
+          <div className={`mt-5 ${bodyClassName}`}>{children}</div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

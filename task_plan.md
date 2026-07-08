@@ -55,6 +55,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 49. Complete: Preserve People address ownership history by converting removed or edited address owner links to `former_owner`, while direct Person deletion removes relations and interactions.
 50. Complete: Convert current People owners to former owners and add sell interactions when a Sold Property is saved for their owned address.
 51. Complete: Add the canonical Properties manager/detail timeline, switcher to Sold Properties, and Person interaction filtering/creation UI.
+52. Complete: Refine the Properties modal layout, hide internal Property timeline operations, and normalize common Auckland suburb abbreviations across comparisons.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.

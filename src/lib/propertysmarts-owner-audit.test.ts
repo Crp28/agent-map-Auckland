@@ -23,4 +23,10 @@ describe("PropertySmarts owner audit address normalization", () => {
   it("scores an expanded PropertySmarts result as a confident match", () => {
     expect(scoreAddressCandidate("40 Ridge Road, Howick, Auckland", "40 Ridge Rd", "Howick")).toBeGreaterThanOrEqual(7);
   });
+
+  it("scores equivalent suburb abbreviations as a suburb match", () => {
+    expect(
+      scoreAddressCandidate("8 Valley Road, Mount Eden, Auckland", "8 Valley Road", "Mt Eden"),
+    ).toBeGreaterThanOrEqual(9);
+  });
 });

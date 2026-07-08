@@ -26,6 +26,7 @@ import {
   nearbyPeopleExportFilename,
 } from "@/lib/nearby-export";
 import { displayPersonName } from "@/lib/person-display";
+import { normalizeSuburbKey } from "@/lib/normalize";
 import type {
   MapData,
   PersonCoordinateAuditResult,
@@ -286,11 +287,12 @@ export function LocationFinderApp() {
         mapData.boundaries.map((boundary) => [boundary.subdivision.toLowerCase(), boundary.id]),
       );
       const normalizedQuery = suburbQuery.trim().toLowerCase();
+      const normalizedSuburbQuery = normalizeSuburbKey(suburbQuery);
 
       return AUCKLAND_SUBURBS.filter(
         (suburb) =>
           !normalizedQuery ||
-          suburb.name.toLowerCase().includes(normalizedQuery) ||
+          normalizeSuburbKey(suburb.name).includes(normalizedSuburbQuery) ||
           suburb.area.toLowerCase().includes(normalizedQuery) ||
           suburb.boundarySubdivision.toLowerCase().includes(normalizedQuery),
       ).map((suburb) => ({

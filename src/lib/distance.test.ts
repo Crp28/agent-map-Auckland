@@ -63,4 +63,26 @@ describe("matchesNearbyFilter", () => {
       }),
     ).toBe(false);
   });
+
+  it("treats common suburb abbreviations as the same suburb", () => {
+    expect(
+      matchesNearbyFilter({
+        distanceKm: 0.6,
+        maxDistanceKm: 1,
+        sameSuburb: true,
+        personSuburb: "Mt. Eden",
+        propertySuburb: "Mount Eden",
+      }),
+    ).toBe(true);
+
+    expect(
+      matchesNearbyFilter({
+        distanceKm: 0.6,
+        maxDistanceKm: 1,
+        sameSuburb: true,
+        personSuburb: "St Heliers",
+        propertySuburb: "Saint Heliers",
+      }),
+    ).toBe(true);
+  });
 });

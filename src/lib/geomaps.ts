@@ -2,6 +2,7 @@ import { getDb, getRawDb } from "@/db/client";
 import { ensureDatabase } from "@/db/init";
 import { councilAreaBoundaries, syncMetadata } from "@/db/schema";
 import { GEOMAPS, GEOMAPS_BOUNDARY_SOURCE_NAME, GEOMAPS_REFRESH_DAYS } from "@/lib/constants";
+import { normalizeSuburbKey } from "@/lib/normalize";
 import { eq } from "drizzle-orm";
 
 type ArcGisPointFeature = {
@@ -62,7 +63,12 @@ function normalizeAddressQuery(value: string) {
     .replace(/\bRD\d+\b/g, "")
     .replace(/\bMT\b/g, "MOUNT")
     .replace(/\bPT\b/g, "POINT")
-    .replace(/\bSAINT LUKES\b/g, "ST LUKES")
+    .replace(/\bNTH\b/g, "NORTH")
+    .replace(/\bSTH\b/g, "SOUTH")
+    .replace(/\bBCH\b/g, "BEACH")
+    .replace(/\bHBR\b/g, "HARBOUR")
+    .replace(/\bHTS\b/g, "HEIGHTS")
+    .replace(/\bVLY\b/g, "VALLEY")
     .replace(/\bCRESENT\b/g, "CRESCENT")
     .replace(/\bRD\b/g, "ROAD")
     .replace(/\bPL\b/g, "PLACE")
@@ -76,6 +82,7 @@ function normalizeAddressQuery(value: string) {
     .replace(/\bPDE\b/g, "PARADE")
     .replace(/\bHWY\b/g, "HIGHWAY")
     .replace(/\bST\b\s*$/g, "STREET")
+    .replace(/\bST\b/g, "SAINT")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -224,12 +231,12 @@ function geocodeSearchCandidates(streetAddress: string, suburb: string) {
 }
 
 function addressIncludesSuburb(fullAddress: string | undefined, suburb: string) {
-  const normalizedSuburb = normalizeAddressQuery(suburb);
-  if (!fullAddress || normalizedSuburb === "" || normalizedSuburb === "AUCKLAND") {
+  const normalizedSuburb = normalizeSuburbKey(suburb);
+  if (!fullAddress || normalizedSuburb === "" || normalizedSuburb === "auckland") {
     return true;
   }
 
-  return normalizeAddressQuery(fullAddress).includes(normalizedSuburb);
+  return normalizeSuburbKey(fullAddress).includes(normalizedSuburb);
 }
 
 export async function geocodeAddress(

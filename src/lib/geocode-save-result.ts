@@ -1,4 +1,4 @@
-import { normalizeText } from "@/lib/normalize";
+import { normalizeSuburbKey, normalizeText } from "@/lib/normalize";
 import type { PersonInput, SoldPropertyInput } from "@/lib/validation";
 import type { PersonAddressRecord, PersonRecord, SoldPropertyRecord } from "@/types/location";
 
@@ -9,7 +9,7 @@ export type GeocodeFailureAddress = {
 };
 
 function addressKey(streetAddress: string, suburb: string) {
-  return `${normalizeText(streetAddress).toLowerCase()}|${normalizeText(suburb).toLowerCase()}`;
+  return `${normalizeText(streetAddress).toLowerCase()}|${normalizeSuburbKey(suburb)}`;
 }
 
 function findSavedAddress(

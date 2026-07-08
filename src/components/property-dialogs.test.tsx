@@ -81,4 +81,30 @@ describe("PropertiesManagerDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sold properties" }));
     await waitFor(() => expect(onSwitchToSold).toHaveBeenCalledOnce());
   });
+
+  it("finds expanded suburb names using an abbreviated search", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse({
+          properties: [{ ...property, id: 5, suburb: "Mount Eden" }],
+        }),
+      ),
+    );
+
+    render(
+      <PropertiesManagerDialog
+        open
+        onOpenChange={() => undefined}
+        onSwitchToSold={() => undefined}
+      />,
+    );
+
+    fireEvent.change(await screen.findByPlaceholderText("Search address, suburb, or type"), {
+      target: { value: "Mt Eden" },
+    });
+
+    expect(screen.getByText(/Mount Eden/)).toBeInTheDocument();
+    expect(screen.getByText("1 of 1 records")).toBeInTheDocument();
+  });
 });

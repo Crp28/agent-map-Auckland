@@ -132,6 +132,30 @@ describe("personInputSchema", () => {
     }
   });
 
+  it("rejects duplicate addresses that use equivalent suburb abbreviations", () => {
+    const result = personInputSchema.safeParse({
+      name: "Ana Buyer",
+      phone: "021 000 000",
+      email: "ana@example.com",
+      addresses: [
+        {
+          streetAddress: "1 Valley Road",
+          suburb: "Mt Eden",
+          latitude: "",
+          longitude: "",
+        },
+        {
+          streetAddress: "1  Valley Road",
+          suburb: "Mount Eden",
+          latitude: "",
+          longitude: "",
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("rejects invalid email addresses", () => {
     const result = personInputSchema.safeParse({
       name: "Ana Buyer",

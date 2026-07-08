@@ -63,4 +63,21 @@ describe("pickBestGeocodeCandidate", () => {
     expect(match).not.toBeNull();
     expect(match?.matchedAddress).toContain("1/171 QUEEN STREET");
   });
+
+  it("accepts equivalent abbreviated suburb names", () => {
+    const match = pickBestGeocodeCandidate(
+      [
+        {
+          fullNumber: "4",
+          fullAddress: "4 MASKELL STREET SAINT HELIERS AUCKLAND 1071",
+          latitude: -36.85,
+          longitude: 174.86,
+        },
+      ],
+      "4 Maskell Street",
+      "St Heliers",
+    );
+
+    expect(match).not.toBeNull();
+  });
 });

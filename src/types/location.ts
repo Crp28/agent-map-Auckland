@@ -153,7 +153,7 @@ export type PropertyInteractionDetail = InteractionRecord & {
 
 export type PropertyTimelineEvent = {
   id: string;
-  eventType: "property_created" | "property_updated" | "relationship" | "interaction" | "sold";
+  eventType: "relationship" | "interaction" | "sold";
   date: string;
   title: string;
   description: string;

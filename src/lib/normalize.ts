@@ -6,6 +6,31 @@ export function normalizeKey(...parts: string[]) {
   return parts.map((part) => normalizeText(part).toLowerCase()).join("|");
 }
 
+const SUBURB_ABBREVIATIONS: Record<string, string> = {
+  bch: "beach",
+  hbr: "harbour",
+  hts: "heights",
+  mt: "mount",
+  nth: "north",
+  pt: "point",
+  sth: "south",
+  st: "saint",
+  vly: "valley",
+};
+
+export function normalizeSuburbKey(value: string) {
+  return normalizeText(value)
+    .toLowerCase()
+    .replaceAll(".", "")
+    .split(" ")
+    .map((part) => SUBURB_ABBREVIATIONS[part] ?? part)
+    .join(" ");
+}
+
+export function suburbsEqual(left: string, right: string) {
+  return normalizeSuburbKey(left) === normalizeSuburbKey(right);
+}
+
 export function emptyToNull(value: unknown) {
   if (value === undefined || value === null) {
     return null;

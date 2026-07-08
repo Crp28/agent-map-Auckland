@@ -1,3 +1,5 @@
+import { suburbsEqual } from "./normalize";
+
 const earthRadiusKm = 6371;
 
 function toRadians(value: number) {
@@ -60,5 +62,5 @@ export function matchesNearbyFilter(input: {
     return true;
   }
 
-  return input.personSuburb.trim().toLowerCase() === input.propertySuburb.trim().toLowerCase();
+  return suburbsEqual(input.personSuburb, input.propertySuburb);
 }

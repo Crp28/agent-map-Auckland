@@ -4,6 +4,7 @@ import { chromium, type BrowserContext, type Page } from "playwright";
 
 import { isStrictFirstLastSubsetMatch, ownersMatch } from "@/lib/owner-name-match";
 import { personOwnerNames } from "@/lib/person-name";
+import { normalizeSuburbKey } from "@/lib/normalize";
 import { getOwnerAuditAddressRows } from "@/lib/repository";
 import type { PersonOwnerAuditResult } from "@/types/location";
 
@@ -112,7 +113,8 @@ function streetTokens(value: string) {
 export function scoreAddressCandidate(candidateName: string, streetAddress: string, suburb: string) {
   const candidate = normalizeAddressForMatch(candidateName);
   const targetStreet = normalizeAddressForMatch(streetAddress);
-  const targetSuburb = normalizeText(suburb);
+  const targetSuburb = normalizeText(normalizeSuburbKey(suburb));
+  const candidateForSuburb = normalizeText(normalizeSuburbKey(candidateName));
   const houseNumber = extractHouseNumber(streetAddress);
 
   if (!candidate) {
@@ -123,7 +125,7 @@ export function scoreAddressCandidate(candidateName: string, streetAddress: stri
   if (targetStreet && (candidate.startsWith(targetStreet) || candidate.includes(targetStreet))) {
     score += 6;
   }
-  if (targetSuburb && candidate.includes(targetSuburb)) {
+  if (targetSuburb && candidateForSuburb.includes(targetSuburb)) {
     score += 3;
   }
   if (houseNumber && new RegExp(`\\b${escapeRegExp(houseNumber)}\\b`, "i").test(candidate)) {

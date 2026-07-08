@@ -779,6 +779,49 @@ describe("multi-address repository behavior", () => {
     expect(properties[0]?.latitude).toBe(-36.9);
   });
 
+  it("reuses canonical properties and transitions owners across suburb abbreviations", async () => {
+    const person = await repository.createOrUpdatePerson({
+      name: "Abbreviated Suburb Owner",
+      preferredName: "",
+      phone: "021 333 4455",
+      email: "suburb-alias@example.com",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [],
+      addresses: [
+        {
+          streetAddress: "8 Alias Road",
+          suburb: "Mt Eden",
+          latitude: -36.88,
+          longitude: 174.76,
+        },
+      ],
+    }, { geocode: false });
+    const originalProperty = (await repository.listPropertyRecords())[0]!;
+
+    await repository.createOrUpdateSoldProperty({
+      streetAddress: "8 alias road",
+      suburb: "Mount Eden",
+      lastSoldDate: "2026-07-01",
+      soldPrice: 1450000,
+      latitude: -36.88,
+      longitude: 174.76,
+    });
+
+    const properties = await repository.listPropertyRecords();
+    expect(properties).toHaveLength(1);
+    expect(properties[0]?.id).toBe(originalProperty.id);
+    expect((await repository.listPeopleRecords())[0]?.addresses).toEqual([]);
+    expect(await repository.listContactPropertyRelations(person!.id)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          propertyId: originalProperty.id,
+          relationshipType: "former_owner",
+        }),
+      ]),
+    );
+  });
+
   it("moves current owner addresses to former owner and records a sale when a sold property is added", async () => {
     const person = await repository.createOrUpdatePerson({
       name: "Selling Owner",
@@ -983,6 +1026,7 @@ describe("multi-address repository behavior", () => {
     );
     expect(detail?.soldProperties).toHaveLength(1);
     expect(detail?.timeline.some((event) => event.eventType === "sold")).toBe(true);
+    expect(detail?.timeline.some((event) => event.id.startsWith("property-"))).toBe(false);
     const timelineTimes = detail?.timeline.map((event) => Date.parse(event.date)) ?? [];
     expect(timelineTimes).toEqual([...timelineTimes].sort((a, b) => b - a));
   });

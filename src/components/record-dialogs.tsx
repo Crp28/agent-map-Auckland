@@ -1,6 +1,7 @@
 "use client";
 
 import { AppDialog } from "@/components/ui/dialog";
+import { PropertyViewSwitch } from "@/components/property-view-switch";
 import { displayPersonName } from "@/lib/person-display";
 import {
   INTERACTION_TYPES,
@@ -701,8 +702,17 @@ export function RecordManagerDialog({
   }
 
   return (
-    <AppDialog open={open} onOpenChange={handleOpenChange} title={title}>
-      <div className="grid gap-4">
+    <AppDialog
+      open={open}
+      onOpenChange={handleOpenChange}
+      title={title}
+      contentClassName={type === "soldProperty" ? "flex h-[min(88dvh,760px)] flex-col overflow-hidden" : ""}
+      bodyClassName={type === "soldProperty" ? "min-h-0 flex-1 overflow-hidden" : ""}
+    >
+      <div className={type === "soldProperty" ? "flex h-full min-h-0 flex-col gap-4" : "grid gap-4"}>
+        {type === "soldProperty" && onSwitchToProperties ? (
+          <PropertyViewSwitch active="soldProperties" onShowProperties={onSwitchToProperties} />
+        ) : null}
         <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
           <div className="grid gap-2">
             <p className="text-sm text-[#475569]">
@@ -745,7 +755,7 @@ export function RecordManagerDialog({
           className={
             type === "person"
               ? "h-[min(448px,56dvh)] overflow-auto rounded-md border border-[#e2e8f0]"
-              : "max-h-[56dvh] overflow-auto rounded-md border border-[#e2e8f0]"
+              : "min-h-0 flex-1 overflow-auto overscroll-contain rounded-md border border-[#e2e8f0]"
           }
         >
           {visibleRecords.map((record) => {
@@ -793,26 +803,6 @@ export function RecordManagerDialog({
             </p>
           ) : null}
         </div>
-        {type === "soldProperty" && onSwitchToProperties ? (
-          <div className="flex justify-end border-t border-[#e2e8f0] pt-3">
-            <div className="inline-flex rounded-md border border-[#cbd5e1] bg-[#f8fafc] p-1" aria-label="Property record view">
-              <button
-                type="button"
-                onClick={onSwitchToProperties}
-                className="min-h-10 rounded-md px-3 text-sm font-semibold text-[#334155] hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
-              >
-                Properties
-              </button>
-              <button
-                type="button"
-                aria-pressed="true"
-                className="min-h-10 rounded-md bg-[#111827] px-3 text-sm font-semibold text-white"
-              >
-                Sold properties
-              </button>
-            </div>
-          </div>
-        ) : null}
       </div>
     </AppDialog>
   );
