@@ -207,3 +207,8 @@
 - Replaced the bottom Properties/Sold Properties tabs with a slim top record-view control, compacted Property detail fields, and bounded both manager dialogs to one internal scrolling region.
 - Removed Property create/update maintenance entries from timelines and added shared suburb alias matching across nearby filters, Property reuse/sales, duplicate validation, GeoMaps, PropertySmarts, and suburb searches.
 - Verified the completed slice with lint, all 121 tests, a production build, and live browser checks at `1440x900` and `390x844`. Both dialogs stayed within the viewport and the page document did not overflow.
+
+## 2026-07-13
+- Started the interaction-property picker improvement after the old Add Interaction dropdown became too difficult to use with growing Property records.
+- Replaced the Property `<select>` in the Add Interaction form with a searchable picker that filters loaded Properties by address, suburb, type, or Property id and requires an explicit row click before saving a Property link.
+- Verified the picker change with the focused record-dialog test, full lint, all 121 tests, production build, and a Playwright smoke check against `http://127.0.0.1:3013` confirming live filtering and explicit selection.

@@ -56,6 +56,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 50. Complete: Convert current People owners to former owners and add sell interactions when a Sold Property is saved for their owned address.
 51. Complete: Add the canonical Properties manager/detail timeline, switcher to Sold Properties, and Person interaction filtering/creation UI.
 52. Complete: Refine the Properties modal layout, hide internal Property timeline operations, and normalize common Auckland suburb abbreviations across comparisons.
+53. Complete: Replace the Add Interaction Property dropdown with a searchable picker that narrows Property rows as the user types, then verify and document the change.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.

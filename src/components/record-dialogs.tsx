@@ -44,6 +44,14 @@ function defaultInteractionDateRange() {
   return { from: dateInputValue(from), to: dateInputValue(to) };
 }
 
+function propertyOptionLabel(property: PropertyRecord) {
+  return `${property.streetAddress}, ${property.suburb}`;
+}
+
+function propertyOptionSearchText(property: PropertyRecord) {
+  return [property.streetAddress, property.suburb, property.type ?? "", String(property.id)].join(" ").toLowerCase();
+}
+
 type DialogActions = {
   refresh: () => void;
 };
@@ -1378,6 +1386,117 @@ function EditablePersonNote({
   );
 }
 
+function InteractionPropertyPicker({
+  properties,
+  selectedPropertyId,
+  query,
+  disabled,
+  onQueryChange,
+  onSelect,
+}: {
+  properties: PropertyRecord[];
+  selectedPropertyId: string;
+  query: string;
+  disabled: boolean;
+  onQueryChange: (query: string) => void;
+  onSelect: (propertyId: string, query: string) => void;
+}) {
+  const searchQuery = query.trim().toLowerCase();
+  const selectedProperty =
+    selectedPropertyId.trim() === ""
+      ? null
+      : properties.find((property) => String(property.id) === selectedPropertyId) ?? null;
+  const filteredProperties = useMemo(() => {
+    if (!searchQuery) {
+      return [];
+    }
+
+    const terms = searchQuery.split(/\s+/).filter(Boolean);
+    return properties
+      .filter((property) => {
+        const searchText = propertyOptionSearchText(property);
+        return terms.every((term) => searchText.includes(term));
+      })
+      .slice(0, 12);
+  }, [properties, searchQuery]);
+
+  return (
+    <div className="grid gap-2 sm:col-span-3">
+      <label className={labelClass} htmlFor="interaction-property-search">
+        Property (optional)
+      </label>
+      <div className="relative">
+        <Search
+          aria-hidden="true"
+          size={18}
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b]"
+        />
+        <input
+          id="interaction-property-search"
+          type="search"
+          autoComplete="off"
+          disabled={disabled}
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+          placeholder="Search address, suburb, type, or property id"
+          className={`${inputClass} pl-10`}
+        />
+      </div>
+      <div className="flex min-h-8 flex-wrap items-center gap-2 text-xs text-[#64748b]">
+        {selectedProperty ? (
+          <>
+            <span className="rounded-md bg-[#e0f2fe] px-2 py-1 font-medium text-[#0c4a6e]">
+              Linked: {propertyOptionLabel(selectedProperty)}
+            </span>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => onSelect("", "")}
+              className="rounded-md border border-[#cbd5e1] px-2 py-1 font-semibold text-[#334155] hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#0056a7] disabled:opacity-60"
+            >
+              Clear
+            </button>
+          </>
+        ) : query.trim() ? (
+          <span>Select a matching row below to link a Property.</span>
+        ) : (
+          <span>Leave blank for no linked Property.</span>
+        )}
+      </div>
+      {searchQuery ? (
+        <div className="max-h-56 overflow-auto rounded-md border border-[#dbe3ed] bg-white shadow-sm">
+          {filteredProperties.length > 0 ? (
+            <div className="divide-y divide-[#e2e8f0]">
+              {filteredProperties.map((property) => (
+                <button
+                  key={property.id}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onSelect(String(property.id), propertyOptionLabel(property))}
+                  className="block min-h-11 w-full px-3 py-2 text-left hover:bg-[#eef3f8] focus:bg-[#eef3f8] focus:outline-none disabled:opacity-60"
+                >
+                  <span className="block text-sm font-semibold text-[#111827]">
+                    {property.streetAddress}
+                  </span>
+                  <span className="block text-xs text-[#64748b]">
+                    {property.suburb}
+                    {property.type ? ` · ${property.type}` : ""} · Property #{property.id}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="px-3 py-3 text-sm text-[#64748b]">No matching properties.</p>
+          )}
+        </div>
+      ) : null}
+      {searchQuery && filteredProperties.length === 12 ? (
+        <p className="text-xs text-[#64748b]">Showing the first 12 matches. Type more to narrow the list.</p>
+      ) : null}
+    </div>
+  );
+}
+
 function PersonDetails({
   person,
   source,
@@ -1403,6 +1522,7 @@ function PersonDetails({
     interactionDate: string;
     propertyId: string;
   } | null>(null);
+  const [interactionPropertyQuery, setInteractionPropertyQuery] = useState("");
   const [savingInteraction, setSavingInteraction] = useState(false);
   const [retryingGeocode, setRetryingGeocode] = useState(false);
   const [geocodeStatus, setGeocodeStatus] = useState<string | null>(null);
@@ -1472,6 +1592,7 @@ function PersonDetails({
       interactionDate: dateInputValue(new Date()),
       propertyId: "",
     });
+    setInteractionPropertyQuery("");
   }
 
   async function saveDraftInteraction() {
@@ -1493,6 +1614,7 @@ function PersonDetails({
         }),
       });
       setDraftInteraction(null);
+      setInteractionPropertyQuery("");
       setInteractionRefreshKey((value) => value + 1);
       refresh();
     } catch (saveError) {
@@ -1935,7 +2057,10 @@ function PersonDetails({
               <button
                 type="button"
                 disabled={savingInteraction}
-                onClick={() => setDraftInteraction(null)}
+                onClick={() => {
+                  setDraftInteraction(null);
+                  setInteractionPropertyQuery("");
+                }}
                 className="min-h-11 rounded-md border border-[#cbd5e1] px-3 text-sm font-semibold text-[#111827] hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#0056a7] disabled:opacity-60"
               >
                 Cancel
@@ -1974,25 +2099,20 @@ function PersonDetails({
                   className={inputClass}
                 />
               </label>
-              <label className={labelClass}>
-                Property (optional)
-                <select
-                  value={draftInteraction.propertyId}
-                  onChange={(event) =>
-                    setDraftInteraction((current) =>
-                      current ? { ...current, propertyId: event.target.value } : current,
-                    )
-                  }
-                  className={inputClass}
-                >
-                  <option value="">No property</option>
-                  {interactionProperties.map((property) => (
-                    <option key={property.id} value={property.id}>
-                      {property.streetAddress}, {property.suburb}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <InteractionPropertyPicker
+                properties={interactionProperties}
+                selectedPropertyId={draftInteraction.propertyId}
+                query={interactionPropertyQuery}
+                disabled={savingInteraction}
+                onQueryChange={(query) => {
+                  setInteractionPropertyQuery(query);
+                  setDraftInteraction((current) => (current ? { ...current, propertyId: "" } : current));
+                }}
+                onSelect={(propertyId, query) => {
+                  setInteractionPropertyQuery(query);
+                  setDraftInteraction((current) => (current ? { ...current, propertyId } : current));
+                }}
+              />
             </div>
             <div className="mt-3 flex justify-end">
               <button

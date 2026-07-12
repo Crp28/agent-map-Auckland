@@ -378,6 +378,17 @@ describe("DetailsDialog", () => {
         return jsonResponse({
           properties: [
             {
+              id: 3,
+              propertyKey: "12 queen street|city centre",
+              streetAddress: "12 Queen Street",
+              suburb: "City Centre",
+              type: null,
+              latitude: null,
+              longitude: null,
+              createdAt: "2026-06-01T00:00:00.000Z",
+              updatedAt: "2026-06-01T00:00:00.000Z",
+            },
+            {
               id: 4,
               propertyKey: "50 market road|remuera",
               streetAddress: "50 Market Road",
@@ -416,7 +427,9 @@ describe("DetailsDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add interaction" }));
     expect(await screen.findByText("New interaction")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Type"), { target: { value: "buy" } });
-    fireEvent.change(screen.getByLabelText("Property (optional)"), { target: { value: "4" } });
+    fireEvent.change(screen.getByLabelText("Property (optional)"), { target: { value: "market" } });
+    expect(screen.queryByText("12 Queen Street")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /50 Market Road/ }));
     fireEvent.click(screen.getByRole("button", { name: "Save interaction" }));
 
     await waitFor(() => {
