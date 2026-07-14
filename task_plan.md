@@ -58,6 +58,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 52. Complete: Refine the Properties modal layout, hide internal Property timeline operations, and normalize common Auckland suburb abbreviations across comparisons.
 53. Complete: Replace the Add Interaction Property dropdown with a searchable picker that narrows Property rows as the user types, then verify and document the change.
 54. Complete: Add confirmed canonical Property deletion that removes matching source address records, then verify and document the behavior.
+55. Complete: Replace the nearby Same suburb checkbox with an optional-distance field plus a multi-suburb checkbox selector, then verify and document the behavior.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.

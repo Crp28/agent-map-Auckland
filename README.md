@@ -9,7 +9,7 @@ Location Finder is a Next.js 16 app for viewing Auckland sold properties and peo
 - ALL data is manually entered.
 - Search has a left-side scope selector for People, Properties, and Sold Properties. People results open detail modals, Property results move the map when coordinates exist, and Sold Property results open details plus move to zoom level 6.
 - Sold Property date filters are blank by default, so all coordinate-bearing Sold Properties are shown until a date range is entered.
-- People can be filtered by purchasing power and by nearby distance from a selected Sold Property.
+- People can be filtered by purchasing power and by a nearby workflow from a selected Sold Property. The nearby workflow can use selected suburbs, an optional distance limit, or both.
 - The nearby filter affects only People dots. Sold Property pins continue to follow only the date filters.
 - The nearby panel supports `Apply nearby filter`, `Cancel`, and `Export CSV`.
 - Nearby export downloads `First Name,Mobile Phone,Address`, where `Address` is formatted as `street address, suburb`.
@@ -142,7 +142,8 @@ For bulk speed, the CLI import skips geocoding during import and preserves exist
 - `Map missing coords` uses Google Maps only for People address rows whose coordinate pair is still blank. Successful rows are saved after each small batch, so restarting the action naturally continues with the remaining missing rows.
 - `Audit ownership` checks all stored People addresses against PropertySmarts in resumable batches. It is local-only admin tooling, depends on a saved Playwright auth state, and leaves mismatch flags in session state only. Exact mismatches render red; strict first+last-only stored names that otherwise match PropertySmarts render orange.
 - Person notes are stored on the Person, not on individual addresses, so every address view of that Person shows the same note set.
-- Checking `Same suburb` makes nearby People satisfy both the distance limit and the selected Sold Property suburb.
+- The nearby distance field is blank by default. When blank, no distance limit is applied; when filled, People must be within that km limit.
+- The nearby `Suburbs` control opens a compact selector beside the Nearby people panel with a four-column checkbox grid. Selecting a Sold Property defaults the checked suburb to that property's suburb, checked suburbs are the only suburbs considered, and clearing all suburb checks considers every suburb.
 - Canceling the nearby filter clears the nearby People list and does not reset the map position.
 - Changing nearby-controller inputs also keeps the current map position.
 

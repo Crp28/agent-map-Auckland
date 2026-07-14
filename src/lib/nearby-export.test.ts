@@ -74,9 +74,12 @@ describe("nearbyPeopleCsv", () => {
 });
 
 describe("nearbyPeopleExportFilename", () => {
-  it("builds a sanitized filename from the selected address and same-suburb mode", () => {
-    expect(nearbyPeopleExportFilename(baseProperty, true)).toBe(
-      "12A_Example_Road_Unit_3_distance_true.csv",
+  it("builds a sanitized filename from the selected address and selected suburb filters", () => {
+    expect(nearbyPeopleExportFilename(baseProperty, ["Highland Park"])).toBe(
+      "12A_Example_Road_Unit_3_Highland_Park.csv",
+    );
+    expect(nearbyPeopleExportFilename(baseProperty, ["Highland Park", "Howick"])).toBe(
+      "12A_Example_Road_Unit_3_2_suburbs.csv",
     );
   });
 });

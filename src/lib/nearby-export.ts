@@ -50,8 +50,14 @@ function filenamePart(value: string) {
 
 export function nearbyPeopleExportFilename(
   property: SoldPropertyRecord | undefined,
-  sameSuburb: boolean,
+  selectedSuburbs: string[],
 ) {
   const address = property ? filenamePart(property.streetAddress) : "nearby_people";
-  return `${address || "nearby_people"}_distance_${sameSuburb}.csv`;
+  const suburbPart =
+    selectedSuburbs.length === 0
+      ? "all_suburbs"
+      : selectedSuburbs.length === 1
+        ? filenamePart(selectedSuburbs[0] ?? "selected_suburb") || "selected_suburb"
+        : `${selectedSuburbs.length}_suburbs`;
+  return `${address || "nearby_people"}_${suburbPart}.csv`;
 }

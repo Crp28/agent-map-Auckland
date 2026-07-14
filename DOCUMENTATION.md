@@ -90,6 +90,7 @@
 - 2026-07-08: Added shared suburb abbreviation normalization for matching and search. Common Auckland forms such as `Mt`/`Mount`, `St`/`Saint`, and `Pt`/`Point` now compare equally across nearby filters, canonical Property reuse, sale transitions, validation, geocoding, and owner auditing while preserving entered display text.
 - 2026-07-13: Replaced the Add Interaction Property dropdown with a searchable Property picker. The picker filters loaded Properties by address, suburb, type, or Property id as the user types, caps visible matches, and only saves a Property link after the user clicks a result.
 - 2026-07-14: Added confirmed deletion for canonical Properties. Deleting a Property removes the canonical row, matching People address rows, matching Sold Property records, and Property relationships; existing interactions are retained with their Property link cleared.
+- 2026-07-14: Replaced the nearby `Same suburb` checkbox with a `Suburbs` control that opens a compact selector beside the Nearby people panel. The selector uses a four-column checkbox grid with a search field; the selected Sold Property's suburb is checked by default, blank suburb selection means all suburbs, and the distance field is blank by default so distance only applies when the user enters a value.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
@@ -105,7 +106,7 @@
 - Suburb drawer navigation uses hard-coded center coordinates from the v1 Auckland suburb catalog. GeoMaps still provides the basemap and boundary outlines, but sidebar clicks do not wait for Address MapServer center lookups.
 - Nearby filtering intentionally narrows only the People layer. Sold Property pins continue to follow the date filters, and applying or canceling the nearby filter does not recenter the map.
 - Canceling the nearby filter also clears the nearby People list. Nearby CSV export is client-side because it uses the already loaded nearby list and does not need another server round trip.
-- When `Same suburb` is checked, nearby People must satisfy both the distance limit and the Sold Property suburb match.
+- Nearby filtering can combine selected suburbs and an optional distance value. A blank distance field means no distance limit. Checked suburbs are the only suburbs considered, and clearing all suburb checks considers every suburb.
 - The suburb drawer shares the bottom-right stack with the nearby People controls so the drawer shrinks within the remaining height instead of overlapping the filter panel.
 - The suburb drawer handle stays fixed on the right edge while the drawer content reveals leftward, avoiding transient main-content shifts during the open animation.
 - People are now stored as one logical person row plus one-or-more address rows. The map, search, and nearby APIs flatten those address rows back into address-specific Person records so one person can render multiple dots.

@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   const parsed = nearbySchema.safeParse({
     propertyId: url.searchParams.get("propertyId"),
     distanceKm: url.searchParams.get("distanceKm") ?? undefined,
-    sameSuburb: url.searchParams.get("sameSuburb") ?? undefined,
+    suburbs: url.searchParams.getAll("suburbs"),
   });
 
   if (!parsed.success) {

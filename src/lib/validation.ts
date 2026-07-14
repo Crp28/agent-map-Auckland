@@ -186,18 +186,21 @@ export const interactionFilterSchema = z.object({
 
 export const nearbySchema = z.object({
   propertyId: z.coerce.number().int().positive(),
-  distanceKm: z.coerce.number().positive().max(100).default(2),
-  sameSuburb: z
+  distanceKm: z.preprocess((value) => {
+    if (value === undefined || value === null || value === "") {
+      return null;
+    }
+    return value;
+  }, z.coerce.number().positive().max(100).nullable()),
+  suburbs: z
     .preprocess((value) => {
-      if (value === undefined || value === null || value === "") {
-        return true;
-      }
-      if (typeof value === "string") {
-        return value === "true";
-      }
-      return value;
-    }, z.boolean())
-    .default(true),
+      const values = Array.isArray(value) ? value : value === undefined || value === null ? [] : [value];
+      return values
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => normalizeText(item))
+        .filter(Boolean);
+    }, z.array(z.string().min(1)).max(80))
+    .default([]),
 });
 
 export type PersonAddressInput = z.output<typeof personAddressInputSchema>;

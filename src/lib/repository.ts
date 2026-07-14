@@ -1817,8 +1817,8 @@ export async function searchRecords(query: string, scope: "people" | "properties
 
 export async function findNearbyPeople(input: {
   propertyId: number;
-  distanceKm: number;
-  sameSuburb: boolean;
+  distanceKm: number | null;
+  suburbs: string[];
 }) {
   ensureDatabase();
   const db = getDb();
@@ -1844,9 +1844,8 @@ export async function findNearbyPeople(input: {
       matchesNearbyFilter({
         distanceKm: person.distanceKm,
         maxDistanceKm: input.distanceKm,
-        sameSuburb: input.sameSuburb,
+        allowedSuburbs: input.suburbs,
         personSuburb: person.suburb,
-        propertySuburb: property.suburb,
       }),
     )
     .sort((a, b) => a.distanceKm - b.distanceKm);

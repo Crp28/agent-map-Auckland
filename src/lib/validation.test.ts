@@ -278,14 +278,15 @@ describe("soldPropertyInputSchema", () => {
 });
 
 describe("nearbySchema", () => {
-  it("parses sameSuburb=false as false", () => {
+  it("parses optional distance and selected suburbs", () => {
     const result = nearbySchema.parse({
       propertyId: "1",
-      distanceKm: "2",
-      sameSuburb: "false",
+      distanceKm: "",
+      suburbs: [" Remuera ", "Mt Eden"],
     });
 
-    expect(result.sameSuburb).toBe(false);
+    expect(result.distanceKm).toBeNull();
+    expect(result.suburbs).toEqual(["Remuera", "Mt Eden"]);
   });
 });
 

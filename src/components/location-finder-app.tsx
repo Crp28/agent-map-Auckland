@@ -57,6 +57,10 @@ const PERSON_GOOGLE_GEOCODE_BATCH_DELAY_MS = 350;
 const PERSON_OWNER_BATCH_SIZE = 4;
 const PERSON_OWNER_BATCH_DELAY_MS = 500;
 
+function sameSuburbName(left: string, right: string) {
+  return normalizeSuburbKey(left) === normalizeSuburbKey(right);
+}
+
 async function readJsonResponse<T>(response: Response) {
   const text = await response.text();
   if (!text) {
@@ -87,8 +91,10 @@ export function LocationFinderApp() {
   const [nearbyPeople, setNearbyPeople] = useState<Array<PersonRecord & { distanceKm: number }>>([]);
   const [nearbyFilterActive, setNearbyFilterActive] = useState(false);
   const [selectedPropertyTarget, setSelectedPropertyTarget] = useState<PointMapTarget | undefined>();
-  const [distanceKm, setDistanceKm] = useState("2");
-  const [sameSuburb, setSameSuburb] = useState(true);
+  const [distanceKm, setDistanceKm] = useState("");
+  const [selectedNearbySuburbs, setSelectedNearbySuburbs] = useState<string[]>([]);
+  const [nearbySuburbQuery, setNearbySuburbQuery] = useState("");
+  const [nearbySuburbPanelOpen, setNearbySuburbPanelOpen] = useState(false);
   const [mismatchedPersonAddressIds, setMismatchedPersonAddressIds] = useState<number[]>([]);
   const [coordinateAuditRunning, setCoordinateAuditRunning] = useState(false);
   const [googleGeocodeRunning, setGoogleGeocodeRunning] = useState(false);
@@ -112,7 +118,7 @@ export function LocationFinderApp() {
   const suburbButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const suburbTargetKeyRef = useRef(0);
   const distanceKmRef = useRef(distanceKm);
-  const sameSuburbRef = useRef(sameSuburb);
+  const selectedNearbySuburbsRef = useRef(selectedNearbySuburbs);
 
   const refresh = useCallback(() => setRefreshKey((value) => value + 1), []);
 
@@ -152,8 +158,8 @@ export function LocationFinderApp() {
 
   useEffect(() => {
     distanceKmRef.current = distanceKm;
-    sameSuburbRef.current = sameSuburb;
-  }, [distanceKm, sameSuburb]);
+    selectedNearbySuburbsRef.current = selectedNearbySuburbs;
+  }, [distanceKm, selectedNearbySuburbs]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -218,15 +224,16 @@ export function LocationFinderApp() {
   const loadNearby = useCallback(
     async (
       property: SoldPropertyRecord,
-      overrides?: { distanceKm?: string; sameSuburb?: boolean },
+      overrides?: { distanceKm?: string; suburbs?: string[] },
     ) => {
       setSelectedSoldPropertyId(property.id);
-      const effectiveDistanceKm = overrides?.distanceKm ?? distanceKmRef.current ?? "2";
-      const params = new URLSearchParams({
-        propertyId: String(property.id),
-        distanceKm: effectiveDistanceKm,
-        sameSuburb: String(overrides?.sameSuburb ?? sameSuburbRef.current),
-      });
+      const effectiveDistanceKm = overrides?.distanceKm ?? distanceKmRef.current ?? "";
+      const effectiveSuburbs = overrides?.suburbs ?? selectedNearbySuburbsRef.current;
+      const params = new URLSearchParams({ propertyId: String(property.id) });
+      if (effectiveDistanceKm.trim()) {
+        params.set("distanceKm", effectiveDistanceKm.trim());
+      }
+      effectiveSuburbs.forEach((suburb) => params.append("suburbs", suburb));
       const response = await fetch(`/api/nearby?${params.toString()}`);
       if (!response.ok) {
         setNearbyPeople([]);
@@ -249,7 +256,11 @@ export function LocationFinderApp() {
       soldProperty: SoldPropertyRecord,
       options?: { focus?: boolean; zoom?: number },
     ) => {
+      const defaultSuburbs = soldProperty.suburb ? [soldProperty.suburb] : [];
       setSelected({ type: "soldProperty", item: soldProperty });
+      setSelectedNearbySuburbs(defaultSuburbs);
+      setNearbySuburbQuery("");
+      setNearbySuburbPanelOpen(false);
       if (
         options?.focus &&
         soldProperty.longitude !== null &&
@@ -261,7 +272,7 @@ export function LocationFinderApp() {
           zoom: options.zoom ?? 8,
         });
       }
-      void loadNearby(soldProperty);
+      void loadNearby(soldProperty, { suburbs: defaultSuburbs });
     },
     [loadNearby],
   );
@@ -306,6 +317,30 @@ export function LocationFinderApp() {
     },
     [mapData.boundaries, suburbQuery],
   );
+  const nearbySuburbOptions = useMemo(() => {
+    const byKey = new Map<string, string>();
+    for (const suburb of AUCKLAND_SUBURBS) {
+      byKey.set(normalizeSuburbKey(suburb.name), suburb.name);
+    }
+    for (const person of mapData.people) {
+      if (person.suburb) {
+        byKey.set(normalizeSuburbKey(person.suburb), person.suburb);
+      }
+    }
+    for (const property of mapData.soldProperties) {
+      if (property.suburb) {
+        byKey.set(normalizeSuburbKey(property.suburb), property.suburb);
+      }
+    }
+
+    const normalizedQuery = normalizeSuburbKey(nearbySuburbQuery);
+    return [...byKey.values()]
+      .filter((suburb) => !normalizedQuery || normalizeSuburbKey(suburb).includes(normalizedQuery))
+      .sort((left, right) => left.localeCompare(right));
+  }, [mapData.people, mapData.soldProperties, nearbySuburbQuery]);
+  const selectedSoldProperty =
+    mapData.soldProperties.find((item) => item.id === selectedSoldPropertyId) ??
+    (selected?.type === "soldProperty" ? selected.item : undefined);
 
   useEffect(() => {
     if (!suburbListOpen || !selectedSuburbKey) {
@@ -820,15 +855,19 @@ export function LocationFinderApp() {
     });
   }
 
+  function toggleNearbySuburb(suburb: string) {
+    setSelectedNearbySuburbs((current) => {
+      const exists = current.some((item) => sameSuburbName(item, suburb));
+      return exists ? current.filter((item) => !sameSuburbName(item, suburb)) : [...current, suburb];
+    });
+  }
+
   async function applyNearbyFilter() {
-    const property =
-      mapData.soldProperties.find((item) => item.id === selectedSoldPropertyId) ??
-      (selected?.type === "soldProperty" ? selected.item : undefined);
-    if (!property) {
+    if (!selectedSoldProperty) {
       return;
     }
 
-    await loadNearby(property);
+    await loadNearby(selectedSoldProperty);
     setNearbyFilterActive(true);
   }
 
@@ -842,16 +881,13 @@ export function LocationFinderApp() {
       return;
     }
 
-    const property =
-      mapData.soldProperties.find((item) => item.id === selectedSoldPropertyId) ??
-      (selected?.type === "soldProperty" ? selected.item : undefined);
     const blob = new Blob([nearbyPeopleCsv(nearbyPeople)], {
       type: "text/csv;charset=utf-8",
     });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = nearbyPeopleExportFilename(property, sameSuburb);
+    anchor.download = nearbyPeopleExportFilename(selectedSoldProperty, selectedNearbySuburbs);
     document.body.append(anchor);
     anchor.click();
     anchor.remove();
@@ -1158,7 +1194,80 @@ export function LocationFinderApp() {
           </section>
         </div>
 
-        <div className="pointer-events-auto shrink-0 rounded-md border border-[#cbd5e1] bg-white p-3 shadow-lg">
+        <div className="pointer-events-auto relative shrink-0">
+          {nearbySuburbPanelOpen ? (
+            <section className="absolute bottom-0 right-0 z-30 mb-3 max-h-[320px] w-[min(86vw,520px)] overflow-hidden rounded-md border border-[#cbd5e1] bg-white shadow-xl md:right-[calc(100%+0.75rem)] md:mb-0">
+              <div className="border-b border-[#e2e8f0] bg-[#f8fafc] p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-[#111827]">Suburbs considered</p>
+                    <p className="mt-1 text-xs text-[#64748b]">
+                      {selectedNearbySuburbs.length === 0
+                        ? "All suburbs are included."
+                        : `${selectedNearbySuburbs.length} selected.`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setNearbySuburbPanelOpen(false)}
+                    className="min-h-10 rounded-md border border-[#cbd5e1] bg-white px-2 text-xs font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+                  >
+                    Done
+                  </button>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <input
+                    value={nearbySuburbQuery}
+                    onChange={(event) => setNearbySuburbQuery(event.target.value)}
+                    className="min-h-10 min-w-0 flex-1 rounded-md border border-[#cbd5e1] bg-white px-3 text-sm outline-none focus:border-[#0056a7] focus:ring-2 focus:ring-[#0056a7]/20"
+                    placeholder="Filter suburb names"
+                    aria-label="Filter nearby suburbs"
+                  />
+                  {selectedSoldProperty?.suburb ? (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedNearbySuburbs([selectedSoldProperty.suburb])}
+                      className="min-h-10 rounded-md border border-[#cbd5e1] bg-white px-2 text-xs font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+                    >
+                      Property suburb
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedNearbySuburbs([])}
+                    className="min-h-10 rounded-md border border-[#cbd5e1] bg-white px-2 text-xs font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+              <div className="max-h-56 overflow-auto p-2">
+                <div className="grid grid-cols-4 gap-1.5">
+                  {nearbySuburbOptions.map((suburb) => {
+                    const checked = selectedNearbySuburbs.some((item) => sameSuburbName(item, suburb));
+                    return (
+                      <label
+                        key={normalizeSuburbKey(suburb)}
+                        className="flex min-h-10 cursor-pointer items-start gap-1.5 rounded-md border border-transparent px-1.5 py-1 text-xs leading-4 text-[#334155] hover:border-[#cbd5e1] hover:bg-[#eef3f8]"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleNearbySuburb(suburb)}
+                          className="mt-0.5 h-4 w-4 shrink-0 accent-[#0056a7]"
+                        />
+                        <span className="break-words">{suburb}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {nearbySuburbOptions.length === 0 ? (
+                  <p className="px-2 py-3 text-sm text-[#64748b]">No suburbs match this filter.</p>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
+          <div className="rounded-md border border-[#cbd5e1] bg-white p-3 shadow-lg">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-[#111827]">Nearby people</p>
@@ -1170,23 +1279,35 @@ export function LocationFinderApp() {
           </div>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <label className="text-sm font-medium text-[#334155]">
-              Distance km
+              Distance km optional
               <input
                 inputMode="decimal"
                 value={distanceKm}
                 onChange={(event) => setDistanceKm(event.target.value)}
                 className="mt-1 min-h-11 w-full rounded-md border border-[#cbd5e1] px-3 outline-none focus:border-[#0056a7] focus:ring-2 focus:ring-[#0056a7]/20"
+                placeholder="Leave blank for no distance limit"
               />
             </label>
-            <label className="flex min-h-11 items-center gap-2 self-end text-sm font-medium text-[#334155]">
-              <input
-                type="checkbox"
-                checked={sameSuburb}
-                onChange={(event) => setSameSuburb(event.target.checked)}
-                className="h-5 w-5 accent-[#0056a7]"
+            <button
+              type="button"
+              aria-expanded={nearbySuburbPanelOpen}
+              onClick={() => setNearbySuburbPanelOpen((open) => !open)}
+              className="flex min-h-11 items-center justify-between gap-2 self-end rounded-md border border-[#cbd5e1] px-3 py-2 text-left text-sm font-medium text-[#334155] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+            >
+              <span>
+                <span className="block font-semibold text-[#111827]">Suburbs</span>
+                <span className="block text-xs text-[#64748b]">
+                  {selectedNearbySuburbs.length === 0
+                    ? "All"
+                    : `${selectedNearbySuburbs.length} selected`}
+                </span>
+              </span>
+              <ChevronLeft
+                aria-hidden="true"
+                size={16}
+                className={nearbySuburbPanelOpen ? "rotate-180 transition-transform" : "transition-transform"}
               />
-              Same suburb
-            </label>
+            </button>
           </div>
           {selectedSoldPropertyId ? (
             <div className="mt-3 flex flex-wrap gap-2">
@@ -1231,6 +1352,7 @@ export function LocationFinderApp() {
                 </span>
               </button>
             ))}
+          </div>
           </div>
         </div>
         <div className="pointer-events-auto rounded-md border border-[#cbd5e1] bg-white p-3 text-xs text-[#475569] shadow-lg">

@@ -49,18 +49,17 @@ export function purchasingPowerIncludesPrice(
 
 export function matchesNearbyFilter(input: {
   distanceKm: number;
-  maxDistanceKm: number;
-  sameSuburb: boolean;
+  maxDistanceKm: number | null;
+  allowedSuburbs: string[];
   personSuburb: string;
-  propertySuburb: string;
 }) {
-  if (input.distanceKm > input.maxDistanceKm) {
+  if (input.maxDistanceKm !== null && input.distanceKm > input.maxDistanceKm) {
     return false;
   }
 
-  if (!input.sameSuburb) {
+  if (input.allowedSuburbs.length === 0) {
     return true;
   }
 
-  return suburbsEqual(input.personSuburb, input.propertySuburb);
+  return input.allowedSuburbs.some((suburb) => suburbsEqual(input.personSuburb, suburb));
 }

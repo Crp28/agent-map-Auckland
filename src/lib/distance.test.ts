@@ -28,38 +28,46 @@ describe("purchasingPowerIncludesPrice", () => {
 });
 
 describe("matchesNearbyFilter", () => {
-  it("uses distance only when sameSuburb is off", () => {
+  it("uses distance only when no suburb filter is selected", () => {
     expect(
       matchesNearbyFilter({
         distanceKm: 0.6,
         maxDistanceKm: 1,
-        sameSuburb: false,
+        allowedSuburbs: [],
         personSuburb: "Auckland",
-        propertySuburb: "Glenfield",
       }),
     ).toBe(true);
   });
 
-  it("requires both distance and suburb match when sameSuburb is on", () => {
+  it("ignores distance when no distance limit is supplied", () => {
+    expect(
+      matchesNearbyFilter({
+        distanceKm: 20,
+        maxDistanceKm: null,
+        allowedSuburbs: ["Auckland"],
+        personSuburb: "Auckland",
+      }),
+    ).toBe(true);
+  });
+
+  it("requires both distance and a selected suburb match when suburb filters are selected", () => {
     expect(
       matchesNearbyFilter({
         distanceKm: 0.6,
         maxDistanceKm: 1,
-        sameSuburb: true,
+        allowedSuburbs: ["Glenfield"],
         personSuburb: "Auckland",
-        propertySuburb: "Glenfield",
       }),
     ).toBe(false);
   });
 
-  it("still excludes far same-suburb people when sameSuburb is on", () => {
+  it("still excludes far people in a selected suburb", () => {
     expect(
       matchesNearbyFilter({
         distanceKm: 1.1,
         maxDistanceKm: 1,
-        sameSuburb: true,
+        allowedSuburbs: ["Glenfield"],
         personSuburb: "Glenfield",
-        propertySuburb: "Glenfield",
       }),
     ).toBe(false);
   });
@@ -69,9 +77,8 @@ describe("matchesNearbyFilter", () => {
       matchesNearbyFilter({
         distanceKm: 0.6,
         maxDistanceKm: 1,
-        sameSuburb: true,
+        allowedSuburbs: ["Mount Eden"],
         personSuburb: "Mt. Eden",
-        propertySuburb: "Mount Eden",
       }),
     ).toBe(true);
 
@@ -79,9 +86,8 @@ describe("matchesNearbyFilter", () => {
       matchesNearbyFilter({
         distanceKm: 0.6,
         maxDistanceKm: 1,
-        sameSuburb: true,
+        allowedSuburbs: ["Saint Heliers"],
         personSuburb: "St Heliers",
-        propertySuburb: "Saint Heliers",
       }),
     ).toBe(true);
   });

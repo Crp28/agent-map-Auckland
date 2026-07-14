@@ -218,3 +218,5 @@
 - Added repository and API support for deleting a canonical Property together with matching People address rows and Sold Property records, while preserving interactions with their Property link cleared.
 - Added a confirmed `Delete property` action in the Properties manager detail view.
 - Verified the deletion slice with focused repository/API/UI tests, full lint, all 125 tests, production build, and a non-destructive Playwright smoke check that reached and dismissed the delete confirmation.
+- Started the nearby filter selector change. Replaced the old `Same suburb` boolean with a `Suburbs` button that opens a checked-suburb panel beside the Nearby people panel, and changed distance to be optional: the distance field now defaults blank and only filters when it has a value.
+- Verified the nearby selector change with focused distance/validation/export tests, full lint, all 126 tests, production build, and a Playwright smoke check confirming blank distance, the side suburb panel, a four-column suburb grid, and selected Sold Property suburb preselection.
