@@ -667,10 +667,10 @@ export function LocationFinderApp() {
         pendingAddressIds.length === 0 && savedSession
           ? savedSession.results
           : await auditAddressBatch(pendingAddressIds, "Auditing People coordinates", {
-              allAddressIds: addressIds,
-              startIndex,
-              seedResults: savedSession?.results,
-            });
+            allAddressIds: addressIds,
+            startIndex,
+            seedResults: savedSession?.results,
+          });
 
       window.localStorage.removeItem(PERSON_COORDINATE_AUDIT_SESSION_KEY);
       const mismatches = results.filter((result) => result.status === "mismatch").map((result) => result.addressId);
@@ -746,10 +746,10 @@ export function LocationFinderApp() {
         pendingAddressIds.length === 0 && savedSession
           ? savedSession.results
           : await auditOwnerAddressBatch(pendingAddressIds, "Auditing People owners", {
-              allAddressIds: addressIds,
-              startIndex,
-              seedResults: savedSession?.results,
-            });
+            allAddressIds: addressIds,
+            startIndex,
+            seedResults: savedSession?.results,
+          });
 
       const mismatchIds = results
         .filter((result) => result.status === "mismatch")
@@ -1132,9 +1132,8 @@ export function LocationFinderApp() {
           className="pointer-events-none relative min-h-0 w-full flex-1 overflow-visible"
         >
           <section
-            className={`pointer-events-auto absolute bottom-0 right-0 flex max-h-full overflow-hidden rounded-md border border-[#cbd5e1] bg-white shadow-lg transition-[width] duration-200 ${
-              suburbListOpen ? "top-0 w-[min(86vw,340px)]" : "h-11 w-11"
-            }`}
+            className={`pointer-events-auto absolute bottom-0 right-0 flex max-h-full overflow-hidden rounded-md border border-[#cbd5e1] bg-white shadow-lg transition-[width] duration-200 ${suburbListOpen ? "top-0 w-[min(86vw,340px)]" : "h-11 w-11"
+              }`}
             aria-label="Auckland suburb navigation"
           >
             <button
@@ -1268,91 +1267,91 @@ export function LocationFinderApp() {
             </section>
           ) : null}
           <div className="rounded-md border border-[#cbd5e1] bg-white p-3 shadow-lg">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-[#111827]">Nearby people</p>
-              <p className="text-xs text-[#64748b]">
-                {selectedSoldPropertyId ? `${nearbyPeople.length} matches` : "Select a sold property"}
-              </p>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-[#111827]">Nearby people</p>
+                <p className="text-xs text-[#64748b]">
+                  {selectedSoldPropertyId ? `${nearbyPeople.length} matches` : "Select a sold property"}
+                </p>
+              </div>
+              <LocateFixed aria-hidden="true" className="text-[#0056a7]" size={20} />
             </div>
-            <LocateFixed aria-hidden="true" className="text-[#0056a7]" size={20} />
-          </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <label className="text-sm font-medium text-[#334155]">
-              Distance km optional
-              <input
-                inputMode="decimal"
-                value={distanceKm}
-                onChange={(event) => setDistanceKm(event.target.value)}
-                className="mt-1 min-h-11 w-full rounded-md border border-[#cbd5e1] px-3 outline-none focus:border-[#0056a7] focus:ring-2 focus:ring-[#0056a7]/20"
-                placeholder="Leave blank for no distance limit"
-              />
-            </label>
-            <button
-              type="button"
-              aria-expanded={nearbySuburbPanelOpen}
-              onClick={() => setNearbySuburbPanelOpen((open) => !open)}
-              className="flex min-h-11 items-center justify-between gap-2 self-end rounded-md border border-[#cbd5e1] px-3 py-2 text-left text-sm font-medium text-[#334155] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
-            >
-              <span>
-                <span className="block font-semibold text-[#111827]">Suburbs</span>
-                <span className="block text-xs text-[#64748b]">
-                  {selectedNearbySuburbs.length === 0
-                    ? "All"
-                    : `${selectedNearbySuburbs.length} selected`}
-                </span>
-              </span>
-              <ChevronLeft
-                aria-hidden="true"
-                size={16}
-                className={nearbySuburbPanelOpen ? "rotate-180 transition-transform" : "transition-transform"}
-              />
-            </button>
-          </div>
-          {selectedSoldPropertyId ? (
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <label className="text-sm font-medium text-[#334155]">
+                Distance km optional
+                <input
+                  inputMode="decimal"
+                  value={distanceKm}
+                  onChange={(event) => setDistanceKm(event.target.value)}
+                  className="mt-1 min-h-11 w-full rounded-md border border-[#cbd5e1] px-3 outline-none focus:border-[#0056a7] focus:ring-2 focus:ring-[#0056a7]/20"
+                  placeholder="No limit"
+                />
+              </label>
               <button
                 type="button"
-                onClick={() => void applyNearbyFilter()}
-                className="min-h-11 flex-1 rounded-md border border-[#cbd5e1] bg-white px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+                aria-expanded={nearbySuburbPanelOpen}
+                onClick={() => setNearbySuburbPanelOpen((open) => !open)}
+                className="flex min-h-11 items-center justify-between gap-2 self-end rounded-md border border-[#cbd5e1] px-3 py-2 text-left text-sm font-medium text-[#334155] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
               >
-                Apply nearby filter
-              </button>
-              {nearbyFilterActive ? (
-                <button
-                  type="button"
-                  onClick={cancelNearbyFilter}
-                  className="min-h-11 rounded-md bg-[#111827] px-3 py-2 text-sm font-semibold text-white hover:bg-[#1f2937] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
-                >
-                  Cancel
-                </button>
-              ) : null}
-              {nearbyPeople.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={exportNearbyPeople}
-                  className="min-h-11 rounded-md bg-[#0056a7] px-3 py-2 text-sm font-semibold text-white hover:bg-[#004780] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
-                >
-                  Export CSV
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-          <div className="mt-3 max-h-44 overflow-auto">
-            {nearbyPeople.map((person) => (
-              <button
-                key={person.addressId ?? person.id}
-                type="button"
-                onClick={() => selectPerson(person)}
-                className="block min-h-11 w-full border-b border-[#e2e8f0] px-2 py-2 text-left last:border-b-0 hover:bg-[#eef3f8]"
-              >
-                <span className="block text-sm font-semibold text-[#111827]">{displayPersonName(person)}</span>
-                <span className="block text-xs text-[#475569]">
-                  {person.suburb} - {person.distanceKm.toFixed(2)} km
+                <span>
+                  <span className="block font-semibold text-[#111827]">Suburbs</span>
+                  <span className="block text-xs text-[#64748b]">
+                    {selectedNearbySuburbs.length === 0
+                      ? "All"
+                      : `${selectedNearbySuburbs.length} selected`}
+                  </span>
                 </span>
+                <ChevronLeft
+                  aria-hidden="true"
+                  size={16}
+                  className={nearbySuburbPanelOpen ? "rotate-180 transition-transform" : "transition-transform"}
+                />
               </button>
-            ))}
-          </div>
+            </div>
+            {selectedSoldPropertyId ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void applyNearbyFilter()}
+                  className="min-h-11 flex-1 rounded-md border border-[#cbd5e1] bg-white px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+                >
+                  Apply nearby filter
+                </button>
+                {nearbyFilterActive ? (
+                  <button
+                    type="button"
+                    onClick={cancelNearbyFilter}
+                    className="min-h-11 rounded-md bg-[#111827] px-3 py-2 text-sm font-semibold text-white hover:bg-[#1f2937] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+                  >
+                    Cancel
+                  </button>
+                ) : null}
+                {nearbyPeople.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={exportNearbyPeople}
+                    className="min-h-11 rounded-md bg-[#0056a7] px-3 py-2 text-sm font-semibold text-white hover:bg-[#004780] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+                  >
+                    Export CSV
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            <div className="mt-3 max-h-44 overflow-auto">
+              {nearbyPeople.map((person) => (
+                <button
+                  key={person.addressId ?? person.id}
+                  type="button"
+                  onClick={() => selectPerson(person)}
+                  className="block min-h-11 w-full border-b border-[#e2e8f0] px-2 py-2 text-left last:border-b-0 hover:bg-[#eef3f8]"
+                >
+                  <span className="block text-sm font-semibold text-[#111827]">{displayPersonName(person)}</span>
+                  <span className="block text-xs text-[#475569]">
+                    {person.suburb} - {person.distanceKm.toFixed(2)} km
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
         <div className="pointer-events-auto rounded-md border border-[#cbd5e1] bg-white p-3 text-xs text-[#475569] shadow-lg">
