@@ -91,6 +91,7 @@
 - 2026-07-13: Replaced the Add Interaction Property dropdown with a searchable Property picker. The picker filters loaded Properties by address, suburb, type, or Property id as the user types, caps visible matches, and only saves a Property link after the user clicks a result.
 - 2026-07-14: Added confirmed deletion for canonical Properties. Deleting a Property removes the canonical row, matching People address rows, matching Sold Property records, and Property relationships; existing interactions are retained with their Property link cleared.
 - 2026-07-14: Replaced the nearby `Same suburb` checkbox with a `Suburbs` control that opens a compact selector beside the Nearby people panel. The selector uses a four-column checkbox grid with a search field; the selected Sold Property's suburb is checked by default, blank suburb selection means all suburbs, and the distance field is blank by default so distance only applies when the user enters a value.
+- 2026-07-14: Updated nearby CSV export so it refreshes from the current distance/suburb controls immediately before downloading instead of exporting a stale previously applied nearby list.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.

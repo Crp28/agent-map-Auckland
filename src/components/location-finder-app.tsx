@@ -237,12 +237,13 @@ export function LocationFinderApp() {
       const response = await fetch(`/api/nearby?${params.toString()}`);
       if (!response.ok) {
         setNearbyPeople([]);
-        return;
+        return [];
       }
       const payload = (await response.json()) as {
         people: Array<PersonRecord & { distanceKm: number }>;
       };
       setNearbyPeople(payload.people);
+      return payload.people;
     },
     [],
   );
@@ -876,12 +877,18 @@ export function LocationFinderApp() {
     setNearbyPeople([]);
   }
 
-  function exportNearbyPeople() {
-    if (nearbyPeople.length === 0) {
+  async function exportNearbyPeople() {
+    if (!selectedSoldProperty) {
       return;
     }
 
-    const blob = new Blob([nearbyPeopleCsv(nearbyPeople)], {
+    const peopleToExport = await loadNearby(selectedSoldProperty);
+    if (peopleToExport.length === 0) {
+      setNotice("No nearby people match the current export filters.");
+      return;
+    }
+
+    const blob = new Blob([nearbyPeopleCsv(peopleToExport)], {
       type: "text/csv;charset=utf-8",
     });
     const url = URL.createObjectURL(blob);
@@ -1326,10 +1333,10 @@ export function LocationFinderApp() {
                     Cancel
                   </button>
                 ) : null}
-                {nearbyPeople.length > 0 ? (
+                {selectedSoldPropertyId ? (
                   <button
                     type="button"
-                    onClick={exportNearbyPeople}
+                    onClick={() => void exportNearbyPeople()}
                     className="min-h-11 rounded-md bg-[#0056a7] px-3 py-2 text-sm font-semibold text-white hover:bg-[#004780] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
                   >
                     Export CSV

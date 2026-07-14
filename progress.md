@@ -220,3 +220,4 @@
 - Verified the deletion slice with focused repository/API/UI tests, full lint, all 125 tests, production build, and a non-destructive Playwright smoke check that reached and dismissed the delete confirmation.
 - Started the nearby filter selector change. Replaced the old `Same suburb` boolean with a `Suburbs` button that opens a checked-suburb panel beside the Nearby people panel, and changed distance to be optional: the distance field now defaults blank and only filters when it has a value.
 - Verified the nearby selector change with focused distance/validation/export tests, full lint, all 126 tests, production build, and a Playwright smoke check confirming blank distance, the side suburb panel, a four-column suburb grid, and selected Sold Property suburb preselection.
+- Fixed nearby CSV export to re-query using the current distance/suburb selections at download time, so changing filters without pressing Apply no longer exports the previous nearby result set.
