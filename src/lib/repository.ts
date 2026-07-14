@@ -1330,6 +1330,62 @@ export async function getPropertyDetailById(id: number): Promise<PropertyDetailR
   };
 }
 
+export async function deletePropertyById(id: number) {
+  ensureDatabase();
+  const db = getDb();
+  const propertyRow =
+    (await db.select().from(properties).where(eq(properties.id, id)).limit(1))[0] ?? null;
+  if (!propertyRow) {
+    return null;
+  }
+
+  const [addressRows, soldRows] = await Promise.all([
+    db
+      .select({
+        id: peopleAddresses.id,
+        suburb: peopleAddresses.suburb,
+      })
+      .from(peopleAddresses)
+      .where(sql`lower(${peopleAddresses.streetAddress}) = ${propertyRow.streetAddress.toLowerCase()}`),
+    db
+      .select({
+        id: soldProperties.id,
+        suburb: soldProperties.suburb,
+      })
+      .from(soldProperties)
+      .where(sql`lower(${soldProperties.streetAddress}) = ${propertyRow.streetAddress.toLowerCase()}`),
+  ]);
+  const matchingAddressIds = addressRows
+    .filter((address) => suburbsEqual(address.suburb, propertyRow.suburb))
+    .map((address) => address.id);
+  const matchingSoldPropertyIds = soldRows
+    .filter((soldProperty) => suburbsEqual(soldProperty.suburb, propertyRow.suburb))
+    .map((soldProperty) => soldProperty.id);
+
+  const addressDeleteResult = await deletePersonAddressRows(matchingAddressIds);
+
+  if (matchingSoldPropertyIds.length > 0) {
+    await db.delete(soldProperties).where(inArray(soldProperties.id, matchingSoldPropertyIds));
+  }
+
+  await db
+    .update(interactions)
+    .set({
+      propertyId: null,
+      updatedAt: nowIso(),
+    })
+    .where(eq(interactions.propertyId, id));
+  await db.delete(contactPropertyRelations).where(eq(contactPropertyRelations.propertyId, id));
+  await db.delete(properties).where(eq(properties.id, id));
+
+  return {
+    deleted: true,
+    deletedAddressIds: addressDeleteResult.deletedAddressIds,
+    deletedPersonIds: addressDeleteResult.deletedPersonIds,
+    deletedSoldPropertyIds: matchingSoldPropertyIds,
+  };
+}
+
 export async function deleteContactPropertyRelationById(id: number) {
   ensureDatabase();
   const db = getDb();

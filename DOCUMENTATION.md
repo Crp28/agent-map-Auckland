@@ -89,6 +89,7 @@
 - 2026-07-08: Removed internal Property create/update operations from the public timeline. Timelines now contain relationship, interaction, and sale events only.
 - 2026-07-08: Added shared suburb abbreviation normalization for matching and search. Common Auckland forms such as `Mt`/`Mount`, `St`/`Saint`, and `Pt`/`Point` now compare equally across nearby filters, canonical Property reuse, sale transitions, validation, geocoding, and owner auditing while preserving entered display text.
 - 2026-07-13: Replaced the Add Interaction Property dropdown with a searchable Property picker. The picker filters loaded Properties by address, suburb, type, or Property id as the user types, caps visible matches, and only saves a Property link after the user clicks a result.
+- 2026-07-14: Added confirmed deletion for canonical Properties. Deleting a Property removes the canonical row, matching People address rows, matching Sold Property records, and Property relationships; existing interactions are retained with their Property link cleared.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
@@ -120,6 +121,7 @@
 - Property timelines are derived from contact-property relationships, interactions, and Sold Property records rather than a separate change-log table. Internal Property creation and update timestamps remain visible as current metadata but are not timeline events.
 - Suburb aliases are canonicalized only for matching. Stored suburb values remain user-facing source text, and an existing equivalent canonical Property id is reused when abbreviated and expanded suburb forms meet.
 - Interaction Property links use explicit selection from filtered search results rather than free-text matching. Typed text narrows candidates, but the interaction remains unlinked until the user selects a Property row.
+- Property deletion is intentionally source-aware. Because canonical Properties are materialized from People addresses and Sold Properties, deleting a Property also removes matching source address records for that same street/suburb so the Property is not recreated by later materialization.
 
 ## Notes
 - Use `cmd /c npm ...`, `npm.cmd`, or `npx.cmd` in PowerShell because this machine blocks `npm.ps1`.

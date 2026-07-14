@@ -212,3 +212,9 @@
 - Started the interaction-property picker improvement after the old Add Interaction dropdown became too difficult to use with growing Property records.
 - Replaced the Property `<select>` in the Add Interaction form with a searchable picker that filters loaded Properties by address, suburb, type, or Property id and requires an explicit row click before saving a Property link.
 - Verified the picker change with the focused record-dialog test, full lint, all 121 tests, production build, and a Playwright smoke check against `http://127.0.0.1:3013` confirming live filtering and explicit selection.
+
+## 2026-07-14
+- Started the Property deletion request.
+- Added repository and API support for deleting a canonical Property together with matching People address rows and Sold Property records, while preserving interactions with their Property link cleared.
+- Added a confirmed `Delete property` action in the Properties manager detail view.
+- Verified the deletion slice with focused repository/API/UI tests, full lint, all 125 tests, production build, and a non-destructive Playwright smoke check that reached and dismissed the delete confirmation.

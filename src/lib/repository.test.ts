@@ -1031,6 +1031,72 @@ describe("multi-address repository behavior", () => {
     expect(timelineTimes).toEqual([...timelineTimes].sort((a, b) => b - a));
   });
 
+  it("deletes a canonical property and matching source address records", async () => {
+    await repository.createOrUpdateSoldProperty({
+      streetAddress: "80 Delete Road",
+      suburb: "Remuera",
+      lastSoldDate: "2026-07-01",
+      soldPrice: 1100000,
+      latitude: -36.87,
+      longitude: 174.78,
+    });
+    const person = await repository.createOrUpdatePerson({
+      name: "Property Delete Owner",
+      preferredName: "",
+      phone: "021 800 000",
+      email: "",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [],
+      addresses: [
+        {
+          streetAddress: "80 Delete Road",
+          suburb: "Remuera",
+          latitude: -36.87,
+          longitude: 174.78,
+        },
+      ],
+    }, { geocode: false });
+    const property = (await repository.listPropertyRecords()).find(
+      (record) => record.streetAddress === "80 Delete Road",
+    );
+
+    expect(person).not.toBeNull();
+    expect(property).toBeDefined();
+    await repository.createInteraction({
+      personId: person!.id,
+      propertyId: property!.id,
+      interactionType: "inspection",
+      interactionDate: "2026-07-02",
+    });
+
+    const result = await repository.deletePropertyById(property!.id);
+
+    expect(result).toMatchObject({
+      deleted: true,
+      deletedSoldPropertyIds: [expect.any(Number)],
+      deletedAddressIds: [person!.addressId],
+    });
+    expect(
+      (await repository.listPropertyRecords()).some((record) => record.id === property!.id),
+    ).toBe(false);
+    expect(
+      (await repository.listSoldPropertyRecords()).some(
+        (record) => record.streetAddress === "80 Delete Road" && record.suburb === "Remuera",
+      ),
+    ).toBe(false);
+    const updatedPerson = (await repository.listPeopleRecords()).find((record) => record.id === person!.id);
+    expect(updatedPerson?.addresses).toEqual([]);
+    expect(updatedPerson?.streetAddress).toBe("");
+    expect(await repository.listPersonInteractions(person!.id)).toEqual([
+      expect.objectContaining({
+        propertyId: null,
+        property: null,
+        interactionType: "inspection",
+      }),
+    ]);
+  });
+
   it("filters person interactions by date and includes linked property information", async () => {
     const person = await repository.createOrUpdatePerson({
       name: "Interaction Contact",

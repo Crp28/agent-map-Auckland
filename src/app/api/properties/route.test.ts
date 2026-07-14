@@ -1,18 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const repositoryMocks = vi.hoisted(() => ({
+  deletePropertyById: vi.fn(),
   getPropertyDetailById: vi.fn(),
   listPropertyRecords: vi.fn(),
 }));
 
 vi.mock("@/lib/repository", () => repositoryMocks);
 
-import { GET } from "./route";
+import { DELETE, GET } from "./route";
 
 describe("GET /api/properties", () => {
   beforeEach(() => {
     repositoryMocks.getPropertyDetailById.mockReset();
     repositoryMocks.listPropertyRecords.mockReset();
+    repositoryMocks.deletePropertyById.mockReset();
   });
 
   it("lists properties when no id is supplied", async () => {
@@ -28,5 +30,29 @@ describe("GET /api/properties", () => {
     const response = await GET(new Request("http://localhost/api/properties?id=7"));
     expect(await response.json()).toEqual({ property: { id: 7, timeline: [] } });
     expect(repositoryMocks.getPropertyDetailById).toHaveBeenCalledWith(7);
+  });
+
+  it("deletes one property by id", async () => {
+    repositoryMocks.deletePropertyById.mockResolvedValue({
+      deleted: true,
+      deletedAddressIds: [2],
+      deletedPersonIds: [],
+      deletedSoldPropertyIds: [5],
+    });
+
+    const response = await DELETE(new Request("http://localhost/api/properties?id=7"));
+    expect(await response.json()).toEqual({
+      deleted: true,
+      deletedAddressIds: [2],
+      deletedPersonIds: [],
+      deletedSoldPropertyIds: [5],
+    });
+    expect(repositoryMocks.deletePropertyById).toHaveBeenCalledWith(7);
+  });
+
+  it("rejects invalid delete ids", async () => {
+    const response = await DELETE(new Request("http://localhost/api/properties?id=bad"));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "A valid property id is required." });
   });
 });

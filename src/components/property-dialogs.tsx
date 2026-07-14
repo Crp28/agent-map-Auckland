@@ -4,7 +4,7 @@ import { AppDialog } from "@/components/ui/dialog";
 import { PropertyViewSwitch } from "@/components/property-view-switch";
 import { normalizeSuburbKey } from "@/lib/normalize";
 import type { PropertyDetailRecord, PropertyRecord } from "@/types/location";
-import { ArrowLeft, Building2, History, Search } from "lucide-react";
+import { ArrowLeft, Building2, History, Search, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 const PROPERTY_PAGE_SIZE = 100;
@@ -109,6 +109,7 @@ export function PropertiesManagerDialog({
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -177,6 +178,36 @@ export function PropertiesManagerDialog({
     }
   }
 
+  async function deleteSelectedProperty() {
+    if (!selected) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete ${selected.streetAddress}, ${selected.suburb}? This removes the canonical Property plus matching People address rows and Sold Property records. This cannot be undone.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setDeleting(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/properties?id=${selected.id}`, { method: "DELETE" });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Property could not be deleted.");
+      }
+      setProperties((current) => current.filter((property) => property.id !== selected.id));
+      setSelected(null);
+      setPage(0);
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Property could not be deleted.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
       setSelected(null);
@@ -198,14 +229,26 @@ export function PropertiesManagerDialog({
       <div className="flex h-full min-h-0 flex-col gap-4">
         <PropertyViewSwitch active="properties" onShowSoldProperties={onSwitchToSold} />
         {selected ? (
-          <button
-            type="button"
-            onClick={() => setSelected(null)}
-            className="inline-flex min-h-11 w-fit items-center gap-2 rounded-md border border-[#cbd5e1] px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
-          >
-            <ArrowLeft aria-hidden="true" size={18} />
-            All properties
-          </button>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <button
+              type="button"
+              disabled={deleting}
+              onClick={() => setSelected(null)}
+              className="inline-flex min-h-11 w-fit items-center gap-2 rounded-md border border-[#cbd5e1] px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7] disabled:opacity-60"
+            >
+              <ArrowLeft aria-hidden="true" size={18} />
+              All properties
+            </button>
+            <button
+              type="button"
+              disabled={deleting}
+              onClick={() => void deleteSelectedProperty()}
+              className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#fecdca] px-3 py-2 text-sm font-semibold text-[#b42318] hover:bg-[#fff1f0] focus:outline-none focus:ring-2 focus:ring-[#b42318] disabled:opacity-60"
+            >
+              <Trash2 aria-hidden="true" size={18} />
+              {deleting ? "Deleting..." : "Delete property"}
+            </button>
+          </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
             <label className="relative block max-w-md">

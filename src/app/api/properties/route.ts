@@ -1,4 +1,4 @@
-import { getPropertyDetailById, listPropertyRecords } from "@/lib/repository";
+import { deletePropertyById, getPropertyDetailById, listPropertyRecords } from "@/lib/repository";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -25,4 +25,19 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({ property });
+}
+
+export async function DELETE(request: Request) {
+  const url = new URL(request.url);
+  const parsed = idSchema.safeParse(url.searchParams.get("id"));
+  if (!parsed.success) {
+    return NextResponse.json({ error: "A valid property id is required." }, { status: 400 });
+  }
+
+  const result = await deletePropertyById(parsed.data);
+  if (!result) {
+    return NextResponse.json({ error: "Property not found." }, { status: 404 });
+  }
+
+  return NextResponse.json(result);
 }
