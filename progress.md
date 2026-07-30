@@ -222,3 +222,7 @@
 - Verified the nearby selector change with focused distance/validation/export tests, full lint, all 126 tests, production build, and a Playwright smoke check confirming blank distance, the side suburb panel, a four-column suburb grid, and selected Sold Property suburb preselection.
 - Fixed nearby CSV export to re-query using the current distance/suburb selections at download time, so changing filters without pressing Apply no longer exports the previous nearby result set.
 - Updated nearby CSV export to dedupe multiple address rows for the same Person and group the exported rows by suburb while preserving closest-match order inside each suburb group.
+
+## 2026-07-31
+- Added Nearby people map selection mode: a square cursor button replaces the old target icon, click selects People address pins, Ctrl/Cmd-click removes an already selected pin, rectangle drag adds multiple visible People pins, and selected pins render green.
+- The Nearby people list and CSV export switch to the selected map records while selection mode is active, then clear and return to the normal nearby list when the mode is turned off.

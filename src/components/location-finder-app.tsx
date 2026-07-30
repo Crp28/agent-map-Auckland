@@ -40,7 +40,7 @@ import type {
   SuburbMapTarget,
   SuburbRegion,
 } from "@/types/location";
-import { ChevronLeft, ChevronRight, Database, FileUp, LocateFixed, Plus, RefreshCw, Search, Trash2, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, Database, FileUp, LocateFixed, MousePointer2, Plus, RefreshCw, Search, Trash2, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const emptyMapData: MapData = {
@@ -59,6 +59,10 @@ const PERSON_OWNER_BATCH_DELAY_MS = 500;
 
 function sameSuburbName(left: string, right: string) {
   return normalizeSuburbKey(left) === normalizeSuburbKey(right);
+}
+
+function personMapKey(person: PersonRecord) {
+  return person.addressId ?? person.id;
 }
 
 async function readJsonResponse<T>(response: Response) {
@@ -90,6 +94,8 @@ export function LocationFinderApp() {
   const [selectedSoldPropertyId, setSelectedSoldPropertyId] = useState<number | undefined>();
   const [nearbyPeople, setNearbyPeople] = useState<Array<PersonRecord & { distanceKm: number }>>([]);
   const [nearbyFilterActive, setNearbyFilterActive] = useState(false);
+  const [mapSelectionActive, setMapSelectionActive] = useState(false);
+  const [selectedMapPeople, setSelectedMapPeople] = useState<PersonRecord[]>([]);
   const [selectedPropertyTarget, setSelectedPropertyTarget] = useState<PointMapTarget | undefined>();
   const [distanceKm, setDistanceKm] = useState("");
   const [selectedNearbySuburbs, setSelectedNearbySuburbs] = useState<string[]>([]);
@@ -279,9 +285,14 @@ export function LocationFinderApp() {
   );
 
   const visiblePeople = nearbyFilterActive ? nearbyPeople : mapData.people;
+  const nearbyPanelPeople = mapSelectionActive ? selectedMapPeople : nearbyPeople;
   const highlightedPersonIds = useMemo(
     () => (nearbyFilterActive ? nearbyPeople.map((person) => person.addressId ?? person.id) : []),
     [nearbyFilterActive, nearbyPeople],
+  );
+  const selectedMapPersonIds = useMemo(
+    () => selectedMapPeople.map((person) => personMapKey(person)),
+    [selectedMapPeople],
   );
   const flaggedPersonAddressIds = useMemo(
     () => [
@@ -856,6 +867,39 @@ export function LocationFinderApp() {
     });
   }
 
+  const toggleMapSelectionMode = useCallback(() => {
+    setMapSelectionActive((active) => {
+      if (active) {
+        setSelectedMapPeople([]);
+      }
+      return !active;
+    });
+  }, []);
+
+  const selectMapPerson = useCallback((person: PersonRecord, options: { ctrlKey: boolean }) => {
+    setSelectedMapPeople((current) => {
+      const key = personMapKey(person);
+      const exists = current.some((item) => personMapKey(item) === key);
+      if (exists && options.ctrlKey) {
+        return current.filter((item) => personMapKey(item) !== key);
+      }
+      if (exists) {
+        return current;
+      }
+      return [...current, person];
+    });
+  }, []);
+
+  const selectMapPeople = useCallback((people: PersonRecord[]) => {
+    setSelectedMapPeople((current) => {
+      const next = new Map(current.map((person) => [personMapKey(person), person]));
+      for (const person of people) {
+        next.set(personMapKey(person), person);
+      }
+      return [...next.values()];
+    });
+  }, []);
+
   function toggleNearbySuburb(suburb: string) {
     setSelectedNearbySuburbs((current) => {
       const exists = current.some((item) => sameSuburbName(item, suburb));
@@ -878,6 +922,26 @@ export function LocationFinderApp() {
   }
 
   async function exportNearbyPeople() {
+    if (mapSelectionActive) {
+      if (selectedMapPeople.length === 0) {
+        setNotice("No People records are selected for export.");
+        return;
+      }
+
+      const blob = new Blob([nearbyPeopleCsv(selectedMapPeople)], {
+        type: "text/csv;charset=utf-8",
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = nearbyPeopleExportFilename(selectedSoldProperty, selectedNearbySuburbs);
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      return;
+    }
+
     if (!selectedSoldProperty) {
       return;
     }
@@ -910,11 +974,15 @@ export function LocationFinderApp() {
         highlightedPersonIds={highlightedPersonIds}
         mismatchedPersonIds={[...new Set([...mismatchedPersonAddressIds, ...ownerMismatchedPersonAddressIds])]}
         incompleteNamePersonIds={ownerIncompleteNameAddressIds}
+        selectedPersonIds={selectedMapPersonIds}
+        selectionModeActive={mapSelectionActive}
         selectedSoldPropertyId={selectedSoldPropertyId}
         selectedSuburbTarget={selectedSuburbTarget}
         selectedPropertyTarget={selectedPropertyTarget}
         onSelectPerson={selectPerson}
         onSelectSoldProperty={selectSoldProperty}
+        onSelectionClickPerson={selectMapPerson}
+        onSelectionBoxPeople={selectMapPeople}
       />
 
       <section className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col gap-3 p-3 md:items-end">
@@ -1278,10 +1346,26 @@ export function LocationFinderApp() {
               <div>
                 <p className="text-sm font-semibold text-[#111827]">Nearby people</p>
                 <p className="text-xs text-[#64748b]">
-                  {selectedSoldPropertyId ? `${nearbyPeople.length} matches` : "Select a sold property"}
+                  {mapSelectionActive
+                    ? `${selectedMapPeople.length} selected`
+                    : selectedSoldPropertyId
+                      ? `${nearbyPeople.length} matches`
+                      : "Select a sold property"}
                 </p>
               </div>
-              <LocateFixed aria-hidden="true" className="text-[#0056a7]" size={20} />
+              <button
+                type="button"
+                aria-label={mapSelectionActive ? "Turn off map People selection" : "Turn on map People selection"}
+                aria-pressed={mapSelectionActive}
+                onClick={toggleMapSelectionMode}
+                className={`grid h-11 w-11 shrink-0 place-items-center rounded-md border focus:outline-none focus:ring-2 focus:ring-[#0056a7] ${
+                  mapSelectionActive
+                    ? "border-[#16a34a] bg-[#16a34a] text-white hover:bg-[#15803d]"
+                    : "border-[#cbd5e1] bg-white text-[#0056a7] hover:bg-[#eef3f8]"
+                }`}
+              >
+                <MousePointer2 aria-hidden="true" size={20} />
+              </button>
             </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <label className="text-sm font-medium text-[#334155]">
@@ -1315,16 +1399,18 @@ export function LocationFinderApp() {
                 />
               </button>
             </div>
-            {selectedSoldPropertyId ? (
+            {selectedSoldPropertyId || mapSelectionActive ? (
               <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => void applyNearbyFilter()}
-                  className="min-h-11 flex-1 rounded-md border border-[#cbd5e1] bg-white px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
-                >
-                  Apply nearby filter
-                </button>
-                {nearbyFilterActive ? (
+                {selectedSoldPropertyId ? (
+                  <button
+                    type="button"
+                    onClick={() => void applyNearbyFilter()}
+                    className="min-h-11 flex-1 rounded-md border border-[#cbd5e1] bg-white px-3 py-2 text-sm font-semibold text-[#111827] hover:bg-[#eef3f8] focus:outline-none focus:ring-2 focus:ring-[#0056a7]"
+                  >
+                    Apply nearby filter
+                  </button>
+                ) : null}
+                {nearbyFilterActive && !mapSelectionActive ? (
                   <button
                     type="button"
                     onClick={cancelNearbyFilter}
@@ -1333,7 +1419,7 @@ export function LocationFinderApp() {
                     Cancel
                   </button>
                 ) : null}
-                {selectedSoldPropertyId ? (
+                {selectedSoldPropertyId || selectedMapPeople.length > 0 ? (
                   <button
                     type="button"
                     onClick={() => void exportNearbyPeople()}
@@ -1345,7 +1431,7 @@ export function LocationFinderApp() {
               </div>
             ) : null}
             <div className="mt-3 max-h-44 overflow-auto">
-              {nearbyPeople.map((person) => (
+              {nearbyPanelPeople.map((person) => (
                 <button
                   key={person.addressId ?? person.id}
                   type="button"
@@ -1354,7 +1440,10 @@ export function LocationFinderApp() {
                 >
                   <span className="block text-sm font-semibold text-[#111827]">{displayPersonName(person)}</span>
                   <span className="block text-xs text-[#475569]">
-                    {person.suburb} - {person.distanceKm.toFixed(2)} km
+                    {person.suburb}
+                    {"distanceKm" in person && typeof person.distanceKm === "number"
+                      ? ` - ${person.distanceKm.toFixed(2)} km`
+                      : ""}
                   </span>
                 </button>
               ))}

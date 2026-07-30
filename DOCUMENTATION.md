@@ -93,6 +93,7 @@
 - 2026-07-14: Replaced the nearby `Same suburb` checkbox with a `Suburbs` control that opens a compact selector beside the Nearby people panel. The selector uses a four-column checkbox grid with a search field; the selected Sold Property's suburb is checked by default, blank suburb selection means all suburbs, and the distance field is blank by default so distance only applies when the user enters a value.
 - 2026-07-14: Updated nearby CSV export so it refreshes from the current distance/suburb controls immediately before downloading instead of exporting a stale previously applied nearby list.
 - 2026-07-14: Nearby CSV export now keeps only one row per Person and groups exported rows by suburb. If a Person has multiple nearby address rows, the first returned row is kept, which preserves the closest match from the nearby API before grouping.
+- 2026-07-31: Added a map People selection mode from the Nearby people panel. The cursor button turns on address-pin selection, click adds a People address record, Ctrl/Cmd-click removes an already selected record, drag draws a rectangle to add multiple records, selected pins render green, and the panel list/export switches to the selected records until the mode is turned off.
 
 ## Decisions
 - Auckland Council GeoMaps subdivision/local-board polygons will serve as the v1 suburb outline layer.
@@ -109,6 +110,7 @@
 - Nearby filtering intentionally narrows only the People layer. Sold Property pins continue to follow the date filters, and applying or canceling the nearby filter does not recenter the map.
 - Canceling the nearby filter also clears the nearby People list. Nearby CSV export is client-side because it uses the already loaded nearby list and does not need another server round trip.
 - Nearby filtering can combine selected suburbs and an optional distance value. A blank distance field means no distance limit. Checked suburbs are the only suburbs considered, and clearing all suburb checks considers every suburb.
+- Manual map People selection is session-only UI state. It uses address-level marker keys for green pin highlighting and list membership, while CSV export still deduplicates by logical Person id.
 - The suburb drawer shares the bottom-right stack with the nearby People controls so the drawer shrinks within the remaining height instead of overlapping the filter panel.
 - The suburb drawer handle stays fixed on the right edge while the drawer content reveals leftward, avoiding transient main-content shifts during the open animation.
 - People are now stored as one logical person row plus one-or-more address rows. The map, search, and nearby APIs flatten those address rows back into address-specific Person records so one person can render multiple dots.
