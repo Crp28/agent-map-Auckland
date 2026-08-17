@@ -96,6 +96,7 @@ export function AucklandMap({
   const onSelectionBoxPeopleRef = useRef(onSelectionBoxPeople);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const dragSelectionModeRef = useRef<SelectionBoxMode>("add");
+  const pointerSelectionModeRef = useRef<SelectionBoxMode>("add");
 
   useEffect(() => {
     peopleRef.current = people;
@@ -219,7 +220,8 @@ export function AucklandMap({
       const point = { x: event.x, y: event.y };
       if (event.action === "start") {
         dragStartRef.current = point;
-        dragSelectionModeRef.current = selectionBoxModeFromEvent(event);
+        const eventMode = selectionBoxModeFromEvent(event);
+        dragSelectionModeRef.current = pointerSelectionModeRef.current === "remove" ? "remove" : eventMode;
         updateSelectionBox(point, point, dragSelectionModeRef.current);
         return;
       }
@@ -494,6 +496,16 @@ export function AucklandMap({
   return (
     <div
       className="relative h-full min-h-[420px] w-full"
+      onPointerDownCapture={(event) => {
+        if (!selectionModeActive) {
+          return;
+        }
+
+        pointerSelectionModeRef.current =
+          event.ctrlKey || event.metaKey || event.button === 2 || Boolean(event.buttons & 2)
+            ? "remove"
+            : "add";
+      }}
       onContextMenu={(event) => {
         if (selectionModeActive) {
           event.preventDefault();

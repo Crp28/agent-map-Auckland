@@ -227,3 +227,4 @@
 - Added Nearby people map selection mode: a square cursor button replaces the old target icon, click selects People address pins, Ctrl/Cmd-click removes an already selected pin, rectangle drag adds multiple visible People pins, and selected pins render green.
 - The Nearby people list and CSV export switch to the selected map records while selection mode is active, then clear and return to the normal nearby list when the mode is turned off.
 - Extended map selection mode so Ctrl/Cmd-drag and right-button drag draw a red rectangle and remove intersecting People pins from the selected list.
+- Hardened remove-drag detection by capturing the original DOM pointer-down modifier/button state before ArcGIS handles the drag event.
