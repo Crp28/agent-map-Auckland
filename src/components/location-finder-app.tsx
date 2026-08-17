@@ -890,8 +890,13 @@ export function LocationFinderApp() {
     });
   }, []);
 
-  const selectMapPeople = useCallback((people: PersonRecord[]) => {
+  const selectMapPeople = useCallback((people: PersonRecord[], options: { mode: "add" | "remove" }) => {
     setSelectedMapPeople((current) => {
+      if (options.mode === "remove") {
+        const removeKeys = new Set(people.map((person) => personMapKey(person)));
+        return current.filter((person) => !removeKeys.has(personMapKey(person)));
+      }
+
       const next = new Map(current.map((person) => [personMapKey(person), person]));
       for (const person of people) {
         next.set(personMapKey(person), person);

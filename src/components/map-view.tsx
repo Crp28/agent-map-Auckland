@@ -40,8 +40,17 @@ type AucklandMapProps = {
   onSelectPerson: (person: PersonRecord) => void;
   onSelectSoldProperty: (soldProperty: SoldPropertyRecord) => void;
   onSelectionClickPerson: (person: PersonRecord, options: { ctrlKey: boolean }) => void;
-  onSelectionBoxPeople: (people: PersonRecord[]) => void;
+  onSelectionBoxPeople: (people: PersonRecord[], options: { mode: SelectionBoxMode }) => void;
 };
+
+type SelectionBoxMode = "add" | "remove";
+
+function selectionBoxModeFromEvent(event: { native?: unknown }) {
+  const native = event.native as MouseEvent | undefined;
+  return native?.ctrlKey || native?.metaKey || native?.button === 2 || Boolean(native?.buttons && native.buttons & 2)
+    ? "remove"
+    : "add";
+}
 
 function makePoint(longitude: number, latitude: number) {
   return new Point({
@@ -86,6 +95,7 @@ export function AucklandMap({
   const onSelectionClickPersonRef = useRef(onSelectionClickPerson);
   const onSelectionBoxPeopleRef = useRef(onSelectionBoxPeople);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const dragSelectionModeRef = useRef<SelectionBoxMode>("add");
 
   useEffect(() => {
     peopleRef.current = people;
@@ -128,7 +138,11 @@ export function AucklandMap({
     view.ui.move("zoom", "bottom-left");
     containerRef.current.tabIndex = 0;
 
-    const updateSelectionBox = (start: { x: number; y: number }, end: { x: number; y: number }) => {
+    const updateSelectionBox = (
+      start: { x: number; y: number },
+      end: { x: number; y: number },
+      mode: SelectionBoxMode,
+    ) => {
       const box = selectionBoxRef.current;
       if (!box) {
         return;
@@ -141,6 +155,8 @@ export function AucklandMap({
       box.style.top = `${top}px`;
       box.style.width = `${Math.abs(end.x - start.x)}px`;
       box.style.height = `${Math.abs(end.y - start.y)}px`;
+      box.style.borderColor = mode === "remove" ? "#d92d20" : "#16a34a";
+      box.style.backgroundColor = mode === "remove" ? "rgb(217 45 32 / 0.15)" : "rgb(22 163 74 / 0.15)";
     };
 
     const hideSelectionBox = () => {
@@ -203,7 +219,8 @@ export function AucklandMap({
       const point = { x: event.x, y: event.y };
       if (event.action === "start") {
         dragStartRef.current = point;
-        updateSelectionBox(point, point);
+        dragSelectionModeRef.current = selectionBoxModeFromEvent(event);
+        updateSelectionBox(point, point, dragSelectionModeRef.current);
         return;
       }
 
@@ -213,7 +230,7 @@ export function AucklandMap({
       }
 
       if (event.action === "update") {
-        updateSelectionBox(start, point);
+        updateSelectionBox(start, point, dragSelectionModeRef.current);
         return;
       }
 
@@ -243,7 +260,7 @@ export function AucklandMap({
           );
         });
         if (selectedPeople.length > 0) {
-          onSelectionBoxPeopleRef.current(selectedPeople);
+          onSelectionBoxPeopleRef.current(selectedPeople, { mode: dragSelectionModeRef.current });
         }
       }
     });
@@ -475,7 +492,14 @@ export function AucklandMap({
   }, [highlightedPersonIds, incompleteNamePersonIds, mismatchedPersonIds, people, selectedPersonIds]);
 
   return (
-    <div className="relative h-full min-h-[420px] w-full">
+    <div
+      className="relative h-full min-h-[420px] w-full"
+      onContextMenu={(event) => {
+        if (selectionModeActive) {
+          event.preventDefault();
+        }
+      }}
+    >
       <div
         ref={containerRef}
         aria-label="Auckland map"
