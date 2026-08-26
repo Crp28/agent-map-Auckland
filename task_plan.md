@@ -59,6 +59,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 53. Complete: Replace the Add Interaction Property dropdown with a searchable picker that narrows Property rows as the user types, then verify and document the change.
 54. Complete: Add confirmed canonical Property deletion that removes matching source address records, then verify and document the behavior.
 55. Complete: Replace the nearby Same suburb checkbox with an optional-distance field plus a multi-suburb checkbox selector, then verify and document the behavior.
+56. Complete: Audit address/property write-path propagation, fix any mismatched side effects across People, Sold Properties, canonical Properties, relations, interactions, and source-row cleanup, then verify and document.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.
@@ -87,3 +88,4 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 | `agent-browser batch` parsed `wait 700` as command `700` | Nearby export browser verification | Switched to individual `agent-browser` commands with quoted refs on PowerShell and completed the CSV interception check. |
 | PowerShell rejected `&&` while chaining Playwright smoke-check commands | Bulk Google coordinate browser verification | Re-ran navigation and inspection as separate commands and completed the confirmation-dialog smoke check. |
 | Existing Person detail test parsed the new interaction GET as a PATCH body | Phase 51 focused UI tests | Update fetch mocks to route by URL/method and select the actual PATCH call. |
+| Repository test expected a Sold Property address edit to preserve a current owned address | Address/property propagation audit | Clarified the domain rule: Sold Property edits are sale records too, so a matching current owner must transition to `former_owner` and receive a `sell` interaction. Updated the regression expectation. |

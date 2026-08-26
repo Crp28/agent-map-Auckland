@@ -83,6 +83,8 @@ type PersonAddressSnapshot = {
   longitude: number | null;
 };
 
+type PropertyAddressSnapshot = PersonAddressSnapshot;
+
 type ExistingPersonAddressSnapshot = {
   id: number;
   streetAddress: string;
@@ -262,6 +264,122 @@ async function mergePropertyRows(input: {
   return getPropertyById(input.targetPropertyId);
 }
 
+async function syncSourceRowsForPropertyAddressChange(input: {
+  current: PropertyAddressSnapshot;
+  next: PropertyAddressSnapshot;
+  timestamp: string;
+}) {
+  if (propertyAddressesEqual(input.current, input.next)) {
+    return;
+  }
+
+  const db = getDb();
+  const peopleAddressRows = await db
+    .select({
+      id: peopleAddresses.id,
+      personId: peopleAddresses.personId,
+      streetAddress: peopleAddresses.streetAddress,
+      suburb: peopleAddresses.suburb,
+    })
+    .from(peopleAddresses);
+  const matchingPeopleAddressRows = peopleAddressRows.filter((address) =>
+    propertyAddressesEqual(address, input.current),
+  );
+
+  for (const address of matchingPeopleAddressRows) {
+    const person =
+      (await db.select().from(people).where(eq(people.id, address.personId)).limit(1))[0] ??
+      null;
+    if (!person) {
+      continue;
+    }
+
+    const identityKey = normalizeKey(person.personKey, input.next.streetAddress, input.next.suburb);
+    const duplicate =
+      (
+        await db
+          .select({ id: peopleAddresses.id })
+          .from(peopleAddresses)
+          .where(eq(peopleAddresses.identityKey, identityKey))
+          .limit(1)
+      )[0] ?? null;
+
+    if (duplicate && duplicate.id !== address.id) {
+      await db.delete(peopleAddresses).where(eq(peopleAddresses.id, address.id));
+    } else {
+      await db
+        .update(peopleAddresses)
+        .set({
+          identityKey,
+          streetAddress: input.next.streetAddress,
+          suburb: input.next.suburb,
+          latitude: input.next.latitude,
+          longitude: input.next.longitude,
+          updatedAt: input.timestamp,
+        })
+        .where(eq(peopleAddresses.id, address.id));
+    }
+
+    if (propertyAddressesEqual(
+      { streetAddress: person.streetAddress, suburb: person.suburb },
+      input.current,
+    )) {
+      await db
+        .update(people)
+        .set({
+          streetAddress: input.next.streetAddress,
+          suburb: input.next.suburb,
+          latitude: input.next.latitude,
+          longitude: input.next.longitude,
+          lastUpdatedAt: input.timestamp,
+          updatedAt: input.timestamp,
+        })
+        .where(eq(people.id, person.id));
+    }
+  }
+
+  const soldRows = await db
+    .select({
+      id: soldProperties.id,
+      streetAddress: soldProperties.streetAddress,
+      suburb: soldProperties.suburb,
+      lastSoldDate: soldProperties.lastSoldDate,
+    })
+    .from(soldProperties);
+  const matchingSoldRows = soldRows.filter((soldProperty) =>
+    propertyAddressesEqual(soldProperty, input.current),
+  );
+
+  for (const soldProperty of matchingSoldRows) {
+    const identityKey = normalizeKey(input.next.streetAddress, input.next.suburb, soldProperty.lastSoldDate);
+    const duplicate =
+      (
+        await db
+          .select({ id: soldProperties.id })
+          .from(soldProperties)
+          .where(eq(soldProperties.identityKey, identityKey))
+          .limit(1)
+      )[0] ?? null;
+
+    if (duplicate && duplicate.id !== soldProperty.id) {
+      await db.delete(soldProperties).where(eq(soldProperties.id, soldProperty.id));
+      continue;
+    }
+
+    await db
+      .update(soldProperties)
+      .set({
+        identityKey,
+        streetAddress: input.next.streetAddress,
+        suburb: input.next.suburb,
+        latitude: input.next.latitude,
+        longitude: input.next.longitude,
+        updatedAt: input.timestamp,
+      })
+      .where(eq(soldProperties.id, soldProperty.id));
+  }
+}
+
 async function updatePropertyFromAddressById(
   propertyId: number,
   input: {
@@ -297,12 +415,24 @@ async function updatePropertyFromAddressById(
       return null;
     }
 
+    const next = {
+      streetAddress: mergedProperty.streetAddress,
+      suburb: mergedProperty.suburb,
+      latitude: input.latitude ?? mergedProperty.latitude,
+      longitude: input.longitude ?? mergedProperty.longitude,
+    };
+    await syncSourceRowsForPropertyAddressChange({
+      current,
+      next,
+      timestamp: input.timestamp,
+    });
+
     await db
       .update(properties)
       .set({
         type: input.type ?? mergedProperty.type,
-        latitude: input.latitude ?? mergedProperty.latitude,
-        longitude: input.longitude ?? mergedProperty.longitude,
+        latitude: next.latitude,
+        longitude: next.longitude,
         updatedAt: input.timestamp,
       })
       .where(eq(properties.id, mergedProperty.id));
@@ -322,12 +452,24 @@ async function updatePropertyFromAddressById(
       return null;
     }
 
+    const next = {
+      streetAddress: mergedProperty.streetAddress,
+      suburb: mergedProperty.suburb,
+      latitude: input.latitude ?? (sameAddress ? mergedProperty.latitude : null),
+      longitude: input.longitude ?? (sameAddress ? mergedProperty.longitude : null),
+    };
+    await syncSourceRowsForPropertyAddressChange({
+      current,
+      next,
+      timestamp: input.timestamp,
+    });
+
     await db
       .update(properties)
       .set({
         type: input.type ?? mergedProperty.type,
-        latitude: input.latitude ?? (sameAddress ? mergedProperty.latitude : null),
-        longitude: input.longitude ?? (sameAddress ? mergedProperty.longitude : null),
+        latitude: next.latitude,
+        longitude: next.longitude,
         updatedAt: input.timestamp,
       })
       .where(eq(properties.id, mergedProperty.id));
@@ -335,18 +477,30 @@ async function updatePropertyFromAddressById(
     return getPropertyById(mergedProperty.id);
   }
 
+  const next = {
+    streetAddress,
+    suburb,
+    latitude: input.latitude ?? (sameAddress ? current.latitude : null),
+    longitude: input.longitude ?? (sameAddress ? current.longitude : null),
+  };
   await db
     .update(properties)
     .set({
       propertyKey,
-      streetAddress,
-      suburb,
+      streetAddress: next.streetAddress,
+      suburb: next.suburb,
       type: input.type ?? current.type,
-      latitude: input.latitude ?? (sameAddress ? current.latitude : null),
-      longitude: input.longitude ?? (sameAddress ? current.longitude : null),
+      latitude: next.latitude,
+      longitude: next.longitude,
       updatedAt: input.timestamp,
     })
     .where(eq(properties.id, propertyId));
+
+  await syncSourceRowsForPropertyAddressChange({
+    current,
+    next,
+    timestamp: input.timestamp,
+  });
 
   return getPropertyById(propertyId);
 }
@@ -615,17 +769,16 @@ async function transitionCurrentOwnersForSoldProperty(input: {
     .select({
       id: peopleAddresses.id,
       personId: peopleAddresses.personId,
+      streetAddress: peopleAddresses.streetAddress,
       suburb: peopleAddresses.suburb,
     })
     .from(peopleAddresses)
-    .where(
-      and(
-        inArray(peopleAddresses.personId, ownerPersonIds),
-        sql`lower(${peopleAddresses.streetAddress}) = ${normalizeText(input.streetAddress).toLowerCase()}`,
-      ),
-    );
+    .where(inArray(peopleAddresses.personId, ownerPersonIds));
   const matchingAddressRows = addressRows.filter((row) =>
-    suburbsEqual(row.suburb, input.suburb),
+    propertyAddressesEqual(row, {
+      streetAddress: input.streetAddress,
+      suburb: input.suburb,
+    }),
   );
   const affectedPersonIds = [...new Set(matchingAddressRows.map((row) => row.personId))];
 
@@ -883,8 +1036,10 @@ function buildPersonRecord(
   const primaryAddress =
     addresses.find(
       (address) =>
-        address.streetAddress === first.person_street_address &&
-        suburbsEqual(address.suburb, first.person_suburb),
+        propertyAddressesEqual(address, {
+          streetAddress: first.person_street_address,
+          suburb: first.person_suburb,
+        }),
     ) ?? addresses[0] ?? null;
   const selectedAddress =
     addresses.find((address) => address.id === selectedAddressId) ?? primaryAddress;
@@ -1032,8 +1187,7 @@ async function resolvePersonAddresses(
       typeof address.id === "number" ? options.existingAddressesById?.get(address.id) : undefined;
     const addressUnchanged =
       existingAddress !== undefined &&
-      existingAddress.streetAddress === streetAddress &&
-      suburbsEqual(existingAddress.suburb, suburb);
+      propertyAddressesEqual(existingAddress, { streetAddress, suburb });
     const carriesExistingCoordinates =
       existingAddress !== undefined &&
       address.latitude === existingAddress.latitude &&
@@ -1537,11 +1691,7 @@ export async function getPropertyDetailById(id: number): Promise<PropertyDetailR
       .from(interactions)
       .innerJoin(people, eq(people.id, interactions.personId))
       .where(eq(interactions.propertyId, id)),
-    db
-      .select()
-      .from(soldProperties)
-      .where(sql`lower(${soldProperties.streetAddress}) = ${propertyRow.streetAddress.toLowerCase()}`)
-      .orderBy(desc(soldProperties.lastSoldDate)),
+    db.select().from(soldProperties).orderBy(desc(soldProperties.lastSoldDate)),
   ]);
 
   const relations = relationRows.map((row) => ({
@@ -1562,9 +1712,7 @@ export async function getPropertyDetailById(id: number): Promise<PropertyDetailR
     updatedAt: row.updatedAt,
     personName: displayPersonName({ name: row.personName, preferredName: row.preferredName }),
   }));
-  const matchingSoldRows = soldRows.filter((soldProperty) =>
-    suburbsEqual(soldProperty.suburb, propertyRow.suburb),
-  );
+  const matchingSoldRows = soldRows.filter((soldProperty) => propertyAddressesEqual(soldProperty, propertyRow));
   const timeline: PropertyTimelineEvent[] = [
     ...relations.map((relation) => ({
       id: `relationship-${relation.id}`,
@@ -1613,23 +1761,23 @@ export async function deletePropertyById(id: number) {
     db
       .select({
         id: peopleAddresses.id,
+        streetAddress: peopleAddresses.streetAddress,
         suburb: peopleAddresses.suburb,
       })
-      .from(peopleAddresses)
-      .where(sql`lower(${peopleAddresses.streetAddress}) = ${propertyRow.streetAddress.toLowerCase()}`),
+      .from(peopleAddresses),
     db
       .select({
         id: soldProperties.id,
+        streetAddress: soldProperties.streetAddress,
         suburb: soldProperties.suburb,
       })
-      .from(soldProperties)
-      .where(sql`lower(${soldProperties.streetAddress}) = ${propertyRow.streetAddress.toLowerCase()}`),
+      .from(soldProperties),
   ]);
   const matchingAddressIds = addressRows
-    .filter((address) => suburbsEqual(address.suburb, propertyRow.suburb))
+    .filter((address) => propertyAddressesEqual(address, propertyRow))
     .map((address) => address.id);
   const matchingSoldPropertyIds = soldRows
-    .filter((soldProperty) => suburbsEqual(soldProperty.suburb, propertyRow.suburb))
+    .filter((soldProperty) => propertyAddressesEqual(soldProperty, propertyRow))
     .map((soldProperty) => soldProperty.id);
 
   const addressDeleteResult = await deletePersonAddressRows(matchingAddressIds);
@@ -1881,7 +2029,7 @@ export async function updateSoldPropertyById(id: number, input: SoldPropertyInpu
     })
     .where(eq(soldProperties.id, id));
 
-  await upsertPropertyFromAddress({
+  const property = await upsertPropertyFromAddress({
     streetAddress,
     suburb,
     latitude: coordinates.latitude,
@@ -1889,6 +2037,15 @@ export async function updateSoldPropertyById(id: number, input: SoldPropertyInpu
     timestamp,
     targetPropertyId: targetProperty?.id,
   });
+  if (property) {
+    await transitionCurrentOwnersForSoldProperty({
+      propertyId: property.id,
+      streetAddress,
+      suburb,
+      interactionDate: input.lastSoldDate,
+      timestamp,
+    });
+  }
 
   return db.query.soldProperties.findFirst({ where: eq(soldProperties.id, id) });
 }
@@ -1961,9 +2118,10 @@ export async function deletePersonAddressRows(addressIds: number[]) {
     }
 
     const primaryAddressStillExists = remainingAddresses.find(
-      (address) =>
-        address.streetAddress === person.streetAddress &&
-        suburbsEqual(address.suburb, person.suburb),
+      (address) => propertyAddressesEqual(address, {
+        streetAddress: person.streetAddress,
+        suburb: person.suburb,
+      }),
     );
     if (primaryAddressStillExists) {
       await syncOwnerPropertyRelationsForPerson(personId, timestamp);
@@ -2325,8 +2483,8 @@ export function getRawPersonByContactAndAddress(input: {
   const normalizedSuburb = normalizeText(input.suburb);
   const normalizedEmail = input.email.trim().toLowerCase();
   const normalizedPhone = normalizeText(input.phone);
-  const conditions = ["a.street_address = ?", "a.suburb = ?"];
-  const values: string[] = [normalizedStreetAddress, normalizedSuburb];
+  const conditions: string[] = [];
+  const values: string[] = [];
 
   if (normalizedEmail) {
     conditions.push("p.email = ?");
@@ -2338,7 +2496,7 @@ export function getRawPersonByContactAndAddress(input: {
     values.push(normalizedPhone);
   }
 
-  return getRawDb()
+  const rows = getRawDb()
     .prepare(
       `SELECT
          p.id AS person_id,
@@ -2362,9 +2520,21 @@ export function getRawPersonByContactAndAddress(input: {
          a.updated_at AS address_updated_at
        FROM people_addresses a
        JOIN people p ON p.id = a.person_id
-       WHERE ${conditions.join(" AND ")}
-       ORDER BY p.id ASC
-       LIMIT 1`,
+       ${conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : ""}
+       ORDER BY p.id ASC`,
     )
-    .get(...values);
+    .all(...values) as Array<Record<string, unknown>>;
+
+  return rows.find((row) =>
+    propertyAddressesEqual(
+      {
+        streetAddress: String(row.street_address ?? ""),
+        suburb: String(row.suburb ?? ""),
+      },
+      {
+        streetAddress: normalizedStreetAddress,
+        suburb: normalizedSuburb,
+      },
+    ),
+  );
 }
