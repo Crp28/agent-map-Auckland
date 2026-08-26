@@ -137,6 +137,46 @@ function propertyKeyForAddress(streetAddress: string, suburb: string) {
   return normalizeKey(streetAddress, suburb);
 }
 
+const PROPERTY_STREET_TOKEN_EXPANSIONS: Record<string, string> = {
+  ave: "avenue",
+  cl: "close",
+  cres: "crescent",
+  ct: "court",
+  dr: "drive",
+  hwy: "highway",
+  ln: "lane",
+  mt: "mount",
+  pde: "parade",
+  pl: "place",
+  pt: "point",
+  rd: "road",
+  st: "street",
+  tce: "terrace",
+};
+
+function normalizePropertyStreetKey(value: string) {
+  return normalizeText(value)
+    .toLowerCase()
+    .replaceAll(".", "")
+    .split(" ")
+    .map((part) => PROPERTY_STREET_TOKEN_EXPANSIONS[part] ?? part)
+    .join(" ");
+}
+
+function propertyStreetAddressesEqual(left: string, right: string) {
+  return normalizePropertyStreetKey(left) === normalizePropertyStreetKey(right);
+}
+
+function propertyAddressesEqual(
+  left: { streetAddress: string; suburb: string },
+  right: { streetAddress: string; suburb: string },
+) {
+  return (
+    propertyStreetAddressesEqual(left.streetAddress, right.streetAddress) &&
+    suburbsEqual(left.suburb, right.suburb)
+  );
+}
+
 function toPropertyRecord(row: typeof properties.$inferSelect): PropertyRecord {
   return {
     id: row.id,
@@ -151,6 +191,166 @@ function toPropertyRecord(row: typeof properties.$inferSelect): PropertyRecord {
   };
 }
 
+async function getPropertyById(id: number) {
+  const db = getDb();
+  return (await db.select().from(properties).where(eq(properties.id, id)).limit(1))[0] ?? null;
+}
+
+async function getPropertyByKey(propertyKey: string) {
+  const db = getDb();
+  return (
+    (await db.select().from(properties).where(eq(properties.propertyKey, propertyKey)).limit(1))[0] ??
+    null
+  );
+}
+
+async function findEquivalentProperty(input: { streetAddress: string; suburb: string }) {
+  const streetAddress = normalizeText(input.streetAddress);
+  const suburb = normalizeText(input.suburb);
+  if (!streetAddress || !suburb) {
+    return null;
+  }
+
+  const rows = await getDb().select().from(properties);
+  return rows.find((property) => propertyAddressesEqual(property, { streetAddress, suburb })) ?? null;
+}
+
+async function mergePropertyRows(input: {
+  sourcePropertyId: number;
+  targetPropertyId: number;
+  timestamp: string;
+}) {
+  const db = getDb();
+  if (input.sourcePropertyId === input.targetPropertyId) {
+    return getPropertyById(input.targetPropertyId);
+  }
+
+  const sourceRelations = await db
+    .select()
+    .from(contactPropertyRelations)
+    .where(eq(contactPropertyRelations.propertyId, input.sourcePropertyId));
+  for (const relation of sourceRelations) {
+    await db
+      .insert(contactPropertyRelations)
+      .values({
+        personId: relation.personId,
+        propertyId: input.targetPropertyId,
+        relationshipType: relation.relationshipType,
+        createdAt: relation.createdAt,
+      })
+      .onConflictDoNothing({
+        target: [
+          contactPropertyRelations.personId,
+          contactPropertyRelations.propertyId,
+          contactPropertyRelations.relationshipType,
+        ],
+      });
+  }
+
+  await db
+    .delete(contactPropertyRelations)
+    .where(eq(contactPropertyRelations.propertyId, input.sourcePropertyId));
+  await db
+    .update(interactions)
+    .set({
+      propertyId: input.targetPropertyId,
+      updatedAt: input.timestamp,
+    })
+    .where(eq(interactions.propertyId, input.sourcePropertyId));
+  await db.delete(properties).where(eq(properties.id, input.sourcePropertyId));
+
+  return getPropertyById(input.targetPropertyId);
+}
+
+async function updatePropertyFromAddressById(
+  propertyId: number,
+  input: {
+    streetAddress: string;
+    suburb: string;
+    latitude: number | null;
+    longitude: number | null;
+    timestamp: string;
+    type?: PropertyRecord["type"] | null;
+  },
+) {
+  const db = getDb();
+  const current = await getPropertyById(propertyId);
+  if (!current) {
+    return null;
+  }
+
+  const streetAddress = normalizeText(input.streetAddress);
+  const suburb = normalizeText(input.suburb);
+  if (!streetAddress || !suburb) {
+    return current;
+  }
+
+  const propertyKey = propertyKeyForAddress(streetAddress, suburb);
+  const equivalentProperty = await findEquivalentProperty({ streetAddress, suburb });
+  if (equivalentProperty && equivalentProperty.id !== propertyId) {
+    const mergedProperty = await mergePropertyRows({
+      sourcePropertyId: propertyId,
+      targetPropertyId: equivalentProperty.id,
+      timestamp: input.timestamp,
+    });
+    if (!mergedProperty) {
+      return null;
+    }
+
+    await db
+      .update(properties)
+      .set({
+        type: input.type ?? mergedProperty.type,
+        latitude: input.latitude ?? mergedProperty.latitude,
+        longitude: input.longitude ?? mergedProperty.longitude,
+        updatedAt: input.timestamp,
+      })
+      .where(eq(properties.id, mergedProperty.id));
+
+    return getPropertyById(mergedProperty.id);
+  }
+
+  const sameAddress = propertyAddressesEqual(current, { streetAddress, suburb });
+  const keyConflict = await getPropertyByKey(propertyKey);
+  if (keyConflict && keyConflict.id !== propertyId) {
+    const mergedProperty = await mergePropertyRows({
+      sourcePropertyId: propertyId,
+      targetPropertyId: keyConflict.id,
+      timestamp: input.timestamp,
+    });
+    if (!mergedProperty) {
+      return null;
+    }
+
+    await db
+      .update(properties)
+      .set({
+        type: input.type ?? mergedProperty.type,
+        latitude: input.latitude ?? (sameAddress ? mergedProperty.latitude : null),
+        longitude: input.longitude ?? (sameAddress ? mergedProperty.longitude : null),
+        updatedAt: input.timestamp,
+      })
+      .where(eq(properties.id, mergedProperty.id));
+
+    return getPropertyById(mergedProperty.id);
+  }
+
+  await db
+    .update(properties)
+    .set({
+      propertyKey,
+      streetAddress,
+      suburb,
+      type: input.type ?? current.type,
+      latitude: input.latitude ?? (sameAddress ? current.latitude : null),
+      longitude: input.longitude ?? (sameAddress ? current.longitude : null),
+      updatedAt: input.timestamp,
+    })
+    .where(eq(properties.id, propertyId));
+
+  return getPropertyById(propertyId);
+}
+
 async function upsertPropertyFromAddress(input: {
   streetAddress: string;
   suburb: string;
@@ -158,6 +358,7 @@ async function upsertPropertyFromAddress(input: {
   longitude: number | null;
   timestamp: string;
   type?: PropertyRecord["type"] | null;
+  targetPropertyId?: number | null;
 }) {
   const db = getDb();
   const streetAddress = normalizeText(input.streetAddress);
@@ -167,30 +368,48 @@ async function upsertPropertyFromAddress(input: {
     return null;
   }
 
-  const equivalentProperty = (
-    await db
-      .select()
-      .from(properties)
-      .where(sql`lower(${properties.streetAddress}) = ${streetAddress.toLowerCase()}`)
-  ).find((property) => suburbsEqual(property.suburb, suburb));
+  if (input.targetPropertyId) {
+    const targetedProperty = await updatePropertyFromAddressById(input.targetPropertyId, {
+      ...input,
+      streetAddress,
+      suburb,
+    });
+    if (targetedProperty) {
+      return targetedProperty;
+    }
+  }
+
+  const equivalentProperty = await findEquivalentProperty({ streetAddress, suburb });
 
   if (equivalentProperty) {
+    const propertyKey = propertyKeyForAddress(streetAddress, suburb);
+    const keyConflict = await getPropertyByKey(propertyKey);
+    const propertyToUpdate =
+      keyConflict && keyConflict.id !== equivalentProperty.id
+        ? await mergePropertyRows({
+            sourcePropertyId: equivalentProperty.id,
+            targetPropertyId: keyConflict.id,
+            timestamp: input.timestamp,
+          })
+        : equivalentProperty;
+    if (!propertyToUpdate) {
+      return null;
+    }
+
     await db
       .update(properties)
       .set({
+        propertyKey,
         streetAddress,
         suburb,
-        type: input.type ?? equivalentProperty.type,
-        latitude: input.latitude ?? equivalentProperty.latitude,
-        longitude: input.longitude ?? equivalentProperty.longitude,
+        type: input.type ?? propertyToUpdate.type,
+        latitude: input.latitude ?? propertyToUpdate.latitude,
+        longitude: input.longitude ?? propertyToUpdate.longitude,
         updatedAt: input.timestamp,
       })
-      .where(eq(properties.id, equivalentProperty.id));
+      .where(eq(properties.id, propertyToUpdate.id));
 
-    return (
-      (await db.select().from(properties).where(eq(properties.id, equivalentProperty.id)).limit(1))[0] ??
-      null
-    );
+    return getPropertyById(propertyToUpdate.id);
   }
 
   const propertyKey = propertyKeyForAddress(streetAddress, suburb);
@@ -429,10 +648,25 @@ async function transitionCurrentOwnersForSoldProperty(input: {
 
 async function resolveAddressCoordinates(
   input: PersonAddressInput | SoldPropertyInput,
-  options: { geocode?: boolean } = {},
+  options: {
+    geocode?: boolean;
+    fallbackCoordinates?: { latitude: number | null; longitude: number | null } | null;
+  } = {},
 ) {
   if (input.latitude !== null && input.longitude !== null) {
     return { latitude: input.latitude, longitude: input.longitude };
+  }
+
+  if (
+    options.fallbackCoordinates?.latitude !== null &&
+    options.fallbackCoordinates?.latitude !== undefined &&
+    options.fallbackCoordinates?.longitude !== null &&
+    options.fallbackCoordinates?.longitude !== undefined
+  ) {
+    return {
+      latitude: options.fallbackCoordinates.latitude,
+      longitude: options.fallbackCoordinates.longitude,
+    };
   }
 
   if (options.geocode === false) {
@@ -1007,6 +1241,16 @@ async function syncPersonAddresses(
     const existingAddress = matchedById ?? matchedByIdentity;
 
     if (existingAddress) {
+      const propertyAddressChanged = !propertyAddressesEqual(existingAddress, address);
+      const targetProperty = propertyAddressChanged
+        ? await findEquivalentProperty({
+            streetAddress: existingAddress.streetAddress,
+            suburb: existingAddress.suburb,
+          })
+        : null;
+      const latitude = shouldPreserveExistingCoordinates ? existingAddress.latitude : address.latitude;
+      const longitude = shouldPreserveExistingCoordinates ? existingAddress.longitude : address.longitude;
+
       await db
         .update(peopleAddresses)
         .set({
@@ -1014,11 +1258,23 @@ async function syncPersonAddresses(
           identityKey: address.identityKey,
           streetAddress: address.streetAddress,
           suburb: address.suburb,
-          latitude: shouldPreserveExistingCoordinates ? sql`${peopleAddresses.latitude}` : address.latitude,
-          longitude: shouldPreserveExistingCoordinates ? sql`${peopleAddresses.longitude}` : address.longitude,
+          latitude,
+          longitude,
           updatedAt: address.updatedAt,
         })
         .where(eq(peopleAddresses.id, existingAddress.id));
+
+      if (targetProperty) {
+        await upsertPropertyFromAddress({
+          streetAddress: address.streetAddress,
+          suburb: address.suburb,
+          latitude,
+          longitude,
+          timestamp,
+          targetPropertyId: targetProperty.id,
+        });
+      }
+
       keptAddressIds.push(existingAddress.id);
       continue;
     }
@@ -1165,15 +1421,28 @@ export async function createOrUpdateSoldProperty(input: SoldPropertyInput) {
   const db = getDb();
 
   const timestamp = nowIso();
-  const coordinates = await resolveAddressCoordinates(input);
-  const identityKey = normalizeKey(input.streetAddress, input.suburb, input.lastSoldDate);
+  const matchedProperty = await findEquivalentProperty({
+    streetAddress: input.streetAddress,
+    suburb: input.suburb,
+  });
+  const streetAddress = matchedProperty?.streetAddress ?? normalizeText(input.streetAddress);
+  const suburb = matchedProperty?.suburb ?? normalizeText(input.suburb);
+  const coordinates = await resolveAddressCoordinates(
+    {
+      ...input,
+      streetAddress,
+      suburb,
+    },
+    { fallbackCoordinates: matchedProperty },
+  );
+  const identityKey = normalizeKey(streetAddress, suburb, input.lastSoldDate);
 
   await db
     .insert(soldProperties)
     .values({
       identityKey,
-      streetAddress: normalizeText(input.streetAddress),
-      suburb: normalizeText(input.suburb),
+      streetAddress,
+      suburb,
       lastSoldDate: input.lastSoldDate,
       soldPrice: input.soldPrice,
       latitude: coordinates.latitude,
@@ -1184,8 +1453,8 @@ export async function createOrUpdateSoldProperty(input: SoldPropertyInput) {
     .onConflictDoUpdate({
       target: soldProperties.identityKey,
       set: {
-        streetAddress: normalizeText(input.streetAddress),
-        suburb: normalizeText(input.suburb),
+        streetAddress,
+        suburb,
         lastSoldDate: input.lastSoldDate,
         soldPrice: input.soldPrice,
         latitude: coordinates.latitude,
@@ -1195,17 +1464,18 @@ export async function createOrUpdateSoldProperty(input: SoldPropertyInput) {
     });
 
   const property = await upsertPropertyFromAddress({
-    streetAddress: input.streetAddress,
-    suburb: input.suburb,
+    streetAddress,
+    suburb,
     latitude: coordinates.latitude,
     longitude: coordinates.longitude,
     timestamp,
+    targetPropertyId: matchedProperty?.id,
   });
   if (property) {
     await transitionCurrentOwnersForSoldProperty({
       propertyId: property.id,
-      streetAddress: input.streetAddress,
-      suburb: input.suburb,
+      streetAddress,
+      suburb,
       interactionDate: input.lastSoldDate,
       timestamp,
     });
@@ -1563,14 +1833,46 @@ export async function updateSoldPropertyById(id: number, input: SoldPropertyInpu
   }
 
   const timestamp = nowIso();
-  const coordinates = await resolveAddressCoordinates(input);
+  const existingProperty = await findEquivalentProperty({
+    streetAddress: existing.streetAddress,
+    suburb: existing.suburb,
+  });
+  const matchedProperty = await findEquivalentProperty({
+    streetAddress: input.streetAddress,
+    suburb: input.suburb,
+  });
+  const targetProperty = existingProperty ?? matchedProperty;
+  const equivalentToExisting =
+    existingProperty !== null &&
+    propertyAddressesEqual(existingProperty, {
+      streetAddress: normalizeText(input.streetAddress),
+      suburb: normalizeText(input.suburb),
+    });
+  const streetAddress =
+    existingProperty || !matchedProperty ? normalizeText(input.streetAddress) : matchedProperty.streetAddress;
+  const suburb = existingProperty || !matchedProperty ? normalizeText(input.suburb) : matchedProperty.suburb;
+  const coordinates = await resolveAddressCoordinates(
+    {
+      ...input,
+      streetAddress,
+      suburb,
+    },
+    {
+      fallbackCoordinates:
+        matchedProperty && (!existingProperty || matchedProperty.id !== existingProperty.id || equivalentToExisting)
+          ? matchedProperty
+          : equivalentToExisting
+            ? existingProperty
+            : null,
+    },
+  );
 
   await db
     .update(soldProperties)
     .set({
-      identityKey: normalizeKey(input.streetAddress, input.suburb, input.lastSoldDate),
-      streetAddress: normalizeText(input.streetAddress),
-      suburb: normalizeText(input.suburb),
+      identityKey: normalizeKey(streetAddress, suburb, input.lastSoldDate),
+      streetAddress,
+      suburb,
       lastSoldDate: input.lastSoldDate,
       soldPrice: input.soldPrice,
       latitude: coordinates.latitude,
@@ -1580,11 +1882,12 @@ export async function updateSoldPropertyById(id: number, input: SoldPropertyInpu
     .where(eq(soldProperties.id, id));
 
   await upsertPropertyFromAddress({
-    streetAddress: input.streetAddress,
-    suburb: input.suburb,
+    streetAddress,
+    suburb,
     latitude: coordinates.latitude,
     longitude: coordinates.longitude,
     timestamp,
+    targetPropertyId: targetProperty?.id,
   });
 
   return db.query.soldProperties.findFirst({ where: eq(soldProperties.id, id) });

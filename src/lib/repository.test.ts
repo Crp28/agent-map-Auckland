@@ -28,6 +28,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  vi.doUnmock("./geomaps");
   const globalWithDb = globalThis as typeof globalThis & {
     locationFinderSqlite?: { close?: () => void };
     locationFinderDrizzle?: unknown;
@@ -370,6 +371,21 @@ describe("multi-address repository behavior", () => {
   });
 
   it("returns the requested selected address after updating a secondary address", async () => {
+    const geocodeAddress = vi.fn(async (streetAddress: string) => ({
+      latitude: streetAddress === "199 Charles Road" ? -37.1295 : -36.8761,
+      longitude: streetAddress === "199 Charles Road" ? 174.8619 : 174.7875,
+      matchedAddress: streetAddress,
+    }));
+
+    vi.doMock("./geomaps", async () => {
+      const actual = await vi.importActual<typeof import("./geomaps")>("./geomaps");
+      return {
+        ...actual,
+        geocodeAddress,
+      };
+    });
+    await loadRepository();
+
     const created = await repository.createOrUpdatePerson({
       name: "Michael Boulgaris",
       preferredName: "",
@@ -676,7 +692,7 @@ describe("multi-address repository behavior", () => {
     expect(relationByAddress.get("12 Test Road")).toBe("owner");
   });
 
-  it("marks edited person addresses as former owner relations and owns the new address", async () => {
+  it("updates the canonical property in place when a person address is edited", async () => {
     const created = await repository.createOrUpdatePerson({
       name: "Address Change",
       preferredName: "",
@@ -694,6 +710,7 @@ describe("multi-address repository behavior", () => {
         },
       ],
     }, { geocode: false });
+    const originalProperty = (await repository.listPropertyRecords())[0]!;
 
     await repository.updatePersonById(created!.id, {
       name: "Address Change",
@@ -716,15 +733,18 @@ describe("multi-address repository behavior", () => {
 
     const relations = await repository.listContactPropertyRelations(created!.id);
     const properties = await repository.listPropertyRecords();
-    const relationByAddress = new Map(
-      relations.map((relation) => [
-        properties.find((property) => property.id === relation.propertyId)?.streetAddress,
-        relation.relationshipType,
-      ]),
-    );
 
-    expect(relationByAddress.get("14 Old Road")).toBe("former_owner");
-    expect(relationByAddress.get("15 New Road")).toBe("owner");
+    expect(properties).toHaveLength(1);
+    expect(properties[0]?.id).toBe(originalProperty.id);
+    expect(properties[0]?.streetAddress).toBe("15 New Road");
+    expect(properties[0]?.latitude).toBe(-36.874);
+    expect(relations).toHaveLength(1);
+    expect(relations[0]).toEqual(
+      expect.objectContaining({
+        propertyId: originalProperty.id,
+        relationshipType: "owner",
+      }),
+    );
   });
 
   it("removes relations and interactions when a person is deleted", async () => {
@@ -777,6 +797,91 @@ describe("multi-address repository behavior", () => {
     expect(properties).toHaveLength(1);
     expect(properties[0]?.streetAddress).toBe("20 Sold Street");
     expect(properties[0]?.latitude).toBe(-36.9);
+  });
+
+  it("updates the canonical property in place when a sold property address is edited", async () => {
+    const created = await repository.createOrUpdateSoldProperty({
+      streetAddress: "24 Old Sold Street",
+      suburb: "Howick",
+      lastSoldDate: "2026-06-01",
+      soldPrice: 1000000,
+      latitude: -36.9,
+      longitude: 174.9,
+    });
+    const originalProperty = (await repository.listPropertyRecords())[0]!;
+
+    const updated = await repository.updateSoldPropertyById(created!.id, {
+      streetAddress: "24 New Sold Street",
+      suburb: "Howick",
+      lastSoldDate: "2026-06-01",
+      soldPrice: 1025000,
+      latitude: -36.91,
+      longitude: 174.91,
+    });
+
+    const properties = await repository.listPropertyRecords();
+    expect(updated?.streetAddress).toBe("24 New Sold Street");
+    expect(updated?.latitude).toBe(-36.91);
+    expect(properties).toHaveLength(1);
+    expect(properties[0]?.id).toBe(originalProperty.id);
+    expect(properties[0]?.streetAddress).toBe("24 New Sold Street");
+    expect(properties[0]?.latitude).toBe(-36.91);
+  });
+
+  it("uses an existing canonical property's address and coordinates for matching sold properties", async () => {
+    const geocodeAddress = vi.fn(async () => {
+      throw new Error("Sold Property should use the matched Property coordinates before geocoding.");
+    });
+
+    vi.doMock("./geomaps", async () => {
+      const actual = await vi.importActual<typeof import("./geomaps")>("./geomaps");
+      return {
+        ...actual,
+        geocodeAddress,
+      };
+    });
+    await loadRepository();
+
+    try {
+      const person = await repository.createOrUpdatePerson({
+        name: "Existing Property Owner",
+        preferredName: "",
+        phone: "021 444 5555",
+        email: "existing-property@example.com",
+        purchasingPowerMin: null,
+        purchasingPowerMax: null,
+        notes: [],
+        addresses: [
+          {
+            streetAddress: "40 Ridge Road",
+            suburb: "Howick",
+            latitude: -36.88,
+            longitude: 174.93,
+          },
+        ],
+      }, { geocode: false });
+      const originalProperty = (await repository.listPropertyRecords())[0]!;
+
+      const sold = await repository.createOrUpdateSoldProperty({
+        streetAddress: "40 Ridge Rd",
+        suburb: "Howick",
+        lastSoldDate: "2026-07-02",
+        soldPrice: 1550000,
+        latitude: null,
+        longitude: null,
+      });
+
+      const properties = await repository.listPropertyRecords();
+      expect(geocodeAddress).not.toHaveBeenCalled();
+      expect(sold?.streetAddress).toBe("40 Ridge Road");
+      expect(sold?.latitude).toBe(-36.88);
+      expect(sold?.longitude).toBe(174.93);
+      expect(properties).toHaveLength(1);
+      expect(properties[0]?.id).toBe(originalProperty.id);
+      expect((await repository.listPeopleRecords()).find((item) => item.id === person!.id)?.addresses).toEqual([]);
+    } finally {
+      vi.doUnmock("./geomaps");
+    }
   });
 
   it("reuses canonical properties and transitions owners across suburb abbreviations", async () => {

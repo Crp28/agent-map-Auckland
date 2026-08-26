@@ -228,3 +228,8 @@
 - The Nearby people list and CSV export switch to the selected map records while selection mode is active, then clear and return to the normal nearby list when the mode is turned off.
 - Extended map selection mode so Ctrl/Cmd-drag and right-button drag draw a red rectangle and remove intersecting People pins from the selected list.
 - Hardened remove-drag detection by capturing the original DOM pointer-down modifier/button state before ArcGIS handles the drag event.
+
+## 2026-08-26
+- Updated canonical Property address sync so editing an existing People address or Sold Property address updates the previous `properties` row in place instead of materializing a second canonical Property.
+- Added canonical Property reuse on Sold Property saves. If the entered Sold Property address matches an existing Property, including common street suffix abbreviations such as `Rd` and `Road`, the save uses that Property's stored address and coordinates before attempting GeoMaps.
+- Added regression coverage for People address edits, Sold Property address edits, and Sold Property creation from an equivalent existing Property address.
