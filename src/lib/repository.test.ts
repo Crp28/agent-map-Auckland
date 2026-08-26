@@ -883,7 +883,7 @@ describe("multi-address repository behavior", () => {
     expect(properties[0]?.latitude).toBe(-36.91);
   });
 
-  it("transitions current owners when a sold property address edit changes the same canonical property", async () => {
+  it("propagates a sold property address edit to matching people address source rows", async () => {
     const created = await repository.createOrUpdateSoldProperty({
       streetAddress: "25 Shared Sold Street",
       suburb: "Howick",
@@ -926,27 +926,19 @@ describe("multi-address repository behavior", () => {
     const interactions = await repository.listPersonInteractions(person!.id);
     expect(property?.id).toBe(originalProperty.id);
     expect(property?.streetAddress).toBe("26 Shared Sold Street");
-    expect(updatedPerson?.addresses).toEqual([]);
-    expect(relations).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          propertyId: originalProperty.id,
-          relationshipType: "former_owner",
-        }),
-      ]),
-    );
-    expect(interactions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          propertyId: originalProperty.id,
-          interactionType: "sell",
-          interactionDate: "2026-06-01",
-        }),
-      ]),
-    );
+    expect(updatedPerson?.addresses[0]?.streetAddress).toBe("26 Shared Sold Street");
+    expect(updatedPerson?.addresses[0]?.latitude).toBe(-36.91);
+    expect(updatedPerson?.streetAddress).toBe("26 Shared Sold Street");
+    expect(relations).toEqual([
+      expect.objectContaining({
+        propertyId: originalProperty.id,
+        relationshipType: "owner",
+      }),
+    ]);
+    expect(interactions).toEqual([]);
   });
 
-  it("transitions current owners when a sold property edit moves onto their address", async () => {
+  it("preserves current owners when a sold property edit is corrected onto their address", async () => {
     const sold = await repository.createOrUpdateSoldProperty({
       streetAddress: "27 Wrong Sold Street",
       suburb: "Howick",
@@ -989,25 +981,15 @@ describe("multi-address repository behavior", () => {
     const relations = await repository.listContactPropertyRelations(person!.id);
     const interactions = await repository.listPersonInteractions(person!.id);
 
-    expect(updatedPerson?.addresses).toEqual([]);
+    expect(updatedPerson?.addresses[0]?.streetAddress).toBe("28 Correct Sold Street");
     expect(property).toBeDefined();
-    expect(relations).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          propertyId: property!.id,
-          relationshipType: "former_owner",
-        }),
-      ]),
-    );
-    expect(interactions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          propertyId: property!.id,
-          interactionType: "sell",
-          interactionDate: "2026-06-03",
-        }),
-      ]),
-    );
+    expect(relations).toEqual([
+      expect.objectContaining({
+        propertyId: property!.id,
+        relationshipType: "owner",
+      }),
+    ]);
+    expect(interactions).toEqual([]);
   });
 
   it("uses an existing canonical property's address and coordinates for matching sold properties", async () => {

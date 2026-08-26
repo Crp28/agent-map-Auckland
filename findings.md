@@ -96,7 +96,7 @@
 - The Property timeline currently includes record-created and record-updated entries generated from storage timestamps. Those are internal persistence operations rather than user-domain events and should be excluded at the repository boundary.
 - GeoMaps candidate validation, PropertySmarts scoring, Person duplicate-address validation, and the suburb navigation search each had separate normalization rules. Applying the shared suburb key in those paths prevents a fix in nearby filtering from leaving audit and save behavior inconsistent.
 - After canonical Property matching learned street suffix variants such as `Rd`/`Road`, cleanup/detail paths that still query source rows by exact lowercase street text can miss equivalent `people_addresses` and `sold_properties` rows. Property deletion and sale transitions need to use the same address-equivalence matcher as save-time Property reuse.
-- Sold Property edits need the same downstream sale semantics as Sold Property creation. If an edited Sold Property address resolves to an address currently owned by a Person, the People address row should be removed, the relation should become `former_owner`, and a `sell` interaction should be recorded for the edited sold date.
+- Sold Property edits are correction operations, usually fixing mistyped address/date/price data. They should preserve current ownership and avoid creating `sell` interactions; only adding a new Sold Property record represents an ownership transition.
 
 ## Record Management
 - The manager dialogs need all stored records, not the map-filtered records, because map data excludes ungeocoded People and date-filtered Sold Properties.

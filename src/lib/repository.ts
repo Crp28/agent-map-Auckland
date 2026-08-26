@@ -2029,7 +2029,7 @@ export async function updateSoldPropertyById(id: number, input: SoldPropertyInpu
     })
     .where(eq(soldProperties.id, id));
 
-  const property = await upsertPropertyFromAddress({
+  await upsertPropertyFromAddress({
     streetAddress,
     suburb,
     latitude: coordinates.latitude,
@@ -2037,15 +2037,6 @@ export async function updateSoldPropertyById(id: number, input: SoldPropertyInpu
     timestamp,
     targetPropertyId: targetProperty?.id,
   });
-  if (property) {
-    await transitionCurrentOwnersForSoldProperty({
-      propertyId: property.id,
-      streetAddress,
-      suburb,
-      interactionDate: input.lastSoldDate,
-      timestamp,
-    });
-  }
 
   return db.query.soldProperties.findFirst({ where: eq(soldProperties.id, id) });
 }
