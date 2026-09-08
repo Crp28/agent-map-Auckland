@@ -213,6 +213,11 @@ async function findEquivalentProperty(input: { streetAddress: string; suburb: st
     return null;
   }
 
+  const exactProperty = await getPropertyByKey(propertyKeyForAddress(streetAddress, suburb));
+  if (exactProperty) {
+    return exactProperty;
+  }
+
   const rows = await getDb().select().from(properties);
   return rows.find((property) => propertyAddressesEqual(property, { streetAddress, suburb })) ?? null;
 }
@@ -822,6 +827,21 @@ async function resolveAddressCoordinates(
     };
   }
 
+  const matchedProperty = await findEquivalentProperty({
+    streetAddress: input.streetAddress,
+    suburb: input.suburb,
+  });
+  if (
+    matchedProperty &&
+    matchedProperty.latitude !== null &&
+    matchedProperty.longitude !== null
+  ) {
+    return {
+      latitude: matchedProperty.latitude,
+      longitude: matchedProperty.longitude,
+    };
+  }
+
   if (options.geocode === false) {
     return { latitude: input.latitude, longitude: input.longitude };
   }
@@ -1192,12 +1212,17 @@ async function resolvePersonAddresses(
       existingAddress !== undefined &&
       address.latitude === existingAddress.latitude &&
       address.longitude === existingAddress.longitude;
+    const preservedCoordinates = addressUnchanged
+      ? {
+          latitude: address.latitude ?? existingAddress.latitude,
+          longitude: address.longitude ?? existingAddress.longitude,
+        }
+      : null;
     const coordinates =
-      addressUnchanged
-        ? {
-            latitude: address.latitude ?? existingAddress.latitude,
-            longitude: address.longitude ?? existingAddress.longitude,
-          }
+      preservedCoordinates &&
+      preservedCoordinates.latitude !== null &&
+      preservedCoordinates.longitude !== null
+        ? preservedCoordinates
         : await resolveAddressCoordinates(
             {
               ...address,
@@ -1206,7 +1231,7 @@ async function resolvePersonAddresses(
               latitude: carriesExistingCoordinates ? null : address.latitude,
               longitude: carriesExistingCoordinates ? null : address.longitude,
             },
-            options,
+            addressUnchanged ? { geocode: false } : options,
           );
 
     resolved.push({

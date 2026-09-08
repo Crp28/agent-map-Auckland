@@ -112,3 +112,7 @@
 - Under current People validation, 462 rows are valid People imports. The successful import summary was 401 imported, 6 updated, 55 duplicates, and 1711 invalid/skipped.
 - CLI bulk import skips geocoding for speed and preserves existing coordinates on updates.
 - After running the resumable People geocoding backfill, 419 of 462 People rows have coordinates. The remaining 43 include PO boxes, missing house numbers, outside-Auckland addresses, typos, or addresses GeoMaps did not match from the stored text.
+
+## 2026-09-08
+- Coordinate reuse is currently implemented only as an explicit fallback in Sold Property create/update. The shared `resolveAddressCoordinates()` path used by new People addresses does not consult canonical Properties, so it can perform a redundant GeoMaps lookup or remain unresolved even when an equivalent Property already has coordinates.
+- The durable fix belongs in the shared coordinate resolver: after respecting a manually supplied coordinate pair, look up an equivalent canonical Property by street address and suburb and reuse its complete coordinate pair before external geocoding.

@@ -151,7 +151,7 @@ describe("multi-address repository behavior", () => {
     expect(updated?.notes[0]?.content).toBe("Now owner occupied");
   }, 15000);
 
-  it("updates notes without re-geocoding unchanged addresses", async () => {
+  it("updates notes without re-geocoding unchanged addresses and reuses property coordinates", async () => {
     const geocodeAddress = vi.fn(async () => ({
       latitude: -36.847,
       longitude: 174.763,
@@ -187,6 +187,11 @@ describe("multi-address repository behavior", () => {
 
     expect(created?.notes).toEqual([]);
 
+    const { getRawDb } = await import("@/db/client");
+    getRawDb()
+      .prepare("UPDATE properties SET latitude = ?, longitude = ?")
+      .run(-36.847, 174.763);
+
     const updated = await repository.updatePersonById(created!.id, {
       name: "Ana Buyer",
       preferredName: "",
@@ -214,6 +219,8 @@ describe("multi-address repository behavior", () => {
     expect(geocodeAddress).not.toHaveBeenCalled();
     expect(updated?.notes).toHaveLength(1);
     expect(updated?.notes[0]?.content).toBe("Met at open home");
+    expect(updated?.addresses[0]?.latitude).toBe(-36.847);
+    expect(updated?.addresses[0]?.longitude).toBe(174.763);
   });
 
   it("reuses the same person when the legal name changes but contact and address stay the same", async () => {
@@ -852,6 +859,38 @@ describe("multi-address repository behavior", () => {
     expect(properties).toHaveLength(1);
     expect(properties[0]?.streetAddress).toBe("20 Sold Street");
     expect(properties[0]?.latitude).toBe(-36.9);
+  });
+
+  it("reuses canonical property coordinates for a new person address", async () => {
+    await repository.createOrUpdateSoldProperty({
+      streetAddress: "22 Stored Road",
+      suburb: "Howick",
+      lastSoldDate: "2026-06-01",
+      soldPrice: 1000000,
+      latitude: -36.905,
+      longitude: 174.905,
+    });
+
+    const person = await repository.createOrUpdatePerson({
+      name: "Stored Coordinate Owner",
+      preferredName: "",
+      phone: "021 555 0101",
+      email: "",
+      purchasingPowerMin: null,
+      purchasingPowerMax: null,
+      notes: [],
+      addresses: [
+        {
+          streetAddress: "22 Stored Rd",
+          suburb: "Howick",
+          latitude: null,
+          longitude: null,
+        },
+      ],
+    }, { geocode: false });
+
+    expect(person?.addresses[0]?.latitude).toBe(-36.905);
+    expect(person?.addresses[0]?.longitude).toBe(174.905);
   });
 
   it("updates the canonical property in place when a sold property address is edited", async () => {

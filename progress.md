@@ -236,3 +236,11 @@
 - Audited repository/API/UI write wiring after the canonical Property change. Fixed remaining exact-text source-row matches and propagated canonical Property address corrections back to matching People address and Sold Property source rows.
 - Corrected the Sold Property edit path so it remains a typo/data-fix operation and does not remove current People addresses, convert owners to `former_owner`, or create `sell` interactions.
 - Added regression coverage for cross-source address propagation, sold-edit owner transitions, equivalent-suffix Property deletion, and CSV/import address equivalence, then verified with focused repository/import tests, full lint, full tests, and production build.
+
+## 2026-09-08
+- Started canonical Property coordinate reuse across all address save paths.
+- Traced the gap to `resolveAddressCoordinates()`: Sold Property creation passes a Property fallback explicitly, but People address creation and other generic callers do not.
+- Updated the shared coordinate resolver to prefer complete canonical Property coordinates before GeoMaps, using the indexed exact Property key first and existing address-equivalence matching as a fallback.
+- Updated unchanged unresolved Person saves to adopt canonical Property coordinates without re-running GeoMaps, preserving the prior no-regeocode behavior for note and other unrelated edits.
+- Added regression coverage for new People addresses and unchanged People addresses, and confirmed the existing Sold Property reuse behavior remains intact.
+- Verified with the focused regressions, all 135 tests, lint, and a production build.
