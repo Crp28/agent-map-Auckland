@@ -14,6 +14,7 @@ function makePerson(overrides: Partial<PersonRecord>): PersonRecord {
     suburb: "Remuera",
     phone: "",
     email: "michael@example.com",
+    allowSms: true,
     purchasingPowerMin: null,
     purchasingPowerMax: null,
     latitude: -36.8761,

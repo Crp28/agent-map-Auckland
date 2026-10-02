@@ -15,6 +15,30 @@ beforeEach(() => {
 });
 
 describe("importPeopleCsv", () => {
+  it("imports explicit SMS opt-outs and rejects invalid SMS values", async () => {
+    const csv = [
+      "name,streetAddress,suburb,phone,email,allowSms",
+      "Ana Buyer,1 Queen Street,Auckland Central,021 000 000,,false",
+      "Bob Buyer,2 Queen Street,Auckland Central,021 000 001,,maybe",
+    ].join("\n");
+    const summary = await importPeopleCsv(csv);
+    expect(summary).toMatchObject({ imported: 1, failed: 1 });
+    expect(createOrUpdatePerson).toHaveBeenCalledWith(expect.objectContaining({ allowSms: false }), { geocode: undefined });
+  });
+
+  it("does not replace an existing SMS opt-out when a CSV omits the field", async () => {
+    vi.mocked(getRawPeopleByIdentity).mockReturnValueOnce({
+      name: "Ana Buyer", preferred_name: null, phone: "021 000 000", email: "",
+      street_address: "1 Queen Street", suburb: "Auckland Central", allow_sms: 0,
+    });
+    const summary = await importPeopleCsv([
+      "name,streetAddress,suburb,phone,email",
+      "Ana Buyer,1 Queen Street,Auckland Central,021 000 000,",
+    ].join("\n"));
+    expect(summary.duplicates).toBe(1);
+    expect(createOrUpdatePerson).not.toHaveBeenCalled();
+  });
+
   it("normalizes contact-export person rows", async () => {
     const csv = [
       '"Contact Type","First Name","Last Name","Preferred Name","Legal Name",Email,Mobile,Phone,"Work Phone",Address,Suburb,"Postal Address","Postal Suburb"',

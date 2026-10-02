@@ -46,6 +46,7 @@ type JoinedPersonAddressRow = {
   preferred_name: string | null;
   phone: string;
   email: string;
+  allow_sms: number;
   purchasing_power_min: number | null;
   purchasing_power_max: number | null;
   person_street_address: string;
@@ -1074,6 +1075,7 @@ function buildPersonRecord(
     suburb: selectedAddress?.suburb ?? primaryAddress?.suburb ?? first.person_suburb,
     phone: first.phone,
     email: first.email,
+    allowSms: first.allow_sms !== 0,
     purchasingPowerMin: first.purchasing_power_min,
     purchasingPowerMax: first.purchasing_power_max,
     latitude: selectedAddress?.latitude ?? primaryAddress?.latitude ?? first.person_latitude,
@@ -1129,6 +1131,7 @@ async function listPeopleWithAddresses() {
          p.purchasing_power_min,
          p.purchasing_power_max,
          p.street_address AS person_street_address,
+         p.allow_sms,
          p.suburb AS person_suburb,
          p.latitude AS person_latitude,
         p.longitude AS person_longitude,
@@ -1337,6 +1340,7 @@ async function upsertPersonCore(
         suburb: primaryAddress.suburb,
         phone: normalizedPhone,
         email: normalizedEmail,
+        allowSms: input.allowSms ?? existingPerson.allowSms,
         purchasingPowerMin: input.purchasingPowerMin,
         purchasingPowerMax: input.purchasingPowerMax,
         latitude: primaryAddress.latitude,
@@ -1360,6 +1364,7 @@ async function upsertPersonCore(
       suburb: primaryAddress.suburb,
       phone: normalizedPhone,
       email: normalizedEmail,
+      allowSms: input.allowSms ?? true,
       purchasingPowerMin: input.purchasingPowerMin,
       purchasingPowerMax: input.purchasingPowerMax,
       latitude: primaryAddress.latitude,
@@ -1378,6 +1383,7 @@ async function upsertPersonCore(
         suburb: primaryAddress.suburb,
         phone: normalizedPhone,
         email: normalizedEmail,
+        allowSms: input.allowSms,
         purchasingPowerMin: input.purchasingPowerMin,
         purchasingPowerMax: input.purchasingPowerMax,
         latitude: primaryAddress.latitude,
@@ -1977,6 +1983,7 @@ export async function updatePersonById(
       suburb: primaryAddress.suburb,
       phone: normalizedPhone,
       email: normalizedEmail,
+      allowSms: input.allowSms ?? existing.allowSms,
       purchasingPowerMin: input.purchasingPowerMin,
       purchasingPowerMax: input.purchasingPowerMax,
       latitude: primaryAddress.latitude,
@@ -2466,6 +2473,7 @@ export function getRawPeopleByIdentity(identityKey: string) {
          p.person_key,
          p.name,
          p.preferred_name,
+         p.allow_sms,
          p.phone,
          p.email,
          p.purchasing_power_min,
@@ -2519,6 +2527,7 @@ export function getRawPersonByContactAndAddress(input: {
          p.person_key,
          p.name,
          p.preferred_name,
+         p.allow_sms,
          p.phone,
          p.email,
          p.purchasing_power_min,

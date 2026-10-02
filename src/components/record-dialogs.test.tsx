@@ -22,6 +22,7 @@ function personPayload(googleMapsFallbackAvailable: boolean) {
       personKey: "ana-buyer",
       name: "Ana Buyer",
       preferredName: null,
+      allowSms: true,
       addressId: 10,
       streetAddress: "2/5 Keys Street",
       suburb: "Belmont",
@@ -73,6 +74,7 @@ function personRecord(id: number, name: string, streetAddress: string) {
     personKey: `person-${id}`,
     name,
     preferredName: null,
+    allowSms: true,
     addressId: id * 10,
     streetAddress,
     suburb: "Remuera",
@@ -108,6 +110,7 @@ function addresslessPersonRecord(id: number, name: string) {
     personKey: `person-${id}`,
     name,
     preferredName: null,
+    allowSms: true,
     addressId: null,
     streetAddress: "",
     suburb: "",
@@ -170,6 +173,18 @@ describe("EditableCoordinatePairRow", () => {
 });
 
 describe("AddPersonDialog Google fallback prompt", () => {
+  it("defaults Allow SMS to checked and sends false when unchecked", async () => {
+    const fetchMock = vi.fn(async () => jsonResponse(personPayload(false), 201));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<AddPersonDialog open onOpenChange={() => undefined} refresh={() => undefined} />);
+    const checkbox = screen.getByRole("checkbox", { name: "Allow SMS" });
+    expect(checkbox).toBeChecked();
+    fireEvent.click(checkbox);
+    fillPersonForm();
+    fireEvent.click(screen.getByRole("button", { name: "Save person" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).allowSms).toBe(false);
+  });
   it("saves a person without addresses", async () => {
     const fetchMock = vi.fn(async () =>
       jsonResponse({
@@ -280,6 +295,26 @@ describe("RecordManagerDialog", () => {
 });
 
 describe("DetailsDialog", () => {
+  it("saves the Allow SMS choice from Person details", async () => {
+    const person = addresslessPersonRecord(7, "SMS Buyer");
+    const onSelectedChange = vi.fn();
+    const fetchMock = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "PATCH") {
+        return jsonResponse({ person: { ...person, allowSms: false }, geocodeFailures: [], googleMapsFallbackAvailable: false });
+      }
+      if (String(url).startsWith("/api/interactions")) return jsonResponse({ interactions: [] });
+      return jsonResponse({ properties: [] });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<DetailsDialog selected={{ type: "person", item: person, source: "manager" }}
+      onOpenChange={() => undefined} onSelectedChange={onSelectedChange}
+      onPersonAuditResult={() => undefined} refresh={() => undefined} />);
+    expect(screen.getByLabelText("Allow SMS")).toHaveValue("true");
+    fireEvent.change(screen.getByLabelText("Allow SMS"), { target: { value: "false" } });
+    await waitFor(() => expect(onSelectedChange).toHaveBeenCalled());
+    const patch = fetchMock.mock.calls.find((call) => call[1]?.method === "PATCH");
+    expect(JSON.parse(String(patch?.[1]?.body)).allowSms).toBe(false);
+  });
   it("adds an address to a person with no addresses without sending a temporary selected address id", async () => {
     const addresslessPerson = addresslessPersonRecord(7, "Addressless Buyer");
     const updatedPerson = {

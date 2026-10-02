@@ -6,6 +6,14 @@ import { personInputSchema } from "@/lib/validation";
 
 type CsvRow = Record<string, string | undefined>;
 
+function csvAllowSms(value: string | undefined) {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) return undefined;
+  if (normalized === "true") return true;
+  if (normalized === "false") return false;
+  return value;
+}
+
 export type ImportSummary = {
   imported: number;
   updated: number;
@@ -49,6 +57,7 @@ function normalizeCsvRow(row: CsvRow) {
         suburb: row.Suburb?.trim() || row["Postal Suburb"]?.trim() || "",
         phone: row.Mobile?.trim() || row.Phone?.trim() || row["Work Phone"]?.trim() || "",
         email: row.Email?.trim() || "",
+        allowSms: row.allowSms ?? row["Allow SMS"],
         purchasingPowerMin: row.purchasingPowerMin?.trim() || "",
         purchasingPowerMax: row.purchasingPowerMax?.trim() || "",
         latitude: row.latitude?.trim() || "",
@@ -64,12 +73,13 @@ function normalizeCsvRow(row: CsvRow) {
   };
 }
 
-function comparableInput(row: CsvRow) {
+function comparableInput(row: CsvRow, allowSms: boolean) {
   return {
     name: row.name?.trim() ?? "",
     preferredName: normalizePreferredFirstName(row.preferredName?.trim()) ?? null,
     phone: row.phone?.trim() ?? "",
     email: row.email?.trim().toLowerCase() ?? "",
+    allowSms,
     streetAddress: row.streetAddress?.trim() ?? "",
     suburb: row.suburb?.trim() ?? "",
     purchasingPowerMin: row.purchasingPowerMin?.trim() || null,
@@ -85,6 +95,7 @@ function comparableExisting(row: Record<string, unknown>) {
     preferredName: row.preferred_name === null || row.preferred_name === undefined ? null : String(row.preferred_name),
     phone: String(row.phone ?? ""),
     email: String(row.email ?? ""),
+    allowSms: row.allow_sms !== 0,
     streetAddress: String(row.street_address ?? ""),
     suburb: String(row.suburb ?? ""),
     purchasingPowerMin:
@@ -141,7 +152,10 @@ export async function importPeopleCsv(
       continue;
     }
 
-    const parsed = personInputSchema.safeParse(normalized);
+    const parsed = personInputSchema.safeParse({
+      ...normalized,
+      allowSms: csvAllowSms(normalized.allowSms),
+    });
     if (!parsed.success) {
       summary.failed += 1;
       summary.errors.push({
@@ -171,7 +185,10 @@ export async function importPeopleCsv(
         phone: parsed.data.phone,
       }) as Record<string, unknown> | undefined);
     const before = existing ? JSON.stringify(comparableExisting(existing)) : null;
-    const comparable = JSON.stringify(comparableInput(normalized));
+    const comparable = JSON.stringify(comparableInput(
+      normalized,
+      parsed.data.allowSms ?? (existing ? existing.allow_sms !== 0 : true),
+    ));
 
     if (before === comparable) {
       summary.duplicates += 1;

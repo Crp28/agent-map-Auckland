@@ -244,6 +244,7 @@ export function ensureDatabase() {
       suburb TEXT NOT NULL,
       phone TEXT NOT NULL,
       email TEXT NOT NULL,
+      allow_sms INTEGER NOT NULL DEFAULT 1 CHECK (allow_sms IN (0, 1)),
       purchasing_power_min INTEGER,
       purchasing_power_max INTEGER,
       latitude REAL,
@@ -363,6 +364,9 @@ export function ensureDatabase() {
   }
   if (!hasColumn(rawDb, "people", "preferred_name")) {
     rawDb.exec("ALTER TABLE people ADD COLUMN preferred_name TEXT");
+  }
+  if (!hasColumn(rawDb, "people", "allow_sms")) {
+    rawDb.exec("ALTER TABLE people ADD COLUMN allow_sms INTEGER NOT NULL DEFAULT 1 CHECK (allow_sms IN (0, 1))");
   }
   rawDb.exec("CREATE UNIQUE INDEX IF NOT EXISTS people_person_key_unique ON people(person_key)");
   rawDb.exec(`

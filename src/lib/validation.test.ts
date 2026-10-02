@@ -8,6 +8,15 @@ import {
 } from "./validation";
 
 describe("personInputSchema", () => {
+  it("accepts boolean Allow SMS in legacy and multi-address payloads", () => {
+    const person = { name: "Ana Buyer", phone: "021 000 000", allowSms: false };
+    expect(personInputSchema.parse(person).allowSms).toBe(false);
+    expect(personInputSchema.parse({ ...person, addresses: [], allowSms: true }).allowSms).toBe(true);
+    for (const allowSms of ["false", 0, null]) {
+      expect(personInputSchema.safeParse({ ...person, allowSms }).success).toBe(false);
+    }
+  });
+
   it("parses multiple addresses for one person", () => {
     const result = personInputSchema.safeParse({
       name: "Ana Buyer",

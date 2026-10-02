@@ -1,5 +1,11 @@
 # Location Finder Findings
 
+## 2026-10-02 Allow SMS
+- Both nearby filter export and manual map selection export use `nearbyPeopleCsv()`, so SMS exclusion belongs in its shared row selection helper.
+- People use raw SQL reads plus Drizzle writes; the new flag must be included in both, with a startup column migration for existing databases.
+- Missing SMS input on legacy edits/imports should preserve the saved choice; new and migrated People default to true.
+- Manual map selection holds snapshots, so export now reloads current People preferences to enforce opt-outs made after selection.
+
 ## Repo
 - Starting state contained only `INSTRUCTIONS.md`, `COMPONENTS.md`, and `FEATURE_STATEMENT.md`.
 - The workspace was not initially a Git repository; `git init` has now been run.

@@ -13,6 +13,7 @@ Location Finder is a Next.js 16 app for viewing Auckland sold properties and peo
 - The nearby filter affects only People dots. Sold Property pins continue to follow only the date filters.
 - The nearby panel supports `Apply nearby filter`, `Cancel`, and `Export CSV`.
 - Nearby export downloads `First Name,Mobile Phone,Address`, where `Address` is formatted as `street address, suburb`.
+- Each Person has an `Allow SMS` setting, defaulting to true. Set it to false to exclude that Person from nearby and manual-selection CSV exports.
 - The suburb drawer lives in the same bottom-right stack as the nearby controls, opens from a fixed right-edge handle, and moves directly to hard-coded suburb centers at zoom level 8.
 - One Person can store multiple addresses. Each coordinate-bearing address renders its own map dot.
 - One Person can store a legal name plus an optional preferred first name. The UI shows that preferred first name combined with the legal surname/rest-of-name when present.
@@ -111,7 +112,7 @@ Ana Buyer,1 Queen Street,Auckland Central,021 000 000,ana@example.com
 Optional columns:
 
 ```csv
-purchasingPowerMin,purchasingPowerMax,latitude,longitude
+purchasingPowerMin,purchasingPowerMax,latitude,longitude,allowSms
 ```
 
 Import behavior:
@@ -121,6 +122,7 @@ Import behavior:
 - Rows with the same address and contact details also update the existing Person when the legal name has been corrected.
 - Rows for an existing person with a new address append that address to the person.
 - Invalid rows are counted in the import summary.
+- Optional `allowSms` values must be `true` or `false` (case-insensitive). Omitted or blank values default to true for new People and preserve the saved setting for existing People. Contact exports can also use an `Allow SMS` column.
 
 The importer also accepts the contact-export format used by the provided contact CSV sample. Only rows with `Contact Type = Person` and valid name, address, suburb, phone, and email values are imported. When the contact export includes both `Legal Name` and `Preferred Name`, the app stores both.
 

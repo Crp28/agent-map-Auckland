@@ -132,4 +132,5 @@
 - Coordinate resolution now checks canonical Properties before external geocoding whenever the submitted Person or Sold Property address has no manual coordinate pair. Exact normalized address/suburb matches use the indexed Property key, while established street-suffix and suburb equivalence rules handle formatting variants. Unchanged unresolved Person addresses can adopt stored Property coordinates during another edit without triggering GeoMaps.
 
 ## Notes
+- 2026-10-02: Added person-level `Allow SMS`, stored as a SQLite boolean with a true default for new and existing People. Create and detail modals expose the setting, all Person save paths preserve it, and nearby/manual-selection CSV exports exclude opted-out People. Manual-selection export checks current preferences before downloading. Optional CSV `allowSms`/contact `Allow SMS` columns accept true/false; omitted values preserve existing preferences.
 - Use `cmd /c npm ...`, `npm.cmd`, or `npx.cmd` in PowerShell because this machine blocks `npm.ps1`.

@@ -32,6 +32,7 @@ export type PersonRecord = {
   suburb: string;
   phone: string;
   email: string;
+  allowSms: boolean;
   purchasingPowerMin: number | null;
   purchasingPowerMax: number | null;
   latitude: number | null;

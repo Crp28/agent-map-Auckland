@@ -33,6 +33,7 @@ describe("identifyPersonGeocodeFailures", () => {
         personKey: "key",
         name: "Ana Buyer",
         preferredName: null,
+        allowSms: true,
         addressId: 2,
         streetAddress: "40 Ridge Rd",
         suburb: "Howick",

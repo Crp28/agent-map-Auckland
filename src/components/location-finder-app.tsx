@@ -933,7 +933,24 @@ export function LocationFinderApp() {
         return;
       }
 
-      const blob = new Blob([nearbyPeopleCsv(selectedMapPeople)], {
+      let peopleToExport: PersonRecord[];
+      try {
+        const response = await fetch("/api/people", { cache: "no-store" });
+        const payload = await readJsonResponse<{ people: PersonRecord[] }>(response);
+        if (!response.ok || !payload || !Array.isArray(payload.people)) {
+          throw new Error("People could not be loaded.");
+        }
+        const currentPeople = new Map(payload.people.map((person) => [person.id, person]));
+        peopleToExport = selectedMapPeople.flatMap((person) => {
+          const current = currentPeople.get(person.id);
+          return current ? [{ ...person, allowSms: current.allowSms }] : [];
+        });
+      } catch {
+        setNotice("Could not check Allow SMS preferences. Try exporting again.");
+        return;
+      }
+
+      const blob = new Blob([nearbyPeopleCsv(peopleToExport)], {
         type: "text/csv;charset=utf-8",
       });
       const url = URL.createObjectURL(blob);

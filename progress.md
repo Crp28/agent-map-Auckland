@@ -1,5 +1,11 @@
 # Location Finder Progress
 
+## 2026-10-02
+- Started Allow SMS persistence, forms, and nearby CSV export filtering; classified repository-dependent work as GPT-owned because it requires proprietary source.
+- Implemented boolean storage and migration, create/detail controls, optional CSV parsing, and shared export exclusion. Added regression checks for opt-out persistence, migration, form submission, and CSV filtering; all 78 focused tests passed.
+- Manual-selection export now reloads saved People preferences before downloading so later opt-outs are respected. Verified all 143 tests, lint, and the production build.
+- Confirmed the running `/api/people` endpoint returns boolean SMS preferences for all 970 existing People, defaulted to true by migration.
+
 ## 2026-04-13
 - Initialized Git repository.
 - Created planning files and started implementation tracking.

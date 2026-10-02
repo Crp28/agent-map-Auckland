@@ -177,6 +177,7 @@ export function AddPersonDialog({
       preferredName: "",
       phone: "",
       email: "",
+      allowSms: true,
       purchasingPowerMin: "",
       purchasingPowerMax: "",
       notes: [],
@@ -273,6 +274,14 @@ export function AddPersonDialog({
             Purchasing power max
             <input className={inputClass} inputMode="numeric" {...register("purchasingPowerMax")} />
             <FieldError message={errors.purchasingPowerMax?.message} />
+          </label>
+          <label className="flex min-h-11 items-center gap-3 text-sm font-medium text-[#111827] sm:col-span-2">
+            <input
+              type="checkbox"
+              className="h-5 w-5 accent-[#0056a7] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0056a7]"
+              {...register("allowSms")}
+            />
+            Allow SMS
           </label>
           <div className="sm:col-span-2">
             <div className="mb-2 flex items-center justify-between gap-3">
@@ -1084,6 +1093,7 @@ function personPayload(person: PersonRecord) {
     preferredName: person.preferredName ?? "",
     phone: person.phone,
     email: person.email,
+    allowSms: person.allowSms,
     purchasingPowerMin: person.purchasingPowerMin,
     purchasingPowerMax: person.purchasingPowerMax,
     notes: person.notes.map(notePayload),
@@ -1525,6 +1535,8 @@ function PersonDetails({
   const [interactionPropertyQuery, setInteractionPropertyQuery] = useState("");
   const [savingInteraction, setSavingInteraction] = useState(false);
   const [retryingGeocode, setRetryingGeocode] = useState(false);
+  const [savingSms, setSavingSms] = useState(false);
+  const [smsError, setSmsError] = useState<string | null>(null);
   const [geocodeStatus, setGeocodeStatus] = useState<string | null>(null);
   const { askGoogleFallback, googleFallbackPrompt } = useGoogleFallbackPrompt();
   const [draftAddress, setDraftAddress] = useState<{
@@ -1661,6 +1673,18 @@ function PersonDetails({
       return;
     }
     setGeocodeStatus(null);
+  }
+
+  async function saveSms(allowSms: boolean) {
+    setSavingSms(true);
+    setSmsError(null);
+    try {
+      await savePerson({ ...person, allowSms });
+    } catch (error) {
+      setSmsError(error instanceof Error ? error.message : "Allow SMS could not be saved.");
+    } finally {
+      setSavingSms(false);
+    }
   }
 
   async function deletePerson() {
@@ -1842,6 +1866,26 @@ function PersonDetails({
         <EditableDetailRow label="Preferred first name" value={person.preferredName} onSave={(value) => savePerson({ ...person, preferredName: value.trim() || null })} />
         <EditableDetailRow label="Phone" value={person.phone} onSave={(value) => savePerson({ ...person, phone: value })} />
         <EditableDetailRow label="Email" value={person.email} inputType="email" onSave={(value) => savePerson({ ...person, email: value })} />
+        <div className="rounded-md border border-[#e2e8f0] p-3">
+          <dt>
+            <label htmlFor={`allow-sms-${person.id}`} className="text-xs font-semibold uppercase text-[#64748b]">
+              Allow SMS
+            </label>
+          </dt>
+          <dd className="mt-1">
+            <select
+              id={`allow-sms-${person.id}`}
+              className={inputClass}
+              value={person.allowSms === false ? "false" : "true"}
+              disabled={savingSms}
+              onChange={(event) => void saveSms(event.target.value === "true")}
+            >
+              <option value="true">True</option>
+              <option value="false">False</option>
+            </select>
+            {smsError ? <p role="alert" className={errorClass}>{smsError}</p> : null}
+          </dd>
+        </div>
         <EditableDetailRow
           label="Purchasing power min"
           value={person.purchasingPowerMin}

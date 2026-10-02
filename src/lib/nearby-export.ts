@@ -33,6 +33,9 @@ export function nearbyPeopleForCsv(people: PersonRecord[]) {
   return people
     .map((person, index) => ({ person, index }))
     .filter(({ person }) => {
+      if (person.allowSms === false) {
+        return false;
+      }
       if (seenPersonIds.has(person.id)) {
         return false;
       }

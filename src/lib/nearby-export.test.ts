@@ -18,6 +18,7 @@ const basePerson: PersonRecord = {
   suburb: "Auckland Central",
   phone: "021 000 000",
   email: "ana@example.com",
+  allowSms: true,
   purchasingPowerMin: null,
   purchasingPowerMax: null,
   latitude: -36.8,
@@ -52,6 +53,14 @@ describe("firstNameFromFullName", () => {
 });
 
 describe("nearbyPeopleCsv", () => {
+  it("excludes all address rows for people who do not allow SMS", () => {
+    const optedOut = { ...basePerson, id: 2, name: "Bob Buyer", allowSms: false };
+    const rows = [basePerson, optedOut, { ...optedOut, addressId: 99, suburb: "Howick" }];
+
+    expect(nearbyPeopleForCsv(rows)).toEqual([basePerson]);
+    expect(nearbyPeopleCsv(rows)).not.toContain("Bob");
+    expect(nearbyPeopleCsv([optedOut])).toBe("First Name,Mobile Phone,Address");
+  });
   it("combines street address and suburb for the address column", () => {
     expect(nearbyPersonAddress(basePerson)).toBe("1 Queen Street, Auckland Central");
   });

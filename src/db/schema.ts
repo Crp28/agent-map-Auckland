@@ -12,6 +12,7 @@ export const people = sqliteTable(
     suburb: text("suburb").notNull(),
     phone: text("phone").notNull(),
     email: text("email").notNull(),
+    allowSms: integer("allow_sms", { mode: "boolean" }).notNull().default(true),
     purchasingPowerMin: integer("purchasing_power_min"),
     purchasingPowerMax: integer("purchasing_power_max"),
     latitude: real("latitude"),

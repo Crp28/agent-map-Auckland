@@ -41,6 +41,38 @@ afterEach(() => {
 });
 
 describe("multi-address repository behavior", () => {
+  it("defaults Allow SMS to true and preserves opt-outs across edits and upserts", async () => {
+    const { personInputSchema } = await import("./validation");
+    const input = personInputSchema.parse({ name: "SMS Preference", phone: "021 000 999", addresses: [] });
+    const created = await repository.createOrUpdatePerson(input, { geocode: false });
+    expect(created?.allowSms).toBe(true);
+
+    const optedOut = await repository.updatePersonById(created!.id, { ...input, allowSms: false });
+    expect(optedOut?.allowSms).toBe(false);
+    const edited = await repository.updatePersonById(created!.id, {
+      ...input,
+      notes: [{ type: "General Note", content: "Preference should stay saved" }],
+    });
+    expect(edited?.allowSms).toBe(false);
+    expect((await repository.createOrUpdatePerson(input, { geocode: false }))?.allowSms).toBe(false);
+    expect((await repository.listPeopleRecords())[0]?.allowSms).toBe(false);
+    expect((await repository.updatePersonById(created!.id, { ...input, allowSms: true }))?.allowSms).toBe(true);
+    expect((await repository.createOrUpdatePerson({ ...input, allowSms: false }, { geocode: false }))?.allowSms).toBe(false);
+  });
+
+  it("migrates existing People to Allow SMS true", async () => {
+    const { personInputSchema } = await import("./validation");
+    const input = personInputSchema.parse({ name: "Legacy SMS Preference", phone: "021 000 998", addresses: [] });
+    const created = await repository.createOrUpdatePerson(input, { geocode: false });
+    const { getRawDb } = await import("@/db/client");
+    const rawDb = getRawDb();
+    rawDb.exec("ALTER TABLE people DROP COLUMN allow_sms");
+    rawDb.close();
+    await loadRepository();
+
+    expect((await repository.listPeopleRecords()).find((person) => person.id === created!.id)?.allowSms).toBe(true);
+  });
+
   it("creates and lists a person without addresses", async () => {
     const created = await repository.createOrUpdatePerson({
       name: "Addressless Buyer",

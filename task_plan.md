@@ -61,6 +61,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 55. Complete: Replace the nearby Same suburb checkbox with an optional-distance field plus a multi-suburb checkbox selector, then verify and document the behavior.
 56. Complete: Audit address/property write-path propagation, fix any mismatched side effects across People, Sold Properties, canonical Properties, relations, interactions, and source-row cleanup, then verify and document.
 57. Complete: Reuse coordinates from an equivalent canonical Property across all address save paths before attempting external geocoding, then verify and document.
+58. Complete: Add person-level Allow SMS with a true default, editable forms, migration and import preservation, and exclusion from nearby/manual-selection CSV exports.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.
@@ -91,3 +92,4 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 | Existing Person detail test parsed the new interaction GET as a PATCH body | Phase 51 focused UI tests | Update fetch mocks to route by URL/method and select the actual PATCH call. |
 | Repository audit incorrectly treated Sold Property edits as sale events | Correction after review | Fixed the root domain rule: Sold Property edits are typo/data corrections and must preserve current owners. Only new Sold Property creation triggers sale transitions. |
 | Planning-file patch could not find an assumed dated heading in `findings.md` | Coordinate reuse planning | Inspected the file tails and appended the new session notes at the actual end of each file. |
+| Selective staging rejected PowerShell line endings | Allow SMS completion | Joined the export hunk with LF and used whitespace-tolerant Git apply, preserving unrelated UI edits outside the commit. |

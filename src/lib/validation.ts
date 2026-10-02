@@ -43,6 +43,7 @@ const personBaseSchema = z
     preferredName: optionalText,
     phone: optionalText,
     email: optionalEmail,
+    allowSms: z.boolean().optional(),
     purchasingPowerMin: optionalInteger,
     purchasingPowerMax: optionalInteger,
   })
@@ -119,6 +120,7 @@ export const personInputSchema = z.preprocess((value) => {
     preferredName: candidate.preferredName,
     phone: candidate.phone,
     email: candidate.email,
+    allowSms: candidate.allowSms,
     purchasingPowerMin: candidate.purchasingPowerMin,
     purchasingPowerMax: candidate.purchasingPowerMax,
     notes: candidate.notes,
