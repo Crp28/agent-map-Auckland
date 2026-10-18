@@ -1194,7 +1194,12 @@ async function applyGoogleFallbackToPerson(
       currentPerson = payload.person;
       onPersonChange(currentPerson);
       refresh();
-      updatedCount += 1;
+      const savedAddress = currentPerson.addresses.find((address) => address.id === failure.addressId);
+      if (savedAddress?.latitude === fallback.latitude && savedAddress?.longitude === fallback.longitude) {
+        updatedCount += 1;
+      } else {
+        failedCount += 1;
+      }
     } catch {
       failedCount += 1;
     }
@@ -1637,13 +1642,22 @@ function PersonDetails({
   }
 
   async function savePerson(next: PersonRecord) {
+    const { addresses, ...fields } = personPayload(next);
+    const addressesChanged = next.addresses.length !== person.addresses.length ||
+      next.addresses.some((address, index) => {
+        const existing = person.addresses[index];
+        return !existing || address.id !== existing.id ||
+          address.streetAddress !== existing.streetAddress || address.suburb !== existing.suburb ||
+          address.latitude !== existing.latitude || address.longitude !== existing.longitude;
+      });
     const payload = await requestJson<PersonSaveResponse>("/api/people", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: person.id,
         selectedAddressId: persistedAddressId(next.addressId),
-        ...personPayload(next),
+        ...fields,
+        ...(addressesChanged ? { addresses } : {}),
       }),
     });
     onChange(payload.person);

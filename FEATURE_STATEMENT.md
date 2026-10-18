@@ -11,6 +11,7 @@
 10a. The user can search the People manager list by person name before opening a row.
 10b. The user can save and manage a Person with zero addresses, then add addresses later when available. The create Person modal still starts with one blank address row, which can be removed before saving.
 10c. Each Person has an editable Allow SMS boolean, defaulting to true. People with Allow SMS false are excluded from nearby and manual-selection CSV exports.
+10d. Editing Person details such as notes, names, and contact information preserves all address coordinates and does not prompt for Google geocoding. Successfully saved fallback coordinates persist through later edits and restarts.
 11. The user can bulk import People using a CSV file to quickly add multiple People entries in one action.
 12. The user can open a retractable side list of Auckland suburb/region names, search inside it, and click one to move the map to that suburb at a local zoom.
 13. The user can apply or cancel a nearby People filter from the same bottom-right control stack as the suburb side list without changing the current map position, choose which suburbs are considered, optionally enter a distance limit, and export the visible nearby People list to CSV.

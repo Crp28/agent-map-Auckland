@@ -62,6 +62,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 56. Complete: Audit address/property write-path propagation, fix any mismatched side effects across People, Sold Properties, canonical Properties, relations, interactions, and source-row cleanup, then verify and document.
 57. Complete: Reuse coordinates from an equivalent canonical Property across all address save paths before attempting external geocoding, then verify and document.
 58. Complete: Add person-level Allow SMS with a true default, editable forms, migration and import preservation, and exclusion from nearby/manual-selection CSV exports.
+59. Complete: Reproduce coordinate loss on unrelated Person edits, correct address persistence and fallback prompting, verify successful Google coordinates remain saved, and document/test the fix.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.
@@ -93,3 +94,5 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 | Repository audit incorrectly treated Sold Property edits as sale events | Correction after review | Fixed the root domain rule: Sold Property edits are typo/data corrections and must preserve current owners. Only new Sold Property creation triggers sale transitions. |
 | Planning-file patch could not find an assumed dated heading in `findings.md` | Coordinate reuse planning | Inspected the file tails and appended the new session notes at the actual end of each file. |
 | Selective staging rejected PowerShell line endings | Allow SMS completion | Joined the export hunk with LF and used whitespace-tolerant Git apply, preserving unrelated UI edits outside the commit. |
+| Isolated Person-edit diagnostic found a stored blank address rejected by current validation | Coordinate-loss investigation | Count and skip invalid records in the diagnostic so remaining valid People can be checked without altering source data. |
+| Type checking rejected making defaulted fields optional through Zod `safeExtend` | Person PATCH schema | Reused the base Person fields and shared duplicate-address validation for separate create/update schemas. |

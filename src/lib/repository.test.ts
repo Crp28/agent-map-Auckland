@@ -41,6 +41,88 @@ afterEach(() => {
 });
 
 describe("multi-address repository behavior", () => {
+  it("preserves addresses and skips Google prompts for a note-only PATCH", async () => {
+    const { personInputSchema } = await import("./validation");
+    const fields = { name: "Note Edit Regression", phone: "021 123 9900" };
+    const person = await repository.createOrUpdatePerson(personInputSchema.parse({
+      ...fields,
+      addresses: [
+        { streetAddress: "10 Test Road", suburb: "Howick", latitude: -36.9, longitude: 174.9 },
+        { streetAddress: "20 Unmapped Road", suburb: "Howick", latitude: null, longitude: null },
+      ],
+    }), { geocode: false });
+    const { PATCH } = await import("../app/api/people/route");
+    const response = await PATCH(new Request("http://localhost/api/people", {
+      method: "PATCH",
+      body: JSON.stringify({ id: person!.id, ...fields, notes: [{ type: "General Note", content: "Added a note" }] }),
+    }));
+    const payload = await response.json();
+    expect(response.status).toBe(200);
+    expect(payload.person.addresses).toEqual(person!.addresses);
+    expect(payload.person.notes[0].content).toBe("Added a note");
+    expect(payload.geocodeFailures).toEqual([]);
+  });
+
+  it("persists one geocode result consistently when editing an address", async () => {
+    const geocodeAddress = vi.fn()
+      .mockResolvedValueOnce({ latitude: -36.85, longitude: 174.75, matchedAddress: "20 Corrected Road" })
+      .mockResolvedValue(null);
+    vi.doMock("./geomaps", async () => ({ ...await vi.importActual("./geomaps"), geocodeAddress }));
+    await loadRepository();
+    const { personInputSchema } = await import("./validation");
+    const input = personInputSchema.parse({ name: "One Geocode", phone: "021 123 9901", addresses: [
+      { streetAddress: "10 Original Road", suburb: "Howick", latitude: -36.9, longitude: 174.9 },
+    ] });
+    const created = await repository.createOrUpdatePerson(input, { geocode: false });
+    const updated = await repository.updatePersonById(created!.id, { ...input, addresses: [{
+      ...input.addresses[0]!, id: created!.addresses[0]!.id, streetAddress: "20 Corrected Road",
+    }] });
+    expect(geocodeAddress).toHaveBeenCalledTimes(1);
+    expect(updated?.addresses[0]).toMatchObject({ latitude: -36.85, longitude: 174.75 });
+    expect((await repository.listPropertyRecords())[0]).toMatchObject({ latitude: -36.85, longitude: 174.75 });
+  });
+
+  it("keeps repaired address coordinates across a restart with an older parent snapshot", async () => {
+    const { personInputSchema } = await import("./validation");
+    const input = personInputSchema.parse({ name: "Coordinate Repair", phone: "021 123 9902", addresses: [
+      { streetAddress: "10 Repair Road", suburb: "Howick", latitude: null, longitude: null },
+    ] });
+    const created = await repository.createOrUpdatePerson(input, { geocode: false });
+    const { getRawDb } = await import("@/db/client");
+    const db = getRawDb();
+    db.prepare("UPDATE people_addresses SET latitude = ?, longitude = ? WHERE id = ?")
+      .run(-36.85, 174.75, created!.addresses[0]!.id);
+    db.close();
+    await loadRepository();
+    const updated = (await repository.listPeopleRecords())[0];
+    expect(updated?.addresses[0]).toMatchObject({ id: created!.addresses[0]!.id, latitude: -36.85, longitude: 174.75 });
+  });
+
+  it("preserves Google-supplied coordinates through a name edit and restart", async () => {
+    const { personInputSchema } = await import("./validation");
+    const input = personInputSchema.parse({ name: "Fallback Regression", phone: "021 123 9903", notes: [
+      { type: "General Note", content: "Keep this note" },
+    ], addresses: [
+      { streetAddress: "10 Fallback Road", suburb: "Howick", latitude: null, longitude: null },
+    ] });
+    const created = await repository.createOrUpdatePerson(input, { geocode: false });
+    await repository.updatePersonById(created!.id, { ...input, addresses: [{
+      ...input.addresses[0]!, id: created!.addresses[0]!.id, latitude: -36.85, longitude: 174.75,
+    }] });
+    const { addresses, notes, ...fields } = input;
+    await repository.updatePersonById(created!.id, { ...fields, name: "Fallback Renamed" });
+    const { getRawDb } = await import("@/db/client");
+    getRawDb().close();
+    await loadRepository();
+    const updated = (await repository.listPeopleRecords())[0];
+    expect(updated?.addresses).toHaveLength(addresses.length);
+    expect(updated?.addresses[0]).toMatchObject({ id: created!.addresses[0]!.id, latitude: -36.85, longitude: 174.75 });
+    expect(updated?.addresses[0]?.identityKey).toContain("fallback renamed");
+    expect(updated?.notes[0]?.content).toBe(notes[0]!.content);
+    expect((await repository.listPropertyRecords())[0]).toMatchObject({ latitude: -36.85, longitude: 174.75 });
+    expect((await repository.listContactPropertyRelations(created!.id))[0]?.relationshipType).toBe("owner");
+  });
+
   it("defaults Allow SMS to true and preserves opt-outs across edits and upserts", async () => {
     const { personInputSchema } = await import("./validation");
     const input = personInputSchema.parse({ name: "SMS Preference", phone: "021 000 999", addresses: [] });
@@ -350,7 +432,7 @@ describe("multi-address repository behavior", () => {
   });
 
   it("re-geocodes when an address text changes but the payload still carries the old coordinates", async () => {
-    const geocodeAddress = vi.fn(async (streetAddress: string) => ({
+    const geocodeAddress = vi.fn<(streetAddress: string, suburb: string) => Promise<{ latitude: number; longitude: number; matchedAddress: string }>>(async (streetAddress) => ({
       latitude: streetAddress === "9 Albert Street" ? -36.8485 : -36.847,
       longitude: streetAddress === "9 Albert Street" ? 174.7633 : 174.763,
       matchedAddress: streetAddress,
@@ -1300,7 +1382,7 @@ describe("multi-address repository behavior", () => {
     };
     globalWithDb.locationFinderDrizzle = drizzle(getRawDb(), {
       schema: { soldProperties },
-    }) as unknown;
+    }) as unknown as NonNullable<typeof globalThis.locationFinderDrizzle>;
 
     const created = await repository.createOrUpdateSoldProperty({
       streetAddress: "21 Sold Street",

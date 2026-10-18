@@ -1,5 +1,13 @@
 # Location Finder Progress
 
+## 2026-10-19
+- Investigating Person edit coordinate loss and unsuccessful Google fallback. Work units: repository/migration diagnosis, fallback save/prompt wiring, and regression verification. These require local proprietary source/data and remain GPT-owned.
+- Using systematic debugging and file-based planning, with React guidance for any modal changes. Tests will use synthetic data or an isolated local copy.
+- Reproduced four regressions with synthetic records: metadata edits include all addresses, omitted PATCH addresses delete records, a second geocode attempt can discard a successful first result, and startup migration overwrites repaired address coordinates from an older parent snapshot.
+- Added separate create/update validation, metadata-only save payloads, address-preserving update behavior, name/contact identity rekeying without coordinate writes, one-pass address resolution, and a legacy-only migration guard. Google fallback success now checks returned saved coordinates.
+- Confirmed both reported People currently have coordinates. An isolated local dataset diagnostic checked valid name/note edits without changing the working database; removed the temporary diagnostic after investigation.
+- Verification passed: 78 focused tests, all 152 tests, TypeScript, the production build, full repository lint, and direct application-source lint. The full lint scan completed successfully immediately before an attempted stop found its process had already exited.
+
 ## 2026-10-02
 - Started Allow SMS persistence, forms, and nearby CSV export filtering; classified repository-dependent work as GPT-owned because it requires proprietary source.
 - Implemented boolean storage and migration, create/detail controls, optional CSV parsing, and shared export exclusion. Added regression checks for opt-out persistence, migration, form submission, and CSV filtering; all 78 focused tests passed.

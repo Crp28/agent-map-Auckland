@@ -94,6 +94,7 @@ The subdivision/local-board outline cache is refreshed by `cmd /c npm run sync:g
 - People records also support an optional preferred first name. Legal name remains the canonical stored name for owner-checking and imports, while the UI derives the displayed full name by replacing only the legal first name.
 - People records also support multiple person-level notes with the current types `General Note`, `Inspection`, and `Living`.
 - A Person modal opened from the map includes a small GeoMaps retry button for the selected address.
+- Editing a Person's name, notes, contact details, or SMS preference preserves all address coordinates and does not trigger a Google fallback prompt. Address changes and explicit coordinate refreshes handle geocoding separately.
 - Sold Property validation includes required address, suburb, sold date, sold price, and optional coordinates.
 - When a Person or Sold Property address has no submitted coordinates, the save first reuses a complete coordinate pair from an existing canonical Property with the same address and suburb. GeoMaps is queried only when no stored pair is available.
 - When GeoMaps cannot find coordinates for a save, the UI offers a one-time in-app Google Maps fallback prompt only if `GOOGLE_MAPS_API_KEY` is configured. Without that key, no Google prompt appears and manual coordinate entry remains available.

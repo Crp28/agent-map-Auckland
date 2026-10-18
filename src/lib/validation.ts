@@ -81,12 +81,9 @@ export const personNoteInputSchema = z.object({
   content: requiredText("Note"),
 });
 
-export const personFormSchema = personBaseSchema.extend({
-  addresses: z.array(personAddressInputSchema).default([]),
-  notes: z.array(personNoteInputSchema).default([]),
-}).refine((data) => {
+function hasUniquePersonAddresses(data: { addresses?: Array<{ streetAddress: string; suburb: string }> }) {
   const seen = new Set<string>();
-  for (const address of data.addresses) {
+  for (const address of data.addresses ?? []) {
     const key = `${normalizeText(address.streetAddress).toLowerCase()}|${normalizeSuburbKey(address.suburb)}`;
     if (seen.has(key)) {
       return false;
@@ -94,12 +91,17 @@ export const personFormSchema = personBaseSchema.extend({
     seen.add(key);
   }
   return true;
-}, {
+}
+
+export const personFormSchema = personBaseSchema.extend({
+  addresses: z.array(personAddressInputSchema).default([]),
+  notes: z.array(personNoteInputSchema).default([]),
+}).refine(hasUniquePersonAddresses, {
   message: "Duplicate addresses are not allowed",
   path: ["addresses"],
 });
 
-export const personInputSchema = z.preprocess((value) => {
+function normalizePersonPayload(value: unknown, preserveOmittedAddresses = false) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return value;
   }
@@ -133,9 +135,22 @@ export const personInputSchema = z.preprocess((value) => {
             longitude: candidate.longitude,
           },
         ]
-      : [],
+      : preserveOmittedAddresses ? undefined : [],
   };
-}, personFormSchema);
+}
+
+export const personInputSchema = z.preprocess((value) => normalizePersonPayload(value), personFormSchema);
+
+export const personUpdateInputSchema = z.preprocess(
+  (value) => normalizePersonPayload(value, true),
+  personBaseSchema.extend({
+    addresses: z.array(personAddressInputSchema).optional(),
+    notes: z.array(personNoteInputSchema).optional(),
+  }).refine(hasUniquePersonAddresses, {
+    message: "Duplicate addresses are not allowed",
+    path: ["addresses"],
+  }),
+);
 
 export const soldPropertyInputSchema = z
   .object({
@@ -208,5 +223,6 @@ export const nearbySchema = z.object({
 export type PersonAddressInput = z.output<typeof personAddressInputSchema>;
 export type PersonNoteInput = z.output<typeof personNoteInputSchema>;
 export type PersonInput = z.output<typeof personInputSchema>;
+export type PersonUpdateInput = z.output<typeof personUpdateInputSchema>;
 export type SoldPropertyInput = z.infer<typeof soldPropertyInputSchema>;
 export type InteractionInput = z.infer<typeof interactionInputSchema>;

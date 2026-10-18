@@ -173,8 +173,34 @@ describe("EditableCoordinatePairRow", () => {
 });
 
 describe("AddPersonDialog Google fallback prompt", () => {
+  it.each([true, false])("verifies Google fallback persistence before reporting success (saved: %s)", async (persisted) => {
+    const original = personPayload(true);
+    const coordinates = { latitude: -36.8078, longitude: 174.7816, matchedAddress: "2/5 Keys Street, Belmont" };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/geocode/google-fallback") return jsonResponse({ result: coordinates });
+      if (init?.method === "PATCH") return jsonResponse({
+        ...original,
+        person: { ...original.person, addresses: original.person.addresses.map((address) =>
+          persisted ? { ...address, latitude: coordinates.latitude, longitude: coordinates.longitude } : address,
+        ) },
+      });
+      return jsonResponse(original, 201);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<AddPersonDialog open onOpenChange={() => undefined} refresh={() => undefined} />);
+    fillPersonForm();
+    fireEvent.click(screen.getByRole("button", { name: "Save person" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Try Google Maps" }));
+    const message = persisted
+      ? "Person saved. Google Maps supplied coordinates for 1 address."
+      : "Person saved without some coordinates. Manual coordinate entry is still available.";
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    const patch = fetchMock.mock.calls.find((call) => call[1]?.method === "PATCH");
+    expect(JSON.parse(String(patch?.[1]?.body)).addresses[0]).toMatchObject({ latitude: coordinates.latitude, longitude: coordinates.longitude });
+  });
+
   it("defaults Allow SMS to checked and sends false when unchecked", async () => {
-    const fetchMock = vi.fn(async () => jsonResponse(personPayload(false), 201));
+    const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(async () => jsonResponse(personPayload(false), 201));
     vi.stubGlobal("fetch", fetchMock);
     render(<AddPersonDialog open onOpenChange={() => undefined} refresh={() => undefined} />);
     const checkbox = screen.getByRole("checkbox", { name: "Allow SMS" });
@@ -186,7 +212,7 @@ describe("AddPersonDialog Google fallback prompt", () => {
     expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).allowSms).toBe(false);
   });
   it("saves a person without addresses", async () => {
-    const fetchMock = vi.fn(async () =>
+    const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(async () =>
       jsonResponse({
         person: {
           ...personPayload(false).person,
@@ -295,6 +321,23 @@ describe("RecordManagerDialog", () => {
 });
 
 describe("DetailsDialog", () => {
+  it("does not send addresses when changing a Person field", async () => {
+    const person = personRecord(9, "Note Only Person", "10 Unmapped Road");
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) =>
+      init?.method === "PATCH"
+        ? jsonResponse({ person, geocodeFailures: [], googleMapsFallbackAvailable: true })
+        : jsonResponse({ interactions: [] }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<DetailsDialog selected={{ type: "person", item: person, source: "manager" }}
+      onOpenChange={() => undefined} onSelectedChange={() => undefined}
+      onPersonAuditResult={() => undefined} refresh={() => undefined} />);
+    fireEvent.change(screen.getByLabelText("Allow SMS"), { target: { value: "false" } });
+    await waitFor(() => expect(fetchMock.mock.calls.some((call) => call[1]?.method === "PATCH")).toBe(true));
+    const patch = fetchMock.mock.calls.find((call) => call[1]?.method === "PATCH");
+    expect(JSON.parse(String(patch?.[1]?.body))).not.toHaveProperty("addresses");
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
   it("saves the Allow SMS choice from Person details", async () => {
     const person = addresslessPersonRecord(7, "SMS Buyer");
     const onSelectedChange = vi.fn();

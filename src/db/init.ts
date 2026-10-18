@@ -28,11 +28,13 @@ function hasColumn(rawDb: ReturnType<typeof getRawDb>, tableName: string, column
 }
 
 function migratePeopleToMultiAddress(rawDb: ReturnType<typeof getRawDb>) {
+  // Modern Person rows already have address records; replaying their snapshots can undo coordinate repairs.
   const rows = rawDb
     .prepare(
       `SELECT id, name, street_address, suburb, phone, email, purchasing_power_min, purchasing_power_max,
               latitude, longitude, last_updated_at, created_at, updated_at
        FROM people
+       WHERE person_key IS NULL OR trim(person_key) = '' OR identity_key <> person_key
        ORDER BY datetime(updated_at) DESC, id DESC`,
     )
     .all() as LegacyPersonRow[];

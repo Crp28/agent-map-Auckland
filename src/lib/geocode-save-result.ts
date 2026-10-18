@@ -1,5 +1,5 @@
 import { normalizeSuburbKey, normalizeText } from "@/lib/normalize";
-import type { PersonInput, SoldPropertyInput } from "@/lib/validation";
+import type { PersonInput, PersonUpdateInput, SoldPropertyInput } from "@/lib/validation";
 import type { PersonAddressRecord, PersonRecord, SoldPropertyRecord } from "@/types/location";
 
 export type GeocodeFailureAddress = {
@@ -32,14 +32,14 @@ function isUnresolvedSavedAddress(address: PersonAddressRecord | null): address 
 }
 
 export function identifyPersonGeocodeFailures(
-  input: PersonInput,
+  input: PersonInput | PersonUpdateInput,
   savedPerson: PersonRecord | null,
 ): GeocodeFailureAddress[] {
   if (!savedPerson) {
     return [];
   }
 
-  return input.addresses
+  return (input.addresses ?? [])
     .filter((address) => address.latitude === null && address.longitude === null)
     .map((address) => findSavedAddress(savedPerson.addresses, address))
     .filter(isUnresolvedSavedAddress)

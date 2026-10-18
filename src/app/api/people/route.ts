@@ -1,7 +1,7 @@
 import { createOrUpdatePerson, deletePersonById, listPeopleRecords, updatePersonById } from "@/lib/repository";
 import { identifyPersonGeocodeFailures } from "@/lib/geocode-save-result";
 import { isGoogleMapsFallbackConfigured } from "@/lib/google-maps";
-import { personInputSchema } from "@/lib/validation";
+import { personInputSchema, personUpdateInputSchema } from "@/lib/validation";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   const payload = await request.json();
-  const parsed = personInputSchema
+  const parsed = personUpdateInputSchema
     .and(z.object({ id: idSchema, selectedAddressId: selectedAddressIdSchema }))
     .safeParse(payload);
 

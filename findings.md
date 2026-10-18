@@ -1,5 +1,12 @@
 # Location Finder Findings
 
+## 2026-10-19 Person Coordinate Loss
+- Person PATCH resolves addresses before updating the parent snapshot, then resolves the original input again inside address sync. Changed-address geocoding can therefore run twice with different results.
+- The Google fallback failure detector currently reports every unresolved submitted address, including unchanged addresses during note/name edits, even when no geocoding was attempted.
+- Startup multi-address migration runs on every module initialization and unconditionally copies parent snapshots into address rows; this needs an isolated reproduction to check whether a stale primary snapshot overwrites saved address coordinates.
+- Regression tests reproduced: (1) omitted addresses in a Person PATCH delete every address, (2) address corrections geocode twice and can lose the first successful result, and (3) a restart overwrites repaired coordinates from an older parent snapshot. Full-form UI metadata edits unnecessarily submit all addresses.
+- The isolated current-dataset check exercised 978 People, skipped 15 invalid records, and found no coordinate loss on valid full-form name/note edits at the time of inspection. The two reported People currently have complete coordinates; the patch targets the reproduced destructive paths and prevents unrelated edits from entering address writes at all.
+
 ## 2026-10-02 Allow SMS
 - Both nearby filter export and manual map selection export use `nearbyPeopleCsv()`, so SMS exclusion belongs in its shared row selection helper.
 - People use raw SQL reads plus Drizzle writes; the new flag must be included in both, with a startup column migration for existing databases.

@@ -3,6 +3,7 @@ import {
   interactionInputSchema,
   nearbySchema,
   personInputSchema,
+  personUpdateInputSchema,
   searchSchema,
   soldPropertyInputSchema,
 } from "./validation";
@@ -268,6 +269,22 @@ describe("personInputSchema", () => {
       expect(result.data.addresses).toHaveLength(1);
       expect(result.data.addresses[0]?.streetAddress).toBe("1 Queen Street");
     }
+  });
+});
+
+describe("personUpdateInputSchema", () => {
+  it("distinguishes omitted addresses/notes from an explicit empty list", () => {
+    const fields = { name: "Note Edit", phone: "021 123 9900" };
+    expect(personUpdateInputSchema.parse(fields)).toMatchObject({ addresses: undefined, notes: undefined });
+    expect(personUpdateInputSchema.parse({ ...fields, addresses: [], notes: [] })).toMatchObject({ addresses: [], notes: [] });
+    expect(personInputSchema.parse(fields)).toMatchObject({ addresses: [], notes: [] });
+  });
+
+  it("still validates legacy addresses and rejects duplicate update addresses", () => {
+    const fields = { name: "Note Edit", phone: "021 123 9900" };
+    const address = { streetAddress: "10 Test Road", suburb: "Howick", latitude: null, longitude: null };
+    expect(personUpdateInputSchema.parse({ ...fields, ...address }).addresses).toEqual([address]);
+    expect(personUpdateInputSchema.safeParse({ ...fields, addresses: [address, address] }).success).toBe(false);
   });
 });
 

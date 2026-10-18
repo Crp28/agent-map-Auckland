@@ -23,7 +23,7 @@ import {
 } from "@/lib/normalize";
 import { displayPersonName } from "@/lib/person-display";
 import { normalizePreferredFirstName } from "@/lib/person-name";
-import type { PersonAddressInput, PersonInput, SoldPropertyInput } from "@/lib/validation";
+import type { PersonAddressInput, PersonInput, PersonUpdateInput, SoldPropertyInput } from "@/lib/validation";
 import type {
   ContactPropertyRelationshipType,
   InteractionType,
@@ -1399,16 +1399,14 @@ async function upsertPersonCore(
 async function syncPersonAddresses(
   personId: number,
   personKey: string,
-  addressesInput: PersonInput["addresses"],
+  resolvedAddresses: ResolvedAddress[],
   timestamp: string,
   options: {
     geocode?: boolean;
     replaceMissing?: boolean;
-    existingAddressesById?: Map<number, ExistingPersonAddressSnapshot>;
   } = {},
 ) {
   const db = getDb();
-  const resolvedAddresses = await resolvePersonAddresses(personKey, addressesInput, timestamp, options);
   const existingAddresses = await db.query.peopleAddresses.findMany({
     where: eq(peopleAddresses.personId, personId),
   });
@@ -1596,7 +1594,7 @@ export async function createOrUpdatePerson(
     return null;
   }
 
-  await syncPersonAddresses(person.id, personKey, input.addresses, timestamp, options);
+  await syncPersonAddresses(person.id, personKey, resolvedAddresses, timestamp, options);
   await syncPersonNotes(person.id, input.notes, timestamp, { replaceMissing: true });
   return getPersonRecordById(person.id);
 }
@@ -1936,7 +1934,7 @@ export async function listPersonInteractions(
 
 export async function updatePersonById(
   id: number,
-  input: PersonInput,
+  input: PersonUpdateInput,
   selectedAddressId?: number | null,
 ) {
   ensureDatabase();
@@ -1963,10 +1961,10 @@ export async function updatePersonById(
       } satisfies ExistingPersonAddressSnapshot,
     ] as const),
   );
-  const resolvedAddresses = await resolvePersonAddresses(personKey, input.addresses, timestamp, {
-    existingAddressesById,
-  });
-  const primaryAddress = primaryPersonAddressSnapshot(resolvedAddresses);
+  const resolvedAddresses = input.addresses === undefined
+    ? null
+    : await resolvePersonAddresses(personKey, input.addresses, timestamp, { existingAddressesById });
+  const primaryAddress = resolvedAddresses === null ? null : primaryPersonAddressSnapshot(resolvedAddresses);
   const normalizedPhone = normalizeText(input.phone);
   const normalizedEmail = input.email.trim().toLowerCase();
 
@@ -1979,27 +1977,29 @@ export async function updatePersonById(
       preferredName: emptyToNull(input.preferredName)
         ? normalizePreferredFirstName(input.preferredName)
         : null,
-      streetAddress: primaryAddress.streetAddress,
-      suburb: primaryAddress.suburb,
+      ...primaryAddress,
       phone: normalizedPhone,
       email: normalizedEmail,
       allowSms: input.allowSms ?? existing.allowSms,
       purchasingPowerMin: input.purchasingPowerMin,
       purchasingPowerMax: input.purchasingPowerMax,
-      latitude: primaryAddress.latitude,
-      longitude: primaryAddress.longitude,
       lastUpdatedAt: timestamp,
       updatedAt: timestamp,
     })
     .where(eq(people.id, id));
 
-  await syncPersonAddresses(id, personKey, input.addresses, timestamp, {
-    replaceMissing: true,
-    existingAddressesById,
-  });
-  await syncPersonNotes(id, input.notes, timestamp, {
-    replaceMissing: true,
-  });
+  if (resolvedAddresses !== null) {
+    await syncPersonAddresses(id, personKey, resolvedAddresses, timestamp, { replaceMissing: true });
+  } else if (personKey !== existing.personKey) {
+    for (const address of existingAddresses) {
+      await db.update(peopleAddresses).set({
+        identityKey: normalizeKey(personKey, address.streetAddress, address.suburb),
+      }).where(eq(peopleAddresses.id, address.id));
+    }
+  }
+  if (input.notes !== undefined) {
+    await syncPersonNotes(id, input.notes, timestamp, { replaceMissing: true });
+  }
 
   return getPersonRecordById(id, selectedAddressId);
 }
