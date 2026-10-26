@@ -173,6 +173,23 @@ describe("EditableCoordinatePairRow", () => {
 });
 
 describe("AddPersonDialog Google fallback prompt", () => {
+  it("shows Google billing failures and keeps the saved person's form available", async () => {
+    const message = "Google Maps geocoding requires billing to be enabled for the configured Google Cloud project.";
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
+      String(input) === "/api/geocode/google-fallback"
+        ? jsonResponse({ error: message }, 503)
+        : jsonResponse(personPayload(true), 201),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<AddPersonDialog open onOpenChange={() => undefined} refresh={() => undefined} />);
+    fillPersonForm();
+    fireEvent.click(screen.getByRole("button", { name: "Save person" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Try Google Maps" }));
+    expect(await screen.findByText(new RegExp(message.replaceAll(".", "\\.")))).toBeInTheDocument();
+    expect(screen.getByLabelText("Legal name")).toHaveValue("Ana Buyer");
+    expect(screen.getByLabelText("Street address")).toHaveValue("2/5 Keys Street");
+    expect(fetchMock.mock.calls.filter((call) => String(call[0]) === "/api/people")).toHaveLength(1);
+  });
   it.each([true, false])("verifies Google fallback persistence before reporting success (saved: %s)", async (persisted) => {
     const original = personPayload(true);
     const coordinates = { latitude: -36.8078, longitude: 174.7816, matchedAddress: "2/5 Keys Street, Belmont" };
@@ -193,7 +210,7 @@ describe("AddPersonDialog Google fallback prompt", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Try Google Maps" }));
     const message = persisted
       ? "Person saved. Google Maps supplied coordinates for 1 address."
-      : "Person saved without some coordinates. Manual coordinate entry is still available.";
+      : "Person saved, but 1 address is still missing coordinates. Google Maps returned coordinates, but they were not saved for this address. You can retry after fixing the issue or enter coordinates manually.";
     expect(await screen.findByText(message)).toBeInTheDocument();
     const patch = fetchMock.mock.calls.find((call) => call[1]?.method === "PATCH");
     expect(JSON.parse(String(patch?.[1]?.body)).addresses[0]).toMatchObject({ latitude: coordinates.latitude, longitude: coordinates.longitude });

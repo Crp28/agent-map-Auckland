@@ -1,5 +1,11 @@
 # Location Finder Progress
 
+## 2026-10-27
+- Reproduced create-person fallback failure through the live local API and a known public Auckland address: Google rejects the configured project because billing is not enabled. No People data or credentials were printed.
+- Using systematic debugging, existing file planning, and React guidance. Fixing actionable error visibility and retaining failed form input; billing activation remains a Google Cloud account action.
+- Implemented explicit billing errors and per-address fallback/save error propagation to create/detail dialogs. Failed create fallback keeps entered values and states that the Person was saved with unresolved coordinates. Focused UI and provider tests pass.
+- Verified all 155 tests, full lint, and production build. The end-to-end API integration test confirms coordinates persist when Google responds successfully. Live success cannot be verified while Google's project billing denial remains active.
+
 ## 2026-10-19
 - Investigating Person edit coordinate loss and unsuccessful Google fallback. Work units: repository/migration diagnosis, fallback save/prompt wiring, and regression verification. These require local proprietary source/data and remain GPT-owned.
 - Using systematic debugging and file-based planning, with React guidance for any modal changes. Tests will use synthetic data or an isolated local copy.

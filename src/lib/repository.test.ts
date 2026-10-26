@@ -41,6 +41,53 @@ afterEach(() => {
 });
 
 describe("multi-address repository behavior", () => {
+  it("saves Google fallback coordinates after creating a Person through the APIs", async () => {
+    const geocodeAddress = vi.fn(async () => null);
+    vi.doMock("./geomaps", async () => ({ ...await vi.importActual("./geomaps"), geocodeAddress }));
+    await loadRepository();
+    const previousKey = process.env.GOOGLE_MAPS_API_KEY;
+    process.env.GOOGLE_MAPS_API_KEY = "test-key";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ status: "OK", results: [{
+      formatted_address: "10 Test Road, Howick, Auckland, New Zealand",
+      geometry: { location: { lat: -36.9, lng: 174.9 } },
+    }] }))));
+    try {
+      const peopleApi = await import("../app/api/people/route");
+      const googleApi = await import("../app/api/geocode/google-fallback/route");
+      const input = { name: "Google Create Regression", phone: "021 000 777", addresses: [{
+        streetAddress: "10 Test Road", suburb: "Howick", latitude: null, longitude: null,
+      }] };
+      const createdResponse = await peopleApi.POST(new Request("http://localhost/api/people", {
+        method: "POST", body: JSON.stringify(input),
+      }));
+      expect(createdResponse.status).toBe(201);
+      const created = await createdResponse.json();
+      expect(created.geocodeFailures).toHaveLength(1);
+      const fallbackResponse = await googleApi.POST(new Request("http://localhost/api/geocode/google-fallback", {
+        method: "POST", body: JSON.stringify(input.addresses[0]),
+      }));
+      expect(fallbackResponse.status).toBe(200);
+      const fallback = await fallbackResponse.json();
+      const savedResponse = await peopleApi.PATCH(new Request("http://localhost/api/people", {
+        method: "PATCH", body: JSON.stringify({ ...created.person, selectedAddressId: created.person.addressId,
+          addresses: created.person.addresses.map((address: { id: number }) => ({ ...address,
+            latitude: fallback.result.latitude, longitude: fallback.result.longitude,
+          })),
+        }),
+      }));
+      expect(savedResponse.status).toBe(200);
+      expect((await savedResponse.json()).geocodeFailures).toEqual([]);
+      const person = (await repository.listPeopleRecords())[0];
+      expect(person?.addresses[0]).toMatchObject({ latitude: -36.9, longitude: 174.9 });
+      expect((await repository.listPropertyRecords())[0]).toMatchObject({ latitude: -36.9, longitude: 174.9 });
+      expect(geocodeAddress).toHaveBeenCalledTimes(1);
+    } finally {
+      if (previousKey === undefined) delete process.env.GOOGLE_MAPS_API_KEY;
+      else process.env.GOOGLE_MAPS_API_KEY = previousKey;
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("preserves addresses and skips Google prompts for a note-only PATCH", async () => {
     const { personInputSchema } = await import("./validation");
     const fields = { name: "Note Edit Regression", phone: "021 123 9900" };

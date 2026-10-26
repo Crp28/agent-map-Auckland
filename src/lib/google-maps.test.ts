@@ -1,11 +1,12 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { isGoogleMapsFallbackConfigured } from "./google-maps";
+import { googleGeocodeAddress, isGoogleMapsFallbackConfigured } from "./google-maps";
 
 describe("isGoogleMapsFallbackConfigured", () => {
   const originalApiKey = process.env.GOOGLE_MAPS_API_KEY;
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     if (originalApiKey === undefined) {
       delete process.env.GOOGLE_MAPS_API_KEY;
     } else {
@@ -24,5 +25,16 @@ describe("isGoogleMapsFallbackConfigured", () => {
   it("returns true when an API key is configured", () => {
     process.env.GOOGLE_MAPS_API_KEY = "test-key";
     expect(isGoogleMapsFallbackConfigured()).toBe(true);
+  });
+
+  it("explains Google billing denial without returning coordinates", async () => {
+    process.env.GOOGLE_MAPS_API_KEY = "test-key";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      status: "REQUEST_DENIED",
+      error_message: "You must enable Billing on the Google Cloud Project at https://console.cloud.google.com/project/_/billing/enable",
+    }))));
+    await expect(googleGeocodeAddress("1 Queen Street", "Auckland Central")).rejects.toThrow(
+      "Google Maps geocoding requires billing to be enabled for the configured Google Cloud project.",
+    );
   });
 });

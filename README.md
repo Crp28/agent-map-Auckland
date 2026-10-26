@@ -98,6 +98,8 @@ The subdivision/local-board outline cache is refreshed by `cmd /c npm run sync:g
 - Sold Property validation includes required address, suburb, sold date, sold price, and optional coordinates.
 - When a Person or Sold Property address has no submitted coordinates, the save first reuses a complete coordinate pair from an existing canonical Property with the same address and suburb. GeoMaps is queried only when no stored pair is available.
 - When GeoMaps cannot find coordinates for a save, the UI offers a one-time in-app Google Maps fallback prompt only if `GOOGLE_MAPS_API_KEY` is configured. Without that key, no Google prompt appears and manual coordinate entry remains available.
+- The configured Google Cloud project must have billing and the Geocoding API enabled. If Google rejects a fallback request, the Person dialog shows the failure reason and retains the create form so it can be retried; the Person remains saved without the unresolved coordinates.
+  Google setup: [Geocoding API setup](https://developers.google.com/maps/documentation/geocoding/get-api-key).
 
 ## CSV Import
 

@@ -63,6 +63,7 @@ Build the planned Location Finder web app with Next.js, React, TailwindCSS, SQLi
 57. Complete: Reuse coordinates from an equivalent canonical Property across all address save paths before attempting external geocoding, then verify and document.
 58. Complete: Add person-level Allow SMS with a true default, editable forms, migration and import preservation, and exclusion from nearby/manual-selection CSV exports.
 59. Complete: Reproduce coordinate loss on unrelated Person edits, correct address persistence and fallback prompting, verify successful Google coordinates remain saved, and document/test the fix.
+60. Complete: Diagnose create-person Google fallback against the live endpoint, surface provider/save failures without losing form input, and verify successful coordinate persistence. Live Google geocoding remains blocked until the account owner enables project billing.
 
 ## Decisions
 - Use Auckland Council GeoMaps subdivision/local-board polygons as v1 suburb outlines.

@@ -1,5 +1,11 @@
 # Location Finder Findings
 
+## 2026-10-27 Create Person Google Fallback
+- Live local fallback and direct Google Geocoding requests both returned `REQUEST_DENIED`: billing must be enabled on the configured Google Cloud project. The server receives no coordinates to save.
+- The Person fallback helper catches the error without retaining its message; the create dialog displays a generic success message and resets the form. This hides the actionable billing failure.
+- Scope: local provider diagnostics, create/detail fallback error reporting, and persistence regressions. All units require proprietary source or credentials and remain GPT-owned.
+- Integration test exercises real Person POST, Google fallback API (mocked upstream Google response), and Person PATCH against a temporary SQLite database; both the address and canonical Property receive coordinates. The current live failure happens before coordinates are returned.
+
 ## 2026-10-19 Person Coordinate Loss
 - Person PATCH resolves addresses before updating the parent snapshot, then resolves the original input again inside address sync. Changed-address geocoding can therefore run twice with different results.
 - The Google fallback failure detector currently reports every unresolved submitted address, including unchanged addresses during note/name edits, even when no geocoding was attempted.

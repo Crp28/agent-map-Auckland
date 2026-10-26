@@ -223,6 +223,14 @@ export function AddPersonDialog({
           () => undefined,
           refresh,
         );
+        if (fallbackResult.failedCount > 0) {
+          refresh();
+          setStatus({
+            type: "error",
+            message: `Person saved, but ${fallbackResult.failedCount} address${fallbackResult.failedCount === 1 ? " is" : "es are"} still missing coordinates. ${fallbackResult.errors.join(" ")} You can retry after fixing the issue or enter coordinates manually.`,
+          });
+          return;
+        }
         if (fallbackResult.updatedCount > 0) {
           statusMessage = `Person saved. Google Maps supplied coordinates for ${fallbackResult.updatedCount} address${fallbackResult.updatedCount === 1 ? "" : "es"}.`;
         } else if (fallbackResult.declinedCount > 0) {
@@ -1146,6 +1154,7 @@ async function applyGoogleFallbackToPerson(
   let updatedCount = 0;
   let declinedCount = 0;
   let failedCount = 0;
+  const errors: string[] = [];
   const skippedCount = 0;
 
   if (!googleMapsFallbackAvailable) {
@@ -1154,6 +1163,7 @@ async function applyGoogleFallbackToPerson(
       updatedCount,
       declinedCount,
       failedCount,
+      errors,
       skippedCount: geocodeFailures.length,
     };
   }
@@ -1199,13 +1209,15 @@ async function applyGoogleFallbackToPerson(
         updatedCount += 1;
       } else {
         failedCount += 1;
+        errors.push("Google Maps returned coordinates, but they were not saved for this address.");
       }
-    } catch {
+    } catch (error) {
       failedCount += 1;
+      errors.push(error instanceof Error ? error.message : "Google Maps fallback could not be completed.");
     }
   }
 
-  return { person: currentPerson, updatedCount, declinedCount, failedCount, skippedCount };
+  return { person: currentPerson, updatedCount, declinedCount, failedCount, skippedCount, errors };
 }
 
 async function applyGoogleFallbackToSoldProperty(
@@ -1671,6 +1683,10 @@ function PersonDetails({
         onChange,
         refresh,
       );
+      if (fallbackResult.failedCount > 0) {
+        setGeocodeStatus(`Some coordinates could not be saved. ${fallbackResult.errors.join(" ")} Manual coordinate entry is still available.`);
+        return;
+      }
       if (fallbackResult.updatedCount > 0) {
         setGeocodeStatus(
           `GeoMaps missed ${fallbackResult.updatedCount} address${fallbackResult.updatedCount === 1 ? "" : "es"}. Google Maps supplied the coordinates.`,

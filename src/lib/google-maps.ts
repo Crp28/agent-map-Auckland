@@ -58,6 +58,9 @@ export async function googleGeocodeAddress(
   }
 
   if (payload.status !== "OK") {
+    if (/enable billing/i.test(payload.error_message ?? "")) {
+      throw new Error("Google Maps geocoding requires billing to be enabled for the configured Google Cloud project.");
+    }
     throw new Error(payload.error_message || "Google Maps fallback could not geocode this address.");
   }
 
